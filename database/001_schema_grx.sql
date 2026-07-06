@@ -1,0 +1,3 @@
+-- Obsoleto: use supabase/migrations/001_schema.sql
+-- Este arquivo permanece apenas como referência histórica.
+-- A versão oficial V1 está em: supabase/migrations/
