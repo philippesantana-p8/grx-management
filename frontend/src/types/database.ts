@@ -132,6 +132,13 @@ export type ServiceOrder = {
   freight_per_diem_total: number | null;
   freight_per_diem_charge_to: string;
   freight_transport_km_rate: number | null;
+  proposal_token: string | null;
+  proposal_sent_at: string | null;
+  proposal_last_follow_up_at: string | null;
+  proposal_follow_up_count: number;
+  proposal_response: ProposalResponse;
+  proposal_accepted_at: string | null;
+  proposal_rejected_at: string | null;
 };
 
 export type TrafficInfraction = {
@@ -175,6 +182,15 @@ export const SERVICE_ORDER_STATUS = [
   "Concluido",
   "Cancelado",
 ] as const;
+
+export const PROPOSAL_RESPONSE = ["pending", "accepted", "rejected"] as const;
+export type ProposalResponse = (typeof PROPOSAL_RESPONSE)[number];
+
+export const PROPOSAL_RESPONSE_LABELS: Record<ProposalResponse, string> = {
+  pending: "Aguardando cliente",
+  accepted: "Aceita pelo cliente",
+  rejected: "Recusada pelo cliente",
+};
 export const INFRACTION_ASSIGNMENT_STATUS = ["Pendente", "Confirmado", "Contestado"] as const;
 export const INFRACTION_AUTHORITY_STATUS = ["Pendente", "Indicado", "Aceito", "Recusado"] as const;
 export const INFRACTION_PAYMENT_PROOF_STATUS = ["Pendente", "Apresentado", "Validado"] as const;

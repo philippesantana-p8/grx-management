@@ -264,7 +264,7 @@ export function FreightCalculatorPanel({
                 href="https://calculadorafrete.antt.gov.br/"
                 target="_blank"
                 rel="noreferrer"
-                className="text-blue-700 underline"
+                className="text-brand-700 underline"
               >
                 calculadora oficial ANTT
               </a>
@@ -320,7 +320,7 @@ export function FreightCalculatorPanel({
               href={qualpLink}
               target="_blank"
               rel="noreferrer"
-              className="text-xs text-blue-700 underline"
+              className="text-xs text-brand-700 underline"
             >
               Ver rota no QualP
             </a>
@@ -426,7 +426,7 @@ export function FreightCalculatorPanel({
         )}
 
         {!isFrete && (
-          <div className="space-y-4 rounded-lg border border-blue-200 bg-blue-50/50 p-3 sm:col-span-2">
+          <div className="space-y-4 rounded-lg border border-brand-200 bg-brand-50/50 p-3 sm:col-span-2">
             <div>
               <p className="text-sm font-medium text-slate-800">Tabela orientativa — transporte em van</p>
               <p className="text-xs text-slate-500">
@@ -435,7 +435,7 @@ export function FreightCalculatorPanel({
               </p>
             </div>
 
-            <div className="overflow-x-auto rounded-md border border-blue-100 bg-white">
+            <div className="overflow-x-auto rounded-md border border-brand-100 bg-white">
               <table className="min-w-full text-left text-xs">
                 <thead className="bg-slate-50 text-slate-600">
                   <tr>
@@ -453,7 +453,7 @@ export function FreightCalculatorPanel({
                     return (
                       <tr
                         key={row.id}
-                        className={`border-t border-slate-100 ${selected ? "bg-blue-50" : ""}`}
+                        className={`border-t border-slate-100 ${selected ? "bg-brand-50" : ""}`}
                       >
                         <td className="px-3 py-2 font-medium text-slate-800">{row.profile}</td>
                         <td className="px-3 py-2">{formatKmRate(row.ratePerKm)}</td>
@@ -538,7 +538,7 @@ export function FreightCalculatorPanel({
                   href={link.href}
                   target="_blank"
                   rel="noreferrer"
-                  className="text-sm font-medium text-blue-700 underline"
+                  className="text-sm font-medium text-brand-700 underline"
                 >
                   {link.label}
                 </a>
@@ -665,7 +665,7 @@ export function FreightCalculatorPanel({
             ? (
               <>
                 Modo gratuito: distância (OSRM), piso ANTT local e pedágio manual. Para automatizar pedágios,{" "}
-                <Link href="/configuracoes/integracoes" className="text-blue-700 underline">
+                <Link href="/configuracoes/integracoes" className="text-brand-700 underline">
                   ative o QualP
                 </Link>{" "}
                 quando a demanda justificar.
@@ -675,7 +675,7 @@ export function FreightCalculatorPanel({
               <>
                 Modo gratuito: distância (OSRM) e pedágio manual. Use os links acima para consultar
                 pedágios no Google Maps ou QualP.{" "}
-                <Link href="/configuracoes/integracoes" className="text-blue-700 underline">
+                <Link href="/configuracoes/integracoes" className="text-brand-700 underline">
                   Integrações
                 </Link>{" "}
                 para automatizar com QualP API.

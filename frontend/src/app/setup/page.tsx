@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { AuthShell } from "@/components/brand/AuthShell";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
@@ -60,8 +61,8 @@ export default function SetupPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-100 p-4">
-      <Card className="w-full max-w-lg">
+    <AuthShell>
+      <Card className="w-full max-w-lg border-slate-200 shadow-md">
         <CardHeader
           title="Configurar empresa"
           description="Primeiro acesso — cadastre a empresa GRX"
@@ -78,6 +79,6 @@ export default function SetupPage() {
           </form>
         </CardBody>
       </Card>
-    </div>
+    </AuthShell>
   );
 }

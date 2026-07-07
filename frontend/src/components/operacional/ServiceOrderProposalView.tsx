@@ -1,6 +1,11 @@
 "use client";
 
+import { useMemo, useState } from "react";
+import dynamic from "next/dynamic";
+import { BrandLogo } from "@/components/brand/BrandLogo";
 import { Button } from "@/components/ui/Button";
+import { Badge } from "@/components/ui/Badge";
+import { cn } from "@/lib/utils";
 import { formatServiceCategories } from "@/lib/service-order-categories";
 import {
   billablePerDiemTotal,
@@ -9,47 +14,236 @@ import {
   perDiemChargeLabel,
   perDiemDayTotal,
 } from "@/lib/freight-per-diem";
+import { fetchBrandLogoDataUrl } from "@/lib/brand-email";
 import {
-  buildProposalUrl,
+  buildProposalEmailBody,
+  buildPublicProposalUrl,
   buildWhatsAppProposalText,
+  buildWhatsAppShareLinks,
+  copyTextToClipboard,
   formatServiceDate,
+  generateProposalQrDataUrl,
+  getPublicAppOrigin,
+  isLocalhostPublicProposalUrl,
+  isWindowsWhatsAppDesktop,
   openEmailShare,
-  openWhatsAppShare,
+  resolveClientProposalShareUrl,
+  resolveProposalAcceptanceTestUrl,
   resolveProposalAmount,
-  triggerPrintPdf,
+  triggerClientPdfForWhatsApp,
   type ServiceOrderProposalContext,
 } from "@/lib/service-order-proposal";
+import { markProposalSent, resetProposalClientResponse } from "@/lib/service-order-proposal-api";
+
+const ProposalQrCode = dynamic(
+  () => import("@/components/operacional/ProposalQrCode").then((mod) => mod.ProposalQrCode),
+  {
+    loading: () => <p className="text-xs text-slate-500">Gerando QR Code...</p>,
+    ssr: false,
+  }
+);
+import { createClient } from "@/lib/supabase/client";
 import { formatCurrency } from "@/lib/utils";
-import { SERVICE_ORDER_TYPE_LABELS } from "@/types/database";
-import type { ServiceOrder } from "@/types/database";
+import {
+  PROPOSAL_RESPONSE_LABELS,
+  SERVICE_ORDER_TYPE_LABELS,
+  type ProposalResponse,
+  type ServiceOrder,
+} from "@/types/database";
 
 type Props = {
   order: ServiceOrder;
   context: ServiceOrderProposalContext;
+  variant?: "staff" | "public";
+  proposalResponse?: ProposalResponse;
+  onProposalUpdated?: (patch: Partial<ServiceOrder>) => void;
 };
 
-export function ServiceOrderProposalView({ order, context }: Props) {
+export function ServiceOrderProposalView({
+  order,
+  context,
+  variant = "staff",
+  proposalResponse = order.proposal_response ?? "pending",
+  onProposalUpdated,
+}: Props) {
+  const supabase = useMemo(() => createClient(), []);
+  const [markingSent, setMarkingSent] = useState(false);
+  const [resettingProposal, setResettingProposal] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [emailHint, setEmailHint] = useState<string | null>(null);
+  const [whatsappHint, setWhatsappHint] = useState<string | null>(null);
+  const [publicToken, setPublicToken] = useState(order.proposal_token);
+  const [sentAt, setSentAt] = useState(order.proposal_sent_at);
+
   const amount = resolveProposalAmount(order);
   const tolls = Array.isArray(order.freight_toll_detail) ? order.freight_toll_detail : [];
   const perDiemDays = normalizePerDiemDetail(order.freight_per_diem_detail);
-  const proposalUrl = buildProposalUrl(order.id);
+  const isPublic = variant === "public";
+  const clientShareUrl = resolveClientProposalShareUrl(publicToken);
+  const acceptanceTestUrl = resolveProposalAcceptanceTestUrl(publicToken);
+  const publicUrl = clientShareUrl;
+  const qrUrl = acceptanceTestUrl ?? clientShareUrl;
+  const shareUrl = publicUrl ?? "";
+  const isDev = process.env.NODE_ENV === "development";
   const hasRoute = Boolean(order.freight_origin_address || order.freight_destination_address);
 
-  const shareWhatsApp = () => {
-    openWhatsAppShare(buildWhatsAppProposalText(order, context, proposalUrl));
+  const handleMarkSent = async () => {
+    setMarkingSent(true);
+    setActionError(null);
+    const { token, proposalSentAt, error } = await markProposalSent(supabase, order.id);
+    setMarkingSent(false);
+
+    if (error) {
+      setActionError(error);
+      return;
+    }
+
+    if (token) setPublicToken(token);
+    if (proposalSentAt) setSentAt(proposalSentAt);
+
+    onProposalUpdated?.({
+      proposal_token: token ?? publicToken,
+      proposal_sent_at: proposalSentAt ?? sentAt,
+      status:
+        proposalResponse === "accepted"
+          ? "Aberto"
+          : "Aguardando aprovação cliente",
+      proposal_response:
+        proposalResponse === "accepted" || proposalResponse === "rejected"
+          ? proposalResponse
+          : "pending",
+    });
+  };
+
+  const whatsappShare = useMemo(() => {
+    const shareUrl = resolveClientProposalShareUrl(publicToken);
+    if (!shareUrl) return null;
+    const message = buildWhatsAppProposalText(order, context, shareUrl, { forClient: true });
+    return buildWhatsAppShareLinks(message, order.phone);
+  }, [publicToken, order, context]);
+
+  const whatsappHref = whatsappShare?.primaryHref ?? null;
+
+  const secondaryActionClass =
+    "inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-50";
+
+  const handleWhatsAppAnchorMouseDown = () => {
+    if (!whatsappShare) return;
+    void copyTextToClipboard(whatsappShare.message);
+  };
+
+  const handleWhatsAppAnchorClick = () => {
+    if (!whatsappShare) return;
+    setWhatsappHint(
+      isWindowsWhatsAppDesktop()
+        ? "Mensagem copiada. Se o WhatsApp da Microsoft Store não abrir sozinho, use Alt+Tab nele e Ctrl+V. " +
+            "Na 1ª vez, o Windows pode pedir para abrir no app — escolha WhatsApp e marque «Sempre»."
+        : "Mensagem copiada. Confira o chat do cliente e pressione Enter. Use Ctrl+V se o texto não aparecer."
+    );
+  };
+
+  const registerThenWhatsApp = () => {
+    void (async () => {
+      setMarkingSent(true);
+      setActionError(null);
+      const result = await markProposalSent(supabase, order.id);
+      setMarkingSent(false);
+
+      if (result.error) {
+        setActionError(result.error);
+        return;
+      }
+
+      const token = result.token;
+      if (token) setPublicToken(token);
+      if (result.proposalSentAt) setSentAt(result.proposalSentAt);
+      onProposalUpdated?.({
+        proposal_token: token,
+        proposal_sent_at: result.proposalSentAt,
+        status: "Aguardando aprovação cliente",
+      });
+
+      setWhatsappHint(
+        token
+          ? "Envio registrado. Clique em «Enviar no WhatsApp» novamente para abrir o app com o texto pronto."
+          : "Envio registrado, mas o link não foi gerado. Recarregue a página e tente de novo."
+      );
+    })();
+  };
+
+  const savePdfForWhatsApp = () => {
+    triggerClientPdfForWhatsApp(order.code);
+  };
+
+  const handleResetClientResponse = async () => {
+    if (
+      !window.confirm(
+        "Reabrir o link público para o cliente responder Aceitar ou Recusar novamente?"
+      )
+    ) {
+      return;
+    }
+
+    setResettingProposal(true);
+    setActionError(null);
+    const { proposalResponse: next, status, error } = await resetProposalClientResponse(
+      supabase,
+      order.id
+    );
+    setResettingProposal(false);
+
+    if (error) {
+      setActionError(error);
+      return;
+    }
+
+    onProposalUpdated?.({
+      proposal_response: next ?? "pending",
+      status: status ?? "Aguardando aprovação cliente",
+    });
   };
 
   const shareEmail = () => {
-    const text = buildWhatsAppProposalText(order, context, proposalUrl).replace(/\*/g, "");
-    openEmailShare(`Proposta OS ${order.code} — ${context.companyName}`, text);
+    void (async () => {
+      const url = resolveClientProposalShareUrl(publicToken);
+      if (!url) {
+        window.alert(
+          "Registre o envio da proposta primeiro.\n\nO link, o QR Code e o e-mail só funcionam após gerar o link público de produção."
+        );
+        return;
+      }
+
+      const body = buildProposalEmailBody(order, context, url);
+      const [qrDataUrl, logoDataUrl] = await Promise.all([
+        generateProposalQrDataUrl(url),
+        fetchBrandLogoDataUrl(getPublicAppOrigin()),
+      ]);
+      const { copied, hasQr, hasLogo } = await openEmailShare(
+        `Proposta OS ${order.code} — ${context.companyName}`,
+        body,
+        url,
+        { qrDataUrl, logoDataUrl, companyName: context.companyName }
+      );
+      setEmailHint(
+        copied
+          ? hasQr && hasLogo
+            ? "Copiado: link (produção), QR Code e logo GRX. Use Ctrl+V no corpo do Gmail — não use o texto curto do mailto."
+            : "Copiado parcialmente. Use Ctrl+V no corpo do e-mail. Se faltar QR ou logo, recarregue a página e tente de novo."
+          : "Não foi possível copiar automaticamente. Registre o envio, recarregue a página e tente de novo."
+      );
+    })();
   };
 
   const copyLink = async () => {
+    if (!publicUrl) {
+      window.alert("Registre o envio da proposta primeiro para gerar o link público.");
+      return;
+    }
     try {
-      await navigator.clipboard.writeText(proposalUrl);
-      window.alert("Link copiado. Cole no WhatsApp ou e-mail.");
+      await navigator.clipboard.writeText(publicUrl);
+      window.alert("Link público copiado. Envie ao cliente por WhatsApp ou e-mail.");
     } catch {
-      window.prompt("Copie o link da proposta:", proposalUrl);
+      window.prompt("Copie o link da proposta:", publicUrl);
     }
   };
 
@@ -57,37 +251,213 @@ export function ServiceOrderProposalView({ order, context }: Props) {
     <>
       <style>{`
         @media print {
-          aside, header, .proposal-toolbar { display: none !important; }
+          aside, .app-shell-header, .proposal-toolbar { display: none !important; }
           main { padding: 0 !important; }
           .proposal-document { box-shadow: none !important; border: none !important; }
+          .proposal-logo,
+          .proposal-logo .brand-logo-brand,
+          .proposal-logo .brand-logo-plaque,
+          .proposal-logo .brand-logo-3d-stage,
+          .proposal-logo .brand-logo-3d-stack {
+            display: block !important;
+            visibility: visible !important;
+            print-color-adjust: exact;
+            -webkit-print-color-adjust: exact;
+          }
+          .proposal-logo .brand-logo-3d-stack {
+            display: grid !important;
+            place-items: center;
+          }
+          .proposal-logo .brand-logo-3d-stack img {
+            grid-area: 1 / 1 !important;
+            display: block !important;
+            visibility: visible !important;
+            max-width: 240px;
+            print-color-adjust: exact;
+            -webkit-print-color-adjust: exact;
+          }
+          .proposal-internal { display: none !important; }
         }
+        ${isPublic ? `.proposal-internal { display: none !important; }` : ""}
       `}</style>
 
-      <div className="proposal-toolbar mb-6 flex flex-wrap gap-2 print:hidden">
-        <Button type="button" onClick={triggerPrintPdf}>
-          Salvar PDF / Imprimir
-        </Button>
-        <Button type="button" variant="secondary" onClick={shareWhatsApp}>
-          Compartilhar WhatsApp
-        </Button>
-        <Button type="button" variant="secondary" onClick={shareEmail}>
-          Enviar por e-mail
-        </Button>
-        <Button type="button" variant="secondary" onClick={() => void copyLink()}>
-          Copiar link
-        </Button>
-      </div>
+      {!isPublic && (
+        <>
+          <div className="proposal-toolbar mb-4 flex flex-wrap items-center gap-2">
+            <Badge variant={proposalResponse === "accepted" ? "success" : "warning"}>
+              {PROPOSAL_RESPONSE_LABELS[proposalResponse]}
+            </Badge>
+            {sentAt && (
+              <span className="text-sm text-slate-500">
+                Enviada em {new Date(sentAt).toLocaleString("pt-BR")}
+              </span>
+            )}
+          </div>
+
+          <div className="proposal-toolbar mb-6 flex flex-wrap gap-2 print:hidden">
+            <Button type="button" onClick={savePdfForWhatsApp}>
+              Salvar PDF para cliente
+            </Button>
+            {whatsappHref ? (
+              <a
+                href={whatsappHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={cn(secondaryActionClass, markingSent && "pointer-events-none opacity-50")}
+                onMouseDown={handleWhatsAppAnchorMouseDown}
+                onClick={handleWhatsAppAnchorClick}
+              >
+                Enviar no WhatsApp
+              </a>
+            ) : (
+              <Button type="button" variant="secondary" disabled={markingSent} onClick={registerThenWhatsApp}>
+                Enviar no WhatsApp
+              </Button>
+            )}
+            <Button type="button" variant="secondary" onClick={shareEmail}>
+              Enviar por e-mail
+            </Button>
+            <Button type="button" variant="secondary" onClick={() => void copyLink()}>
+              Copiar link público
+            </Button>
+            {!sentAt && (
+              <Button type="button" variant="secondary" disabled={markingSent} onClick={() => void handleMarkSent()}>
+                Registrar envio ao cliente
+              </Button>
+            )}
+            {sentAt && proposalResponse !== "pending" && (
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={resettingProposal}
+                onClick={() => void handleResetClientResponse()}
+              >
+                Reabrir link para o cliente
+              </Button>
+            )}
+          </div>
+
+          <p className="proposal-toolbar mb-4 text-sm text-slate-500 print:hidden">
+            Fluxo sugerido: registre o envio (link com aceite) → «Enviar no WhatsApp» (abre o app e copia a
+            mensagem com o link) → opcional: anexe o PDF salvo com o clipe no WhatsApp.
+          </p>
+
+          {emailHint && (
+            <p className="proposal-toolbar mb-4 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-900 print:hidden">
+              {emailHint}
+            </p>
+          )}
+
+          {whatsappHint && (
+            <p className="proposal-toolbar mb-4 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-900 print:hidden">
+              {whatsappHint}
+            </p>
+          )}
+
+          {whatsappShare && (
+            <div className="proposal-toolbar mb-4 space-y-2 text-xs text-slate-500 print:hidden">
+              <p>
+                <strong>WhatsApp (Microsoft Store):</strong> a mensagem é copiada ao clicar. Se o app não
+                focar sozinho, use <strong>Alt+Tab</strong> → WhatsApp → <strong>Ctrl+V</strong> no chat do
+                cliente {(order.phone ?? "").trim() || ""}.
+              </p>
+              <p>
+                Link direto do app:{" "}
+                <a href={whatsappShare.desktopHref} className="font-medium text-brand-700 underline">
+                  whatsapp:// (protocolo nativo)
+                </a>
+                {" · "}
+                <a
+                  href={whatsappShare.storeAppHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium text-brand-700 underline"
+                >
+                  api.whatsapp.com (Store)
+                </a>
+              </p>
+              <p>
+                Configuração Windows (1×): Configurações → Aplicativos → Aplicativos padrão →{" "}
+                <em>Escolher padrões por tipo de link</em> → <strong>WHATSAPP</strong> → WhatsApp.
+              </p>
+            </div>
+          )}
+
+          {isDev && acceptanceTestUrl && acceptanceTestUrl !== publicUrl && (
+            <div className="proposal-toolbar mb-4 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 print:hidden">
+              <p className="text-xs font-semibold uppercase tracking-wide text-blue-900">
+                Link de teste — Aceitar / Recusar (desenvolvimento)
+              </p>
+              <p className="mt-1 break-all text-sm font-medium text-blue-950">{acceptanceTestUrl}</p>
+              <p className="mt-2 text-xs text-blue-800">
+                Use este link e o QR abaixo para testar agora. No celular, PC e celular precisam estar na
+                mesma Wi-Fi. Antes do teste, clique em «Reabrir link para o cliente» se a proposta já
+                estiver aceita.
+              </p>
+            </div>
+          )}
+
+          {publicUrl && (
+            <div className="proposal-toolbar mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 print:hidden">
+              <p className="text-xs font-semibold uppercase tracking-wide text-emerald-800">
+                Link do cliente (produção)
+              </p>
+              <p className="mt-1 break-all text-sm font-medium text-emerald-950">{publicUrl}</p>
+              <p className="mt-2 text-xs text-emerald-800">
+                Envie ao cliente por e-mail ou WhatsApp após o deploy na Vercel. Para testar aceite/recusa
+                agora, use o link azul acima.
+              </p>
+            </div>
+          )}
+
+          {publicUrl && isLocalhostPublicProposalUrl(publicUrl) && (
+            <p className="proposal-toolbar mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 print:hidden">
+              O link abaixo usa <strong>localhost</strong> e não abre no celular. Defina{" "}
+              <code className="rounded bg-amber-100 px-1">NEXT_PUBLIC_APP_URL</code> no{" "}
+              <code className="rounded bg-amber-100 px-1">.env.local</code> e reinicie o servidor.
+            </p>
+          )}
+
+
+          {actionError && (
+            <p className="proposal-toolbar mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800 print:hidden">
+              {actionError}
+            </p>
+          )}
+        </>
+      )}
 
       <article className="proposal-document mx-auto max-w-3xl rounded-xl border border-slate-200 bg-white p-8 shadow-sm">
-        <header className="border-b border-slate-200 pb-6">
-          <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-            Proposta de ordem de serviço
-          </p>
-          <h1 className="mt-2 text-2xl font-bold text-slate-900">{context.companyName}</h1>
-          <p className="mt-4 text-lg font-semibold text-slate-800">OS {order.code}</p>
-          <p className="text-sm text-slate-600">
-            Emitida em {formatServiceDate(order.service_date)} · Status: {order.status}
-          </p>
+        <header className="border-b-2 border-brand-600 pb-6">
+          <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
+            <div className="proposal-logo shrink-0 max-w-[240px]">
+              <div className="print:hidden">
+                <BrandLogo
+                  variant="plaque3d"
+                  plaqueSurface="page"
+                  size="proposal"
+                  performanceLite
+                  unoptimized
+                />
+              </div>
+              <div className="hidden print:block">
+                <BrandLogo variant="plaque3d" plaqueSurface="page" size="proposal" unoptimized />
+              </div>
+            </div>
+            <div className="text-left sm:text-right">
+              <p className="text-xs font-semibold uppercase tracking-wider text-brand-600">
+                Proposta de ordem de serviço
+              </p>
+              <h1 className="mt-2 text-xl font-bold text-slate-900">{context.companyName}</h1>
+              <p className="mt-3 text-lg font-semibold text-slate-800">OS {order.code}</p>
+              <p className="text-sm text-slate-600">
+                Emitida em {formatServiceDate(order.service_date)}
+                {!isPublic && (
+                  <span className="proposal-internal"> · Status: {order.status}</span>
+                )}
+              </p>
+            </div>
+          </div>
         </header>
 
         <section className="grid gap-4 border-b border-slate-100 py-6 sm:grid-cols-2">
@@ -115,7 +485,7 @@ export function ServiceOrderProposalView({ order, context }: Props) {
             )}
           </div>
           {context.dreAccountName && (
-            <div>
+            <div className="proposal-internal">
               <h2 className="text-xs font-semibold uppercase text-slate-500">Conta DRE</h2>
               <p className="mt-1 text-slate-800">{context.dreAccountName}</p>
             </div>
@@ -252,6 +622,18 @@ export function ServiceOrderProposalView({ order, context }: Props) {
           )}
         </section>
 
+        {qrUrl && !isPublic && (
+          <section className="border-b border-slate-100 py-6">
+            <div className="proposal-body-qr flex flex-col items-start gap-3 rounded-lg border border-slate-200 bg-slate-50 p-6">
+              <p className="text-sm font-semibold text-slate-900">
+                Escaneie para abrir a proposta e confirmar aceite ou recusa
+              </p>
+              <ProposalQrCode url={qrUrl} compact />
+              <p className="break-all text-left text-xs text-slate-500">{qrUrl}</p>
+            </div>
+          </section>
+        )}
+
         <footer className="pt-8">
           <p className="text-sm text-slate-600">
             Esta proposta destina-se à aprovação do cliente. Após o aceite, a ordem de serviço poderá
@@ -270,7 +652,8 @@ export function ServiceOrderProposalView({ order, context }: Props) {
             </div>
           </div>
           <p className="mt-8 text-xs text-slate-400 print:block hidden sm:block">
-            Documento gerado pelo GRX Management · {new Date().toLocaleString("pt-BR")}
+            GRX Transportes e Logística · Documento gerado pelo GRX Management ·{" "}
+            {new Date().toLocaleString("pt-BR")}
           </p>
         </footer>
       </article>

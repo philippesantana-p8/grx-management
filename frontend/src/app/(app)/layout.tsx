@@ -9,7 +9,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <Sidebar />
         <div className="flex flex-1 flex-col">
           <Header />
-          <main className="flex-1 overflow-auto p-6">{children}</main>
+          <main className="flex-1 overflow-auto bg-slate-50 p-6">{children}</main>
         </div>
       </div>
     </CompanyProvider>

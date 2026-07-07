@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { BrandLogo } from "@/components/brand/BrandLogo";
 import { cn } from "@/lib/utils";
 
 const NAV = [
@@ -31,54 +32,70 @@ const NAV = [
   },
 ];
 
-export function Sidebar() {
+function SidebarNavLink({
+  href,
+  label,
+  icon,
+  child,
+}: {
+  href: string;
+  label: string;
+  icon?: string;
+  child?: boolean;
+}) {
   const pathname = usePathname();
+  const active = pathname === href;
 
   return (
-    <aside className="flex w-64 flex-col border-r border-slate-200 bg-slate-900 text-white">
-      <div className="border-b border-slate-700 px-6 py-5">
-        <h1 className="text-lg font-bold tracking-tight">GRX Management</h1>
-        <p className="text-xs text-slate-400">PSCS Informática</p>
+    <Link
+      href={href}
+      className={cn(
+        "sidebar-nav-btn",
+        child && "sidebar-nav-btn--child",
+        active && "sidebar-nav-btn--active"
+      )}
+    >
+      {icon ? <span className="text-base leading-none">{icon}</span> : null}
+      {label}
+    </Link>
+  );
+}
+
+export function Sidebar() {
+  return (
+    <aside className="sidebar-shell flex w-64 flex-col border-r border-white/5 text-white">
+      <div className="sidebar-brand-zone">
+        <Link href="/dashboard" className="brand-logo-link">
+          <BrandLogo variant="plaque3d" plaqueSurface="sidebar" size="sm" />
+        </Link>
       </div>
-      <nav className="flex-1 space-y-1 px-3 py-4">
+      <nav className="flex-1 overflow-y-auto px-3 py-4">
         {NAV.map((item) =>
           item.href ? (
-            <Link
+            <SidebarNavLink
               key={item.href}
               href={item.href}
-              className={cn(
-                "flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors",
-                pathname === item.href
-                  ? "bg-blue-600 text-white"
-                  : "text-slate-300 hover:bg-slate-800 hover:text-white"
-              )}
-            >
-              <span>{item.icon}</span>
-              {item.label}
-            </Link>
+              label={item.label}
+              icon={item.icon}
+            />
           ) : (
-            <div key={item.label} className="pt-3">
-              <p className="px-3 pb-1 text-xs font-semibold uppercase tracking-wider text-slate-500">
-                {item.label}
-              </p>
+            <div key={item.label}>
+              <p className="sidebar-section-label">{item.label}</p>
               {item.children?.map((child) => (
-                <Link
+                <SidebarNavLink
                   key={child.href}
                   href={child.href}
-                  className={cn(
-                    "block rounded-lg px-3 py-2 text-sm transition-colors",
-                    pathname === child.href
-                      ? "bg-blue-600 text-white"
-                      : "text-slate-300 hover:bg-slate-800 hover:text-white"
-                  )}
-                >
-                  {child.label}
-                </Link>
+                  label={child.label}
+                  child
+                />
               ))}
             </div>
           )
         )}
       </nav>
+      <footer className="sidebar-footer">
+        <p className="sidebar-footer-note">PSCS Informática</p>
+      </footer>
     </aside>
   );
 }

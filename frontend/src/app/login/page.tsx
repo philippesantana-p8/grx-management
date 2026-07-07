@@ -3,6 +3,7 @@
 import { Suspense, useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { AuthShell } from "@/components/brand/AuthShell";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
@@ -41,8 +42,11 @@ function LoginForm() {
   };
 
   return (
-    <Card className="w-full max-w-md">
-      <CardHeader title="GRX Management" description="Acesse sua conta para continuar" />
+    <Card className="w-full max-w-md border-slate-200 shadow-md">
+      <CardHeader
+        title={isSignUp ? "Criar conta" : "Entrar"}
+        description="Acesse sua conta para continuar"
+      />
       <CardBody>
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && <Alert variant={error.includes("criada") ? "info" : "error"}>{error}</Alert>}
@@ -66,7 +70,7 @@ function LoginForm() {
           </Button>
           <button
             type="button"
-            className="w-full text-center text-sm text-blue-600 hover:underline"
+            className="w-full text-center text-sm text-brand-600 hover:text-brand-700 hover:underline"
             onClick={() => setIsSignUp(!isSignUp)}
           >
             {isSignUp ? "Já tenho conta" : "Criar nova conta"}
@@ -79,10 +83,10 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-100 p-4">
+    <AuthShell>
       <Suspense fallback={<div className="text-sm text-slate-500">Carregando...</div>}>
         <LoginForm />
       </Suspense>
-    </div>
+    </AuthShell>
   );
 }

@@ -92,7 +92,7 @@ export default function IntegracoesPage() {
                 token no servidor — os pedágios passam a ser calculados automaticamente nas Ordens de
                 Serviço, sem alterar o fluxo do Rafael.
               </p>
-              <p className="rounded-md border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-blue-900">
+              <p className="rounded-md border border-brand-100 bg-brand-50 px-3 py-2 text-xs text-brand-900">
                 {data.setupHint}
               </p>
             </CardBody>
@@ -139,7 +139,7 @@ export default function IntegracoesPage() {
                           href={module.upgradeUrl}
                           target="_blank"
                           rel="noreferrer"
-                          className="text-sm font-medium text-blue-700 underline"
+                          className="text-sm font-medium text-brand-700 underline"
                         >
                           Contratar QualP Pro →
                         </a>
@@ -156,7 +156,7 @@ export default function IntegracoesPage() {
 
           <p className="text-xs text-slate-500">
             Ordens de Serviço (Frete / Transporte):{" "}
-            <Link href="/operacional/ordens-servico" className="text-blue-700 underline">
+            <Link href="/operacional/ordens-servico" className="text-brand-700 underline">
               abrir tela
             </Link>
           </p>

@@ -1,14 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { CrudPage } from "@/components/crud/CrudPage";
 import { EntityForm, FormFields } from "@/components/crud/EntityForm";
 import { FreightCalculatorPanel } from "@/components/operacional/FreightCalculatorPanel";
 import { FreightPerDiemPanel } from "@/components/operacional/FreightPerDiemPanel";
 import { ServiceCategoryPicker } from "@/components/operacional/ServiceCategoryPicker";
+import { ServiceOrderListFilters } from "@/components/operacional/ServiceOrderListFilters";
+import { ServiceOrderRowActions } from "@/components/operacional/ServiceOrderRowActions";
 import { Badge, Alert } from "@/components/ui/Badge";
-import { cn } from "@/lib/utils";
 import { nextCode } from "@/lib/codes";
 import { useCompany } from "@/lib/company-context";
 import {
@@ -20,31 +21,41 @@ import { createClient } from "@/lib/supabase/client";
 import { fetchActiveFleetVehicles, fleetVehicleLabel } from "@/lib/fleet-vehicles";
 import { requiresPerDiem } from "@/lib/freight-per-diem";
 import { isTruckCategory } from "@/lib/transport-van-estimate";
+import {
+  isPendingClientProposal,
+  matchesServiceOrderStatusFilter,
+  resolveServiceOrderDisplayStatus,
+  serviceOrderStatusVariant,
+} from "@/lib/service-order-display-status";
+import {
+  daysWaitingProposal,
+  isProposalFollowUpOverdue,
+} from "@/lib/service-order-proposal-api";
+import {
+  matchesServiceOrderFilters,
+  type ServiceOrderListRow,
+} from "@/lib/service-order-filters";
 import { formatCurrency, normalizePlate } from "@/lib/utils";
-import type { DreAccount, Driver, ServiceOrder, Vehicle } from "@/types/database";
+import type { DreAccount, Driver, Vehicle } from "@/types/database";
 import {
   SERVICE_ORDER_STATUS,
   SERVICE_ORDER_TYPE_LABELS,
   SERVICE_ORDER_TYPES,
 } from "@/types/database";
 
-type ServiceOrderRow = ServiceOrder & {
-  driver_name?: string;
-  dre_account_name?: string;
-};
-
-function statusVariant(status: string): "success" | "warning" | "default" {
-  if (status === "Concluido") return "success";
-  if (status === "Aberto" || status === "Aguardando aprovação cliente") return "warning";
-  return "default";
-}
-
 function serviceTypeLabel(type: string): string {
   return SERVICE_ORDER_TYPE_LABELS[type] ?? type;
 }
 
-export default function OrdensServicoPage() {
+function OrdensServicoPageContent() {
   const { companyId } = useCompany();
+  const searchParams = useSearchParams();
+  const initialSearch = searchParams.get("q") ?? searchParams.get("code") ?? "";
+  const [searchQuery, setSearchQuery] = useState(initialSearch);
+  const [statusFilter, setStatusFilter] = useState("");
+  const [serviceTypeFilter, setServiceTypeFilter] = useState("");
+  const [pendingProposalsFilter, setPendingProposalsFilter] = useState(false);
+  const [listRows, setListRows] = useState<ServiceOrderListRow[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [vehiclesError, setVehiclesError] = useState<string | null>(null);
@@ -88,7 +99,7 @@ export default function OrdensServicoPage() {
   );
 
   const transformItems = useCallback(
-    async (items: ServiceOrderRow[]) => {
+    async (items: ServiceOrderListRow[]) => {
       const driverIds = [...new Set(items.map((i) => i.driver_id).filter(Boolean))] as string[];
       const dreIds = [...new Set(items.map((i) => i.chart_of_account_id).filter(Boolean))] as string[];
 
@@ -104,16 +115,53 @@ export default function OrdensServicoPage() {
       const nameById = new Map((driversRes.data ?? []).map((d) => [d.id, d.name as string]));
       const dreById = new Map((dreRes.data ?? []).map((d) => [d.id, d.name as string]));
 
-      return items.map((item) => ({
+      const rows = items.map((item) => ({
         ...item,
         driver_name: item.driver_id ? nameById.get(item.driver_id) : undefined,
         dre_account_name: item.chart_of_account_id
           ? dreById.get(item.chart_of_account_id)
           : undefined,
         service_categories: item.service_categories ?? [],
+        proposal_response: item.proposal_response ?? "pending",
+        proposal_follow_up_count: item.proposal_follow_up_count ?? 0,
       }));
+      setListRows(rows);
+      return rows;
     },
     [supabase]
+  );
+
+  const filterItem = useCallback(
+    (row: ServiceOrderListRow) =>
+      matchesServiceOrderFilters(row, {
+        search: searchQuery,
+        status: statusFilter,
+        serviceType: serviceTypeFilter,
+        pendingProposals: pendingProposalsFilter,
+      }),
+    [searchQuery, statusFilter, serviceTypeFilter, pendingProposalsFilter]
+  );
+
+  const handleFollowUpRegistered = useCallback(
+    (orderId: string, count: number, lastAt: string | null) => {
+      setListRows((rows) =>
+        rows.map((row) =>
+          row.id === orderId
+            ? {
+                ...row,
+                proposal_follow_up_count: count,
+                proposal_last_follow_up_at: lastAt,
+              }
+            : row
+        )
+      );
+    },
+    []
+  );
+
+  const visibleCount = useMemo(
+    () => listRows.filter(filterItem).length,
+    [listRows, filterItem]
   );
 
   const vehicleOptions = vehicles.map((v) => ({
@@ -142,31 +190,37 @@ export default function OrdensServicoPage() {
   };
 
   return (
-    <CrudPage<ServiceOrderRow>
+    <CrudPage<ServiceOrderListRow>
       title="Ordens de Serviço"
       description="Transporte, estacionamento e lava-rápido — natureza do serviço vinculada às contas DRE"
       table="service_orders"
       orderBy="service_date"
       softDelete={false}
       transformItems={transformItems}
+      filterItem={filterItem}
       toolbar={
-        vehiclesError ? (
-          <Alert variant="error">
-            Não foi possível carregar a frota: {vehiclesError}
-          </Alert>
-        ) : null
+        <div className="space-y-4">
+          <ServiceOrderListFilters
+            search={searchQuery}
+            status={statusFilter}
+            serviceType={serviceTypeFilter}
+            pendingProposals={pendingProposalsFilter}
+            totalCount={listRows.length}
+            visibleCount={visibleCount}
+            onSearchChange={setSearchQuery}
+            onStatusChange={setStatusFilter}
+            onServiceTypeChange={setServiceTypeFilter}
+            onPendingProposalsChange={setPendingProposalsFilter}
+          />
+          {vehiclesError ? (
+            <Alert variant="error">
+              Não foi possível carregar a frota: {vehiclesError}
+            </Alert>
+          ) : null}
+        </div>
       }
       renderRowActions={(row) => (
-        <Link
-          href={`/operacional/ordens-servico/${row.id}/proposta`}
-          target="_blank"
-          rel="noreferrer"
-          className={cn(
-            "inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
-          )}
-        >
-          PDF / Proposta
-        </Link>
+        <ServiceOrderRowActions row={row} onFollowUpRegistered={handleFollowUpRegistered} />
       )}
       columns={[
         { key: "code", label: "Código" },
@@ -196,9 +250,28 @@ export default function OrdensServicoPage() {
           render: (r) => r.driver_name ?? "—",
         },
         {
+          key: "proposal_sent_at",
+          label: "Dias aguardando",
+          render: (r) => {
+            if (!isPendingClientProposal(r) || !r.proposal_sent_at) return "—";
+            const days = daysWaitingProposal(r.proposal_sent_at);
+            const overdue = isProposalFollowUpOverdue(r.proposal_sent_at, r.proposal_response ?? "pending");
+            return (
+              <span className={overdue ? "font-medium text-amber-700" : undefined}>
+                {days != null ? `${days} dia(s)` : "—"}
+                {overdue ? " (+48h)" : ""}
+              </span>
+            );
+          },
+        },
+        {
           key: "status",
           label: "Status",
-          render: (r) => <Badge variant={statusVariant(r.status)}>{r.status}</Badge>,
+          render: (r) => (
+            <Badge variant={serviceOrderStatusVariant(r)}>
+              {resolveServiceOrderDisplayStatus(r)}
+            </Badge>
+          ),
         },
         {
           key: "service_amount",
@@ -634,4 +707,12 @@ function VehicleFleetResolver({
   }, [plate, vehicleId, vehicleOptions, onResolve, onCategoryResolved]);
 
   return null;
+}
+
+export default function OrdensServicoPage() {
+  return (
+    <Suspense fallback={null}>
+      <OrdensServicoPageContent />
+    </Suspense>
+  );
 }

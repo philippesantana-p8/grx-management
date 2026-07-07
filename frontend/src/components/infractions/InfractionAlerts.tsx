@@ -50,7 +50,7 @@ export function InfractionAlertsSummary({
       key: "paymentToValidate",
       label: "Comprovante a validar",
       filter: "validate-payment",
-      tone: "border-blue-200 bg-blue-50 text-blue-900 hover:bg-blue-100",
+      tone: "border-brand-200 bg-brand-50 text-brand-900 hover:bg-brand-100",
     },
     {
       key: "readyForClosure",
@@ -76,7 +76,7 @@ export function InfractionAlertsSummary({
             type="button"
             onClick={() => onFilterChange(card.filter)}
             className={`rounded-lg border px-4 py-3 text-left transition-colors ${card.tone} ${
-              isActive ? "ring-2 ring-blue-500 ring-offset-1" : ""
+              isActive ? "ring-2 ring-brand-500 ring-offset-1" : ""
             }`}
           >
             <p className="text-2xl font-bold">{summary[card.key]}</p>

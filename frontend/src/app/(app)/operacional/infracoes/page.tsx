@@ -529,7 +529,7 @@ function InfractionForm({
               )}
             </div>
 
-            <div className="space-y-4 rounded-lg border border-blue-200 bg-blue-50/40 p-4">
+            <div className="space-y-4 rounded-lg border border-brand-200 bg-brand-50/40 p-4">
               <div>
                 <p className="text-sm font-medium text-slate-800">Comprovante de pagamento</p>
                 <p className="mt-2 text-xs italic text-slate-500">

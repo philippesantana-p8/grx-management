@@ -23,7 +23,7 @@ export default function DashboardPage() {
             <Card className="transition-shadow hover:shadow-md">
               <CardHeader title={item.title} description={item.desc} />
               <CardBody>
-                <span className="text-sm font-medium text-blue-600">Gerenciar →</span>
+                <span className="text-sm font-medium text-brand-600">Gerenciar →</span>
               </CardBody>
             </Card>
           </a>

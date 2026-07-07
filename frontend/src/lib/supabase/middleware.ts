@@ -29,8 +29,9 @@ export async function updateSession(request: NextRequest) {
 
   const isAuthPage = request.nextUrl.pathname.startsWith("/login");
   const isSetupPage = request.nextUrl.pathname.startsWith("/setup");
+  const isPublicProposal = request.nextUrl.pathname.startsWith("/proposta/");
 
-  if (!user && !isAuthPage) {
+  if (!user && !isAuthPage && !isPublicProposal) {
     const url = request.nextUrl.clone();
     const next = `${request.nextUrl.pathname}${request.nextUrl.search}`;
     url.pathname = "/login";

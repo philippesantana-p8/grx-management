@@ -30,7 +30,7 @@ export function ServiceCategoryPicker({ categories, onChange, dreAccountLabel }:
               key={option.value}
               className={`flex cursor-pointer items-start gap-2 rounded-lg border px-3 py-2 text-sm ${
                 checked
-                  ? "border-blue-500 bg-blue-50 text-blue-900"
+                  ? "border-brand-500 bg-brand-50 text-brand-900"
                   : "border-slate-200 bg-white text-slate-700"
               }`}
             >

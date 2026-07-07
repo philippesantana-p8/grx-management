@@ -33,7 +33,7 @@ export function Alert({
     <div
       className={cn(
         "rounded-lg px-4 py-3 text-sm",
-        variant === "info" && "bg-blue-50 text-blue-800",
+        variant === "info" && "bg-brand-50 text-brand-800",
         variant === "warning" && "bg-amber-50 text-amber-800",
         variant === "error" && "bg-red-50 text-red-800"
       )}
@@ -46,7 +46,7 @@ export function Alert({
 export function Loading() {
   return (
     <div className="flex items-center justify-center py-12">
-      <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-200 border-t-blue-600" />
+      <div className="h-8 w-8 animate-spin rounded-full border-4 border-brand-200 border-t-brand-600" />
     </div>
   );
 }
