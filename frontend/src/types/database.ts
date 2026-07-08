@@ -61,6 +61,7 @@ export type Driver = {
   driver_type: string;
   status: string;
   phone: string | null;
+  address: string | null;
   document: string | null;
   cnh_number: string | null;
   cnh_expiry_date: string | null;
@@ -139,7 +140,15 @@ export type ServiceOrder = {
   proposal_response: ProposalResponse;
   proposal_accepted_at: string | null;
   proposal_rejected_at: string | null;
+  proposed_driver_id: string | null;
+  driver_assignment_token: string | null;
+  driver_assignment_sent_at: string | null;
+  driver_assignment_response: DriverAssignmentResponse;
+  driver_assignment_accepted_at: string | null;
+  driver_assignment_rejected_at: string | null;
 };
+
+export type DriverAssignmentResponse = "pending" | "accepted" | "rejected";
 
 export type TrafficInfraction = {
   id: string;

@@ -30,8 +30,9 @@ export async function updateSession(request: NextRequest) {
   const isAuthPage = request.nextUrl.pathname.startsWith("/login");
   const isSetupPage = request.nextUrl.pathname.startsWith("/setup");
   const isPublicProposal = request.nextUrl.pathname.startsWith("/proposta/");
+  const isPublicDriverAssignment = request.nextUrl.pathname.startsWith("/designacao/");
 
-  if (!user && !isAuthPage && !isPublicProposal) {
+  if (!user && !isAuthPage && !isPublicProposal && !isPublicDriverAssignment) {
     const url = request.nextUrl.clone();
     const next = `${request.nextUrl.pathname}${request.nextUrl.search}`;
     url.pathname = "/login";

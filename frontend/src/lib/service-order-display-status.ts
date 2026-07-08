@@ -1,4 +1,5 @@
-import { PROPOSAL_RESPONSE_LABELS, type ServiceOrder } from "@/types/database";
+import { PROPOSAL_RESPONSE_LABELS, type DriverAssignmentResponse, type ServiceOrder } from "@/types/database";
+import { DRIVER_ASSIGNMENT_RESPONSE_LABELS } from "@/lib/service-order-driver-assignment";
 
 export type ServiceOrderStatusRow = Pick<
   ServiceOrder,
@@ -7,6 +8,10 @@ export type ServiceOrderStatusRow = Pick<
   | "proposal_response"
   | "proposal_accepted_at"
   | "proposal_rejected_at"
+  | "driver_id"
+  | "proposed_driver_id"
+  | "driver_assignment_sent_at"
+  | "driver_assignment_response"
 >;
 
 function isProposalRejectedByClient(row: ServiceOrderStatusRow): boolean {
@@ -24,9 +29,18 @@ export function isProposalAcceptedByClient(row: ServiceOrderStatusRow): boolean 
 }
 
 export function canAssignDriverToServiceOrder(
-  row: ServiceOrderStatusRow & { driver_id?: string | null }
+  row: ServiceOrderStatusRow
 ): boolean {
-  return isProposalAcceptedByClient(row) && !row.driver_id;
+  if (!isProposalAcceptedByClient(row)) return false;
+  if (row.driver_id) return false;
+  if (
+    row.driver_assignment_response === "pending" &&
+    row.proposed_driver_id &&
+    row.driver_assignment_sent_at
+  ) {
+    return false;
+  }
+  return true;
 }
 
 /** Status operacional único — evita conflito entre colunas Proposta e Status. */
@@ -34,6 +48,14 @@ export function resolveServiceOrderDisplayStatus(row: ServiceOrderStatusRow): st
   const response = row.proposal_response ?? "pending";
 
   if (isProposalAcceptedByClient(row)) {
+    const assignment = (row.driver_assignment_response ?? "pending") as DriverAssignmentResponse;
+    if (
+      assignment === "pending" &&
+      row.proposed_driver_id &&
+      row.driver_assignment_sent_at
+    ) {
+      return DRIVER_ASSIGNMENT_RESPONSE_LABELS.pending;
+    }
     return PROPOSAL_RESPONSE_LABELS.accepted;
   }
 

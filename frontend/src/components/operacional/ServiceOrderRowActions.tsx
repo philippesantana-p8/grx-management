@@ -29,6 +29,7 @@ type Props = {
   onFollowUpRegistered?: (orderId: string, count: number, lastAt: string | null) => void;
   onProposalResponseChanged?: (orderId: string, patch: ProposalResponsePatch) => void;
   onDriverAssigned?: (orderId: string, driverId: string, driverName: string) => void;
+  onAssignmentSent?: (orderId: string, driverId: string, driverName: string) => void;
 };
 
 function PhoneIcon({ className }: { className?: string }) {
@@ -107,6 +108,7 @@ export function ServiceOrderRowActions({
   onFollowUpRegistered,
   onProposalResponseChanged,
   onDriverAssigned,
+  onAssignmentSent,
 }: Props) {
   const [loading, setLoading] = useState(false);
   const [accepting, setAccepting] = useState(false);
@@ -307,6 +309,12 @@ export function ServiceOrderRowActions({
         onAssigned={(driverId, driverName) => {
           onDriverAssigned?.(row.id, driverId, driverName);
           window.alert(`Motorista ${driverName} designado para ${row.code}.`);
+        }}
+        onAssignmentSent={(driverId, driverName) => {
+          onAssignmentSent?.(row.id, driverId, driverName);
+          window.alert(
+            `Designação enviada a ${driverName}. Aguardando confirmação pelo link (WhatsApp).`
+          );
         }}
       />
     </>

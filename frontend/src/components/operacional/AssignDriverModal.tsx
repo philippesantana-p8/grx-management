@@ -11,6 +11,12 @@ import {
 } from "@/lib/driver-filters";
 import { fetchActiveServiceOrdersByDriver } from "@/lib/driver-service-orders";
 import { assignServiceOrderDriver } from "@/lib/service-order-driver-api";
+import {
+  buildDriverAssignmentWhatsAppText,
+  buildPublicDriverAssignmentUrl,
+  sendDriverAssignment,
+  shareDriverAssignmentViaWhatsApp,
+} from "@/lib/service-order-driver-assignment";
 import { createClient } from "@/lib/supabase/client";
 import { cn, formatCurrency } from "@/lib/utils";
 import type { Driver, ServiceOrder } from "@/types/database";
@@ -21,6 +27,8 @@ type OrderSummary = Pick<
   | "code"
   | "plate"
   | "client_name"
+  | "service_type"
+  | "service_date"
   | "freight_origin_address"
   | "freight_destination_address"
   | "freight_agreed_amount"
@@ -32,6 +40,7 @@ type Props = {
   order: OrderSummary;
   onClose: () => void;
   onAssigned: (driverId: string, driverName: string) => void;
+  onAssignmentSent?: (driverId: string, driverName: string) => void;
 };
 
 function driverAvailabilityLabel(driver: DriverListRow): string {
@@ -44,8 +53,25 @@ function driverAvailabilityLabel(driver: DriverListRow): string {
   return "Indisponível";
 }
 
-export function AssignDriverModal({ open, order, onClose, onAssigned }: Props) {
-  const { companyId } = useCompany();
+function PhoneIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={cn("h-4 w-4 shrink-0", className)}
+      aria-hidden
+    >
+      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+    </svg>
+  );
+}
+
+export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignmentSent }: Props) {
+  const { companyId, company } = useCompany();
   const supabase = useMemo(() => createClient(), []);
   const [drivers, setDrivers] = useState<DriverListRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -53,7 +79,9 @@ export function AssignDriverModal({ open, order, onClose, onAssigned }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState("");
 
+  const companyName = company?.trade_name || company?.name || "GRX Transportes e Logística";
   const amount = order.freight_agreed_amount ?? order.service_amount;
+  const selectedDriver = drivers.find((d) => d.id === selectedId);
 
   const loadDrivers = useCallback(async () => {
     if (!companyId) return;
@@ -63,7 +91,7 @@ export function AssignDriverModal({ open, order, onClose, onAssigned }: Props) {
     const [driversRes, activeOrders] = await Promise.all([
       supabase
         .from("drivers")
-        .select("id, code, name, status, active_for_operations, phone")
+        .select("id, code, name, status, active_for_operations, phone, address")
         .eq("company_id", companyId)
         .eq("status", "Ativo")
         .is("deleted_at", null)
@@ -109,15 +137,9 @@ export function AssignDriverModal({ open, order, onClose, onAssigned }: Props) {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [open, onClose]);
 
-  const handleConfirm = async () => {
-    if (!selectedId) {
+  const handleDirectAssign = async () => {
+    if (!selectedDriver || !isDriverAvailableForContact(selectedDriver)) {
       window.alert("Selecione um motorista disponível.");
-      return;
-    }
-
-    const driver = drivers.find((d) => d.id === selectedId);
-    if (!driver || !isDriverAvailableForContact(driver)) {
-      window.alert("Motorista indisponível para esta designação.");
       return;
     }
 
@@ -130,7 +152,47 @@ export function AssignDriverModal({ open, order, onClose, onAssigned }: Props) {
       return;
     }
 
-    onAssigned(selectedId, driver.name);
+    onAssigned(selectedId, selectedDriver.name);
+    onClose();
+  };
+
+  const handleSendWhatsApp = async () => {
+    if (!selectedDriver) {
+      window.alert("Selecione um motorista.");
+      return;
+    }
+
+    if (!selectedDriver.phone?.trim()) {
+      window.alert(
+        "Cadastre o telefone do motorista em Cadastros → Motoristas antes de enviar a designação."
+      );
+      return;
+    }
+
+    if (!isDriverAvailableForContact(selectedDriver)) {
+      window.alert("Motorista indisponível para esta designação.");
+      return;
+    }
+
+    setSaving(true);
+    const { token, error: sendError } = await sendDriverAssignment(supabase, order.id, selectedId);
+    setSaving(false);
+
+    if (sendError || !token) {
+      window.alert(sendError ?? "Não foi possível registrar a designação.");
+      return;
+    }
+
+    const assignmentUrl = buildPublicDriverAssignmentUrl(token);
+    const message = buildDriverAssignmentWhatsAppText(
+      order,
+      companyName,
+      selectedDriver.name,
+      assignmentUrl
+    );
+
+    await shareDriverAssignmentViaWhatsApp(message, selectedDriver.phone);
+    onAssignmentSent?.(selectedId, selectedDriver.name);
     onClose();
   };
 
@@ -156,9 +218,7 @@ export function AssignDriverModal({ open, order, onClose, onAssigned }: Props) {
             OS <strong>{order.code}</strong>
             {order.plate ? ` · ${order.plate}` : ""}
           </p>
-          {order.client_name ? (
-            <p className="text-sm text-slate-600">{order.client_name}</p>
-          ) : null}
+          {order.client_name ? <p className="text-sm text-slate-600">{order.client_name}</p> : null}
           {(order.freight_origin_address || order.freight_destination_address) && (
             <p className="mt-1 text-sm text-slate-500">
               {order.freight_origin_address ?? "—"} → {order.freight_destination_address ?? "—"}
@@ -167,6 +227,10 @@ export function AssignDriverModal({ open, order, onClose, onAssigned }: Props) {
           {amount != null ? (
             <p className="mt-1 text-sm font-medium text-brand-700">{formatCurrency(amount)}</p>
           ) : null}
+          <p className="mt-2 text-xs text-slate-500">
+            Envie pelo WhatsApp para o motorista aceitar pelo link público (como a proposta ao
+            cliente).
+          </p>
         </div>
 
         <div className="max-h-[50vh] overflow-y-auto px-5 py-4">
@@ -188,18 +252,16 @@ export function AssignDriverModal({ open, order, onClose, onAssigned }: Props) {
                     <label
                       className={cn(
                         "flex cursor-pointer items-start gap-3 rounded-lg border px-3 py-3 transition-colors",
-                        available
-                          ? selected
-                            ? "border-brand-500 bg-brand-50"
-                            : "border-slate-200 hover:border-slate-300 hover:bg-slate-50"
-                          : "cursor-not-allowed border-slate-100 bg-slate-50 opacity-60"
+                        selected
+                          ? "border-brand-500 bg-brand-50"
+                          : "border-slate-200 hover:border-slate-300 hover:bg-slate-50",
+                        !available && "opacity-70"
                       )}
                     >
                       <input
                         type="radio"
                         name="assign-driver"
                         value={driver.id}
-                        disabled={!available}
                         checked={selected}
                         onChange={() => setSelectedId(driver.id)}
                         className="mt-1"
@@ -215,9 +277,26 @@ export function AssignDriverModal({ open, order, onClose, onAssigned }: Props) {
                           )}
                         >
                           {label}
-                          {driver.phone ? ` · ${driver.phone}` : ""}
+                          {driver.phone ? ` · ${driver.phone}` : " · sem telefone"}
                         </span>
+                        {driver.address ? (
+                          <span className="mt-0.5 block text-xs text-slate-500">
+                            {driver.address}
+                          </span>
+                        ) : null}
                       </span>
+                      {driver.phone ? (
+                        <a
+                          href={`https://wa.me/${driver.phone.replace(/\D/g, "")}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          title="Abrir WhatsApp do motorista"
+                          className="rounded-lg border border-green-300 bg-green-50 p-2 text-green-800 hover:bg-green-100"
+                          onClick={(event) => event.stopPropagation()}
+                        >
+                          <PhoneIcon />
+                        </a>
+                      ) : null}
                     </label>
                   </li>
                 );
@@ -226,16 +305,24 @@ export function AssignDriverModal({ open, order, onClose, onAssigned }: Props) {
           )}
         </div>
 
-        <div className="flex justify-end gap-2 border-t border-slate-100 px-5 py-4">
+        <div className="flex flex-wrap justify-end gap-2 border-t border-slate-100 px-5 py-4">
           <Button type="button" variant="secondary" disabled={saving} onClick={onClose}>
             Cancelar
           </Button>
           <Button
             type="button"
+            variant="secondary"
             disabled={saving || loading || !selectedId}
-            onClick={() => void handleConfirm()}
+            onClick={() => void handleDirectAssign()}
           >
-            {saving ? "Salvando…" : "Confirmar designação"}
+            Confirmar sem link
+          </Button>
+          <Button
+            type="button"
+            disabled={saving || loading || !selectedId}
+            onClick={() => void handleSendWhatsApp()}
+          >
+            {saving ? "Enviando…" : "Enviar designação (WhatsApp)"}
           </Button>
         </div>
       </div>

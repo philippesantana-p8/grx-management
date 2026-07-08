@@ -80,6 +80,7 @@ export function DriverFormPanel({ item, companyId, saving, onSave, onCancel }: P
           driver_type: item?.driver_type ?? "Motorista",
           status: item?.status ?? "Ativo",
           phone: item?.phone ?? "",
+          address: item?.address ?? "",
           document: item?.document ?? "",
           cnh_number: item?.cnh_number ? formatCnh(item.cnh_number) : "",
           cnh_expiry_date: item?.cnh_expiry_date ?? "",
@@ -204,6 +205,7 @@ export function DriverFormPanel({ item, companyId, saving, onSave, onCancel }: P
                     options: STATUS_OPTIONS.map((s) => ({ value: s, label: s })),
                   },
                   { name: "phone", label: "Telefone" },
+                  { name: "address", label: "Endereço", colSpan: 2 },
                   { name: "document", label: "CPF/CNPJ" },
                 ]}
               />
