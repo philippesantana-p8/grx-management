@@ -2,8 +2,19 @@ import { PROPOSAL_RESPONSE_LABELS, type ServiceOrder } from "@/types/database";
 
 export type ServiceOrderStatusRow = Pick<
   ServiceOrder,
-  "status" | "proposal_sent_at" | "proposal_response" | "proposal_accepted_at"
+  | "status"
+  | "proposal_sent_at"
+  | "proposal_response"
+  | "proposal_accepted_at"
+  | "proposal_rejected_at"
 >;
+
+function isProposalRejectedByClient(row: ServiceOrderStatusRow): boolean {
+  return (
+    (row.proposal_response ?? "pending") === "rejected" ||
+    Boolean(row.proposal_rejected_at)
+  );
+}
 
 function isProposalAcceptedByClient(row: ServiceOrderStatusRow): boolean {
   return (
@@ -21,7 +32,7 @@ export function resolveServiceOrderDisplayStatus(row: ServiceOrderStatusRow): st
   }
 
   if (row.proposal_sent_at) {
-    if (response === "rejected") {
+    if (isProposalRejectedByClient(row)) {
       return PROPOSAL_RESPONSE_LABELS.rejected;
     }
     if (response === "pending") {
@@ -51,12 +62,11 @@ export function isPendingClientProposal(row: ServiceOrderStatusRow): boolean {
 
 /** Bloqueia edição enquanto o cliente já aceitou ou recusou a proposta enviada. */
 export function canEditServiceOrder(row: ServiceOrderStatusRow): boolean {
-  if (!row.proposal_sent_at) return true;
-
-  const response = row.proposal_response ?? "pending";
-  if (response === "pending") return true;
-
-  return false;
+  const label = resolveServiceOrderDisplayStatus(row);
+  return (
+    label !== PROPOSAL_RESPONSE_LABELS.accepted &&
+    label !== PROPOSAL_RESPONSE_LABELS.rejected
+  );
 }
 
 export function serviceOrderEditBlockedReason(row: ServiceOrderStatusRow): string | null {
