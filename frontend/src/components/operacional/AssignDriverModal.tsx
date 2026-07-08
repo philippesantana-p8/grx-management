@@ -13,6 +13,7 @@ import { fetchActiveServiceOrdersByDriver } from "@/lib/driver-service-orders";
 import { assignServiceOrderDriver } from "@/lib/service-order-driver-api";
 import {
   buildDriverAssignmentWhatsAppText,
+  buildDriverAssignmentWhatsAppUrlText,
   buildPublicDriverAssignmentUrl,
   openDriverAssignmentEmailShare,
   sendDriverAssignment,
@@ -194,10 +195,12 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
     }
 
     setSaving(true);
+    const whatsAppWindow = window.open("", "_blank");
     const { token, error: sendError } = await sendDriverAssignment(supabase, order.id, selectedId);
     setSaving(false);
 
     if (sendError || !token) {
+      whatsAppWindow?.close();
       window.alert(sendError ?? "Não foi possível registrar a designação.");
       return;
     }
@@ -209,8 +212,17 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
       selectedDriver.name,
       assignmentUrl
     );
+    const urlMessage = buildDriverAssignmentWhatsAppUrlText(
+      order,
+      companyName,
+      selectedDriver.name,
+      assignmentUrl
+    );
 
-    await shareDriverAssignmentViaWhatsApp(message, selectedDriver.phone);
+    await shareDriverAssignmentViaWhatsApp(message, selectedDriver.phone, {
+      preOpenedWindow: whatsAppWindow,
+      urlText: urlMessage,
+    });
     onAssignmentSent?.(selectedId, selectedDriver.name);
     onClose();
   };

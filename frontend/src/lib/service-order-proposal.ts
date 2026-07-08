@@ -463,11 +463,7 @@ export function buildWhatsAppShareLinks(
   const desktopHref = `whatsapp://send/?${desktopParams}`;
   const mobileHref = `${mobileBase}?text=${encodedText}`;
 
-  const primaryHref = isMobileWhatsAppDevice()
-    ? mobileHref
-    : isWindowsDesktop()
-      ? storeAppHref
-      : desktopHref;
+  const primaryHref = isMobileWhatsAppDevice() ? mobileHref : storeAppHref;
 
   return {
     message: text,
@@ -476,6 +472,31 @@ export function buildWhatsAppShareLinks(
     mobileHref,
     primaryHref,
   };
+}
+
+export function openExternalUrl(url: string, targetWindow?: Window | null): void {
+  if (targetWindow && !targetWindow.closed) {
+    targetWindow.location.href = url;
+    return;
+  }
+
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.target = "_blank";
+  anchor.rel = "noopener noreferrer";
+  anchor.style.display = "none";
+  document.body.appendChild(anchor);
+  anchor.click();
+  document.body.removeChild(anchor);
+}
+
+export function openMailtoLink(href: string): void {
+  const anchor = document.createElement("a");
+  anchor.href = href;
+  anchor.style.display = "none";
+  document.body.appendChild(anchor);
+  anchor.click();
+  document.body.removeChild(anchor);
 }
 
 export function buildWhatsAppSendUrl(text: string, phone?: string | null): string {
@@ -544,17 +565,39 @@ export function openWhatsAppDesktopSync(
   return { copied: false, mode: "desktop-app" };
 }
 
+export async function shareViaWhatsAppPrepared(
+  urlText: string,
+  clipboardText: string,
+  phone?: string | null,
+  options?: { preOpenedWindow?: Window | null; copiedHint?: string }
+): Promise<WhatsAppShareResult> {
+  const links = buildWhatsAppShareLinks(urlText, phone);
+  const copied = await copyTextToClipboard(clipboardText);
+  openExternalUrl(links.primaryHref, options?.preOpenedWindow ?? null);
+
+  if (copied) {
+    if (options?.copiedHint) {
+      window.alert(options.copiedHint);
+    }
+    return { copied: true, mode: "desktop-app" };
+  }
+
+  window.alert(
+    "Não foi possível copiar automaticamente.\n\nCopie a mensagem exibida em seguida e cole no WhatsApp."
+  );
+  window.prompt("Copie a mensagem:", clipboardText);
+  return { copied: false, mode: "clipboard-only" };
+}
+
 /**
  * Copia a mensagem e abre o WhatsApp.
- * Prefer openWhatsAppDesktopSync dentro do handler de clique quando o texto já estiver pronto.
+ * Prefer shareViaWhatsAppPrepared quando o texto já estiver pronto após RPC assíncrono.
  */
 export async function shareViaWhatsApp(
   text: string,
   phone?: string | null
 ): Promise<WhatsAppShareResult> {
-  const opened = openWhatsAppDesktopSync(text, phone);
-  const copied = await copyTextToClipboard(text);
-  return { copied, mode: copied ? opened.mode : "clipboard-only" };
+  return shareViaWhatsAppPrepared(text, text, phone);
 }
 
 /** @deprecated Prefer shareViaWhatsApp — wa.me abre diálogo app vs web no desktop. */
@@ -611,8 +654,12 @@ function buildMailtoSafeBody(fullBody: string, shareUrl: string): string {
   return normalizeEmailLineBreaks(parts.join("\n"));
 }
 
+function compactShareBody(text: string): string {
+  return text.replace(/\n{3,}/g, "\n\n").trim();
+}
+
 function buildMailtoFallbackBody(fullBody: string, shareUrl: string): string {
-  const normalized = fullBody.replace(/\r\n/g, "\n");
+  const normalized = compactShareBody(fullBody.replace(/\r\n/g, "\n"));
   if (normalized.length <= 1800) {
     return normalizeEmailLineBreaks(normalized);
   }
@@ -625,6 +672,11 @@ export type EmailShareOptions = {
   companyName?: string;
   /** Texto do alerta quando a cópia rica funcionar. */
   copiedAlertMessage?: string;
+  /**
+   * Proposta OS: copia HTML rico primeiro e abre mailto vazio (Ctrl+V traz QR + logo).
+   * Designação motorista: preenche o corpo do mailto e abre o e-mail antes do alerta.
+   */
+  prefillMailtoBody?: boolean;
 };
 
 export type EmailShareResult = {
@@ -643,8 +695,22 @@ export async function openEmailShare(
 ): Promise<EmailShareResult> {
   const safeUrl = sanitizePublicProposalUrl(proposalUrl);
   const plainBody = body.replace(/\r\n/g, "\n");
-  const qrDataUrl = options?.qrDataUrl ?? null;
-  const logoDataUrl = options?.logoDataUrl ?? null;
+  const to = options?.to?.trim();
+  const mailtoPrefix = to ? `mailto:${encodeURIComponent(to)}` : "mailto:";
+
+  let qrDataUrl = options?.qrDataUrl ?? null;
+  let logoDataUrl = options?.logoDataUrl ?? null;
+
+  if (options?.prefillMailtoBody) {
+    if (!qrDataUrl && safeUrl) {
+      qrDataUrl = await generateProposalQrDataUrl(safeUrl);
+    }
+    if (!logoDataUrl) {
+      const { fetchBrandLogoDataUrl } = await import("@/lib/brand-email");
+      logoDataUrl = await fetchBrandLogoDataUrl();
+    }
+  }
+
   const richCopied = await copyEmailProposalToClipboard(plainBody, safeUrl, {
     qrDataUrl,
     logoDataUrl,
@@ -653,19 +719,49 @@ export async function openEmailShare(
   const plainCopied = richCopied ? true : await copyTextToClipboard(plainBody);
   const copied = richCopied || plainCopied;
   const hasRichPaste = Boolean(richCopied && (qrDataUrl || logoDataUrl));
+
+  if (options?.prefillMailtoBody) {
+    const mailtoBody = buildMailtoFallbackBody(plainBody, safeUrl);
+    const href = `${mailtoPrefix}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(mailtoBody)}`;
+    openMailtoLink(href);
+
+    if (hasRichPaste) {
+      window.alert(
+        `${options.copiedAlertMessage ?? "Designação copiada (link de produção, QR Code e logo 3D GRX)."}
+
+O e-mail já abriu com assunto e texto. Para QR Code e logo 3D, clique no corpo do e-mail e pressione Ctrl+V.`
+      );
+    } else if (plainCopied) {
+      window.alert(
+        "E-mail aberto com assunto e texto.\n\nSe quiser QR Code e logo 3D, pressione Ctrl+V no corpo do e-mail."
+      );
+    } else {
+      window.alert(
+        "E-mail aberto com assunto e texto.\n\nSe precisar, copie manualmente a mensagem exibida em seguida."
+      );
+      window.prompt("Copie a mensagem:", plainBody);
+    }
+
+    return {
+      copied,
+      richCopied,
+      hasQr: Boolean(qrDataUrl),
+      hasLogo: Boolean(logoDataUrl),
+      plainBody,
+    };
+  }
+
   const mailtoBody = hasRichPaste ? "" : buildMailtoFallbackBody(plainBody, safeUrl);
-  const to = options?.to?.trim();
-  const mailtoPrefix = to ? `mailto:${encodeURIComponent(to)}` : "mailto:";
   const href = `${mailtoPrefix}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(mailtoBody)}`;
 
   if (hasRichPaste) {
     window.alert(
       options?.copiedAlertMessage ??
-        "Mensagem copiada (link de produção, QR Code e logo 3D GRX).\n\nNo Gmail ou Outlook, clique no corpo do e-mail e pressione Ctrl+V para colar tudo. Não use o texto curto do mailto — só o Ctrl+V traz QR e logo."
+        "Proposta copiada (link de produção, QR Code e logo 3D GRX).\n\nNo Gmail ou Outlook, clique no corpo do e-mail e pressione Ctrl+V para colar tudo. Não use o texto curto do mailto — só o Ctrl+V traz QR e logo."
     );
   } else if (plainCopied) {
     window.alert(
-      "Texto copiado para a área de transferência.\n\nCole com Ctrl+V no corpo do e-mail. Se faltar QR Code ou logo, recarregue a página e tente novamente."
+      "Texto copiado para a área de transferência.\n\nCole com Ctrl+V no corpo do e-mail. Se faltar QR Code ou logo, recarregue a página e tente de novo."
     );
   } else {
     window.alert(

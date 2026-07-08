@@ -1,13 +1,12 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
-  buildWhatsAppShareLinks,
-  copyTextToClipboard,
   formatServiceDate,
   generateProposalQrDataUrl,
   getPublicAppOrigin,
   isWindowsWhatsAppDesktop,
   openEmailShare,
   resolveProposalAmount,
+  shareViaWhatsAppPrepared,
   type EmailShareResult,
 } from "@/lib/service-order-proposal";
 import { fetchBrandLogoDataUrl } from "@/lib/brand-email";
@@ -73,9 +72,10 @@ function formatDriverGreetingName(driverName: string): string {
   return first || driverName;
 }
 
-function buildDriverAssignmentGreeting(driverName: string): string {
+function buildDriverAssignmentGreeting(driverName: string, compact = false): string {
   const firstName = formatDriverGreetingName(driverName);
-  return `Olá, ${firstName},${DRIVER_GREETING_BREAK}Tudo bem?${DRIVER_GREETING_BREAK}${DRIVER_ASSIGNMENT_INTRO}`;
+  const breakLine = compact ? "\n" : DRIVER_GREETING_BREAK;
+  return `Olá, ${firstName},${breakLine}Tudo bem?${breakLine}${DRIVER_ASSIGNMENT_INTRO}`;
 }
 
 function appendDriverAssignmentOrderDetails(
@@ -125,10 +125,12 @@ export function buildDriverAssignmentWhatsAppText(
   order: DriverAssignmentOrderSummary,
   companyName: string,
   driverName: string,
-  assignmentUrl: string
+  assignmentUrl: string,
+  options?: { compact?: boolean }
 ): string {
+  const compact = options?.compact ?? false;
   const lines = [
-    buildDriverAssignmentGreeting(driverName),
+    buildDriverAssignmentGreeting(driverName, compact),
     "",
     `*Designação OS ${order.code}* — ${companyName}`,
   ];
@@ -138,6 +140,21 @@ export function buildDriverAssignmentWhatsAppText(
   lines.push("", "GRX Transportes e Logística");
 
   return lines.join("\n");
+}
+
+export function buildDriverAssignmentWhatsAppUrlText(
+  order: DriverAssignmentOrderSummary,
+  companyName: string,
+  driverName: string,
+  assignmentUrl: string
+): string {
+  return buildDriverAssignmentWhatsAppText(
+    order,
+    companyName,
+    driverName,
+    assignmentUrl,
+    { compact: true }
+  );
 }
 
 export function buildDriverAssignmentEmailBody(
@@ -185,8 +202,9 @@ export async function openDriverAssignmentEmailShare(
     qrDataUrl,
     logoDataUrl,
     companyName,
+    prefillMailtoBody: true,
     copiedAlertMessage:
-      "Designação copiada (link de produção, QR Code e logo 3D GRX).\n\nNo Gmail ou Outlook, clique no corpo do e-mail e pressione Ctrl+V para colar tudo. Não use o texto curto do mailto — só o Ctrl+V traz QR e logo.",
+      "Designação copiada (link de produção, QR Code e logo 3D GRX).\n\nNo Gmail ou Outlook, clique no corpo do e-mail e pressione Ctrl+V para colar QR Code e logo 3D.",
   });
 }
 
@@ -267,26 +285,17 @@ export async function respondToDriverAssignment(
 
 export async function shareDriverAssignmentViaWhatsApp(
   text: string,
-  phone?: string | null
+  phone?: string | null,
+  options?: { preOpenedWindow?: Window | null; urlText?: string }
 ): Promise<boolean> {
-  const links = buildWhatsAppShareLinks(text, phone);
-  const copied = await copyTextToClipboard(text);
-  window.open(links.primaryHref, "_blank", "noopener,noreferrer");
-
-  if (copied) {
-    if (isWindowsWhatsAppDesktop()) {
-      window.alert(
-        "Mensagem copiada. Se o WhatsApp não abrir sozinho, use Alt+Tab nele e Ctrl+V no chat do motorista."
-      );
-    }
-    return true;
-  }
-
-  window.alert(
-    "Não foi possível copiar automaticamente.\n\nCopie a mensagem exibida em seguida e cole no WhatsApp."
-  );
-  window.prompt("Copie a mensagem:", text);
-  return false;
+  const urlMessage = options?.urlText ?? text;
+  const result = await shareViaWhatsAppPrepared(urlMessage, text, phone, {
+    preOpenedWindow: options?.preOpenedWindow,
+    copiedHint: isWindowsWhatsAppDesktop()
+      ? "Mensagem copiada. Se o WhatsApp não abrir com o texto, use Alt+Tab nele e Ctrl+V no chat do motorista."
+      : "Mensagem copiada. Confira o chat do motorista e pressione Enter. Use Ctrl+V se o texto não aparecer.",
+  });
+  return result.copied;
 }
 
 export const DRIVER_ASSIGNMENT_RESPONSE_LABELS: Record<DriverAssignmentResponse, string> = {
