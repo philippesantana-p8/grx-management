@@ -194,7 +194,7 @@ export async function openDriverAssignmentEmailShare(
   const subject = `Designação OS ${order.code} — ${companyName}`;
   const [qrDataUrl, logoDataUrl] = await Promise.all([
     generateProposalQrDataUrl(assignmentUrl),
-    fetchBrandLogoDataUrl(),
+    fetchBrandLogoDataUrl(getPublicAppOrigin()),
   ]);
 
   return openEmailShare(subject, body, assignmentUrl, {
@@ -202,9 +202,8 @@ export async function openDriverAssignmentEmailShare(
     qrDataUrl,
     logoDataUrl,
     companyName,
-    prefillMailtoBody: true,
     copiedAlertMessage:
-      "Designação copiada (link de produção, QR Code e logo 3D GRX).\n\nNo Gmail ou Outlook, clique no corpo do e-mail e pressione Ctrl+V para colar QR Code e logo 3D.",
+      "Designação copiada (texto, link, QR Code e logo GRX).\n\n1. O e-mail abrirá com assunto e texto.\n2. Clique no corpo do e-mail e pressione Ctrl+V para colar QR Code e logo.",
   });
 }
 

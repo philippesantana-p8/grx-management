@@ -254,9 +254,11 @@ async function copyEmailProposalToClipboard(
     html += buildEmailQrHtmlBlock(qrDataUrl);
   }
 
-  const { buildEmailBrandFooterHtml, getBrandLogoPublicUrl } = await import("@/lib/brand-email");
-  const logoSrc = logoDataUrl ?? getBrandLogoPublicUrl(getPublicAppOrigin());
-  html += buildEmailBrandFooterHtml(logoSrc, options?.companyName);
+  const { buildEmailBrandFooterHtml, resolveEmailBrandLogoSrc } = await import("@/lib/brand-email");
+  const logoSrc = resolveEmailBrandLogoSrc(logoDataUrl, getPublicAppOrigin());
+  html += buildEmailBrandFooterHtml(logoSrc, options?.companyName, {
+    framed: !logoSrc.startsWith("data:image"),
+  });
 
   if (
     typeof navigator !== "undefined" &&
@@ -666,17 +668,20 @@ function buildMailtoFallbackBody(fullBody: string, shareUrl: string): string {
   return buildMailtoSafeBody(normalized, shareUrl);
 }
 
+function buildMailtoBodyForClient(fullBody: string, shareUrl: string): string {
+  const fallback = buildMailtoFallbackBody(fullBody, shareUrl);
+  if (encodeURIComponent(fallback).length <= 1800) {
+    return fallback;
+  }
+  return buildMailtoSafeBody(fullBody, shareUrl);
+}
+
 export type EmailShareOptions = {
   qrDataUrl?: string | null;
   logoDataUrl?: string | null;
   companyName?: string;
   /** Texto do alerta quando a cópia rica funcionar. */
   copiedAlertMessage?: string;
-  /**
-   * Proposta OS: copia HTML rico primeiro e abre mailto vazio (Ctrl+V traz QR + logo).
-   * Designação motorista: preenche o corpo do mailto e abre o e-mail antes do alerta.
-   */
-  prefillMailtoBody?: boolean;
 };
 
 export type EmailShareResult = {
@@ -696,81 +701,39 @@ export async function openEmailShare(
   const safeUrl = sanitizePublicProposalUrl(proposalUrl);
   const plainBody = body.replace(/\r\n/g, "\n");
   const to = options?.to?.trim();
-  const mailtoPrefix = to ? `mailto:${encodeURIComponent(to)}` : "mailto:";
+  const mailtoPrefix = to ? `mailto:${to}` : "mailto:";
 
   let qrDataUrl = options?.qrDataUrl ?? null;
   let logoDataUrl = options?.logoDataUrl ?? null;
-
-  if (options?.prefillMailtoBody) {
-    if (!qrDataUrl && safeUrl) {
-      qrDataUrl = await generateProposalQrDataUrl(safeUrl);
-    }
-    if (!logoDataUrl) {
-      const { fetchBrandLogoDataUrl } = await import("@/lib/brand-email");
-      logoDataUrl = await fetchBrandLogoDataUrl();
-    }
-  }
 
   const richCopied = await copyEmailProposalToClipboard(plainBody, safeUrl, {
     qrDataUrl,
     logoDataUrl,
     companyName: options?.companyName,
   });
-  const plainCopied = richCopied ? true : await copyTextToClipboard(plainBody);
+  const plainCopied = await copyTextToClipboard(plainBody);
   const copied = richCopied || plainCopied;
-  const hasRichPaste = Boolean(richCopied && (qrDataUrl || logoDataUrl));
-
-  if (options?.prefillMailtoBody) {
-    const mailtoBody = buildMailtoFallbackBody(plainBody, safeUrl);
-    const href = `${mailtoPrefix}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(mailtoBody)}`;
-    openMailtoLink(href);
-
-    if (hasRichPaste) {
-      window.alert(
-        `${options.copiedAlertMessage ?? "Designação copiada (link de produção, QR Code e logo 3D GRX)."}
-
-O e-mail já abriu com assunto e texto. Para QR Code e logo 3D, clique no corpo do e-mail e pressione Ctrl+V.`
-      );
-    } else if (plainCopied) {
-      window.alert(
-        "E-mail aberto com assunto e texto.\n\nSe quiser QR Code e logo 3D, pressione Ctrl+V no corpo do e-mail."
-      );
-    } else {
-      window.alert(
-        "E-mail aberto com assunto e texto.\n\nSe precisar, copie manualmente a mensagem exibida em seguida."
-      );
-      window.prompt("Copie a mensagem:", plainBody);
-    }
-
-    return {
-      copied,
-      richCopied,
-      hasQr: Boolean(qrDataUrl),
-      hasLogo: Boolean(logoDataUrl),
-      plainBody,
-    };
-  }
-
-  const mailtoBody = hasRichPaste ? "" : buildMailtoFallbackBody(plainBody, safeUrl);
+  const mailtoBody = buildMailtoBodyForClient(plainBody, safeUrl);
   const href = `${mailtoPrefix}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(mailtoBody)}`;
 
-  if (hasRichPaste) {
+  if (richCopied) {
     window.alert(
       options?.copiedAlertMessage ??
-        "Proposta copiada (link de produção, QR Code e logo 3D GRX).\n\nNo Gmail ou Outlook, clique no corpo do e-mail e pressione Ctrl+V para colar tudo. Não use o texto curto do mailto — só o Ctrl+V traz QR e logo."
+        "Proposta copiada (texto, link, QR Code e logo GRX).\n\n1. O e-mail abrirá com assunto e texto.\n2. Clique no corpo do e-mail e pressione Ctrl+V para colar QR Code e logo."
     );
   } else if (plainCopied) {
     window.alert(
-      "Texto copiado para a área de transferência.\n\nCole com Ctrl+V no corpo do e-mail. Se faltar QR Code ou logo, recarregue a página e tente de novo."
+      "Texto copiado.\n\nO e-mail abrirá com assunto e texto. Pressione Ctrl+V no corpo se quiser tentar colar novamente."
     );
   } else {
     window.alert(
-      "Não foi possível copiar automaticamente.\n\nUse o texto que aparecerá no cliente de e-mail ou copie manualmente a mensagem exibida em seguida."
+      "Não foi possível copiar automaticamente.\n\nO e-mail abrirá com assunto e texto. Copie manualmente se necessário."
     );
     window.prompt("Copie a mensagem:", plainBody);
   }
 
-  window.location.href = href;
+  openMailtoLink(href);
+
   return {
     copied,
     richCopied,

@@ -227,17 +227,17 @@ export function ServiceOrderProposalView({
           logoDataUrl,
           companyName: context.companyName,
           copiedAlertMessage:
-            "Proposta copiada (link de produção, QR Code e logo 3D GRX).\n\nNo Gmail ou Outlook, clique no corpo do e-mail e pressione Ctrl+V para colar tudo. Não use o texto curto do mailto — só o Ctrl+V traz QR e logo.",
+            "Proposta copiada (texto, link, QR Code e logo GRX).\n\n1. O e-mail abrirá com assunto e texto.\n2. Clique no corpo do e-mail e pressione Ctrl+V para colar QR Code e logo.",
         }
       );
       setEmailHint(
         richCopied
           ? hasQr && hasLogo
-            ? "Copiado: link (produção), QR Code e logo 3D GRX. Use Ctrl+V no corpo do Gmail — não use o texto curto do mailto."
-            : "Copiado parcialmente. Use Ctrl+V no corpo do e-mail. Se faltar QR ou logo, recarregue a página e tente de novo."
+            ? "Copiado: texto + QR + logo GRX. E-mail abre com assunto/texto; use Ctrl+V no corpo para QR e logo."
+            : "Copiado parcialmente. E-mail abre com assunto/texto; use Ctrl+V no corpo."
           : copied
-            ? "Texto copiado. Use Ctrl+V no corpo do e-mail."
-            : "Não foi possível copiar automaticamente. Registre o envio, recarregue a página e tente de novo."
+            ? "Texto copiado. E-mail abre com assunto e corpo preenchidos."
+            : "E-mail abrirá com assunto e texto. Se faltar conteúdo, recarregue e tente de novo."
       );
     })();
   };

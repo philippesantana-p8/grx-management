@@ -195,12 +195,10 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
     }
 
     setSaving(true);
-    const whatsAppWindow = window.open("", "_blank");
     const { token, error: sendError } = await sendDriverAssignment(supabase, order.id, selectedId);
     setSaving(false);
 
     if (sendError || !token) {
-      whatsAppWindow?.close();
       window.alert(sendError ?? "Não foi possível registrar a designação.");
       return;
     }
@@ -220,7 +218,6 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
     );
 
     await shareDriverAssignmentViaWhatsApp(message, selectedDriver.phone, {
-      preOpenedWindow: whatsAppWindow,
       urlText: urlMessage,
     });
     onAssignmentSent?.(selectedId, selectedDriver.name);

@@ -7,6 +7,7 @@ const PLAQUE_PAD_X = 20;
 const PLAQUE_PAD_Y = 14;
 const PLAQUE_RADIUS = 12;
 const LOGO_DEPTH_LAYERS = [2, 1] as const;
+const MAX_EMAIL_EMBEDDED_LOGO_CHARS = 80_000;
 
 function resolveOrigin(origin?: string): string {
   const fromEnv = process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/$/, "");
@@ -165,7 +166,7 @@ export async function fetchBrandLogoDataUrl(origin?: string): Promise<string | n
   const image = await loadBrandLogoImage(origin);
   if (image) {
     const plaque3d = renderBrandLogoPlaque3DToDataUrl(image);
-    if (plaque3d) return plaque3d;
+    if (plaque3d && plaque3d.length <= MAX_EMAIL_EMBEDDED_LOGO_CHARS) return plaque3d;
   }
 
   const candidates = new Set<string>();
@@ -195,7 +196,8 @@ export async function fetchBrandLogoDataUrl(origin?: string): Promise<string | n
 
 export function buildEmailBrandFooterHtml(
   logoSrc: string,
-  companyName = DEFAULT_COMPANY_TAGLINE
+  companyName = DEFAULT_COMPANY_TAGLINE,
+  options?: { framed?: boolean }
 ): string {
   const safeCompany = companyName
     .replace(/&/g, "&amp;")
@@ -203,10 +205,26 @@ export function buildEmailBrandFooterHtml(
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
 
+  const framed = options?.framed ?? !logoSrc.startsWith("data:image");
+  const logoBlock = framed
+    ? [
+        `<div style="display:inline-block;background:linear-gradient(165deg,#181818 0%,#0a0a0a 52%,#050505 100%);padding:16px 28px;border-radius:12px;box-shadow:0 6px 18px rgba(15,23,42,0.28)">`,
+        `<img src="${logoSrc}" alt="${safeCompany}" width="200" height="80" style="display:block;max-width:200px;height:auto" />`,
+        `</div>`,
+      ].join("")
+    : `<img src="${logoSrc}" alt="${safeCompany}" width="240" style="display:block;max-width:240px;height:auto;border-radius:12px" />`;
+
   return [
     `<div style="margin-top:28px;padding-top:20px;border-top:1px solid #e2e8f0;text-align:left">`,
-    `<img src="${logoSrc}" alt="${safeCompany}" width="240" style="display:block;max-width:240px;height:auto;border-radius:12px" />`,
+    logoBlock,
     `<p style="margin:12px 0 0;font-size:11px;color:#64748b;letter-spacing:0.06em;text-transform:uppercase">${safeCompany}</p>`,
     `</div>`,
   ].join("");
+}
+
+export function resolveEmailBrandLogoSrc(logoDataUrl: string | null, origin?: string): string {
+  if (logoDataUrl && logoDataUrl.length <= MAX_EMAIL_EMBEDDED_LOGO_CHARS) {
+    return logoDataUrl;
+  }
+  return getBrandLogoPublicUrl(origin);
 }
