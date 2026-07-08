@@ -7,7 +7,7 @@ const PLAQUE_PAD_X = 20;
 const PLAQUE_PAD_Y = 14;
 const PLAQUE_RADIUS = 12;
 const LOGO_DEPTH_LAYERS = [2, 1] as const;
-const MAX_EMAIL_EMBEDDED_LOGO_CHARS = 80_000;
+const MAX_EMAIL_EMBEDDED_LOGO_CHARS = 120_000;
 
 function resolveOrigin(origin?: string): string {
   const fromEnv = process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/$/, "");
@@ -82,6 +82,15 @@ function drawPlaqueBackground(
   ctx.stroke();
 }
 
+function loadImageFromObjectUrl(objectUrl: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const image = new window.Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("logo load failed"));
+    image.src = objectUrl;
+  });
+}
+
 async function loadBrandLogoImage(origin?: string): Promise<HTMLImageElement | null> {
   if (typeof window === "undefined") return null;
 
@@ -90,36 +99,35 @@ async function loadBrandLogoImage(origin?: string): Promise<HTMLImageElement | n
   candidates.add(getBrandLogoPublicUrl(window.location.origin));
 
   for (const logoUrl of candidates) {
-    const sameOrigin = (() => {
+    try {
+      const response = await fetch(logoUrl);
+      if (!response.ok) continue;
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
       try {
-        return new URL(logoUrl, window.location.href).origin === window.location.origin;
-      } catch {
-        return false;
-      }
-    })();
-
-    const attempts: Array<string | undefined> = sameOrigin
-      ? [undefined, "anonymous"]
-      : ["anonymous", undefined];
-
-    for (const crossOrigin of attempts) {
-      try {
-        const image = new window.Image();
-        if (crossOrigin) image.crossOrigin = crossOrigin;
-        image.decoding = "async";
-        await new Promise<void>((resolve, reject) => {
-          image.onload = () => resolve();
-          image.onerror = () => reject(new Error("logo load failed"));
-          image.src = logoUrl;
-        });
+        const image = await loadImageFromObjectUrl(objectUrl);
         if (image.naturalWidth > 0) return image;
-      } catch {
-        /* tenta próximo modo */
+      } finally {
+        URL.revokeObjectURL(objectUrl);
       }
+    } catch {
+      /* tenta próxima origem */
     }
   }
 
   return null;
+}
+
+function compressCanvasToEmailDataUrl(canvas: HTMLCanvasElement): string {
+  const png = canvas.toDataURL("image/png");
+  if (png.length <= MAX_EMAIL_EMBEDDED_LOGO_CHARS) return png;
+
+  for (const quality of [0.9, 0.82, 0.74, 0.66, 0.58, 0.5]) {
+    const jpeg = canvas.toDataURL("image/jpeg", quality);
+    if (jpeg.length <= MAX_EMAIL_EMBEDDED_LOGO_CHARS) return jpeg;
+  }
+
+  return canvas.toDataURL("image/jpeg", 0.42);
 }
 
 /** Renderiza o logo padrão 3D (placa escura + profundidade) para colar em e-mails. */
@@ -159,36 +167,14 @@ export function renderBrandLogoPlaque3DToDataUrl(source: HTMLImageElement): stri
   ctx.drawImage(source, baseX, baseY, logoWidth, logoHeight);
   ctx.restore();
 
-  return canvas.toDataURL("image/png");
+  return compressCanvasToEmailDataUrl(canvas);
 }
 
 export async function fetchBrandLogoDataUrl(origin?: string): Promise<string | null> {
   const image = await loadBrandLogoImage(origin);
   if (image) {
     const plaque3d = renderBrandLogoPlaque3DToDataUrl(image);
-    if (plaque3d && plaque3d.length <= MAX_EMAIL_EMBEDDED_LOGO_CHARS) return plaque3d;
-  }
-
-  const candidates = new Set<string>();
-  candidates.add(getBrandLogoPublicUrl(origin));
-  if (typeof window !== "undefined") {
-    candidates.add(getBrandLogoPublicUrl(window.location.origin));
-  }
-
-  for (const logoUrl of candidates) {
-    try {
-      const response = await fetch(logoUrl);
-      if (!response.ok) continue;
-      const blob = await response.blob();
-      return await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(String(reader.result));
-        reader.onerror = reject;
-        reader.readAsDataURL(blob);
-      });
-    } catch {
-      /* tenta próxima origem */
-    }
+    if (plaque3d) return plaque3d;
   }
 
   return null;
@@ -205,7 +191,8 @@ export function buildEmailBrandFooterHtml(
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
 
-  const framed = options?.framed ?? !logoSrc.startsWith("data:image");
+  const isEmbeddedPlaque = logoSrc.startsWith("data:image");
+  const framed = options?.framed ?? !isEmbeddedPlaque;
   const logoBlock = framed
     ? [
         `<div style="display:inline-block;background:linear-gradient(165deg,#181818 0%,#0a0a0a 52%,#050505 100%);padding:16px 28px;border-radius:12px;box-shadow:0 6px 18px rgba(15,23,42,0.28)">`,
@@ -222,8 +209,9 @@ export function buildEmailBrandFooterHtml(
   ].join("");
 }
 
+/** Prefer embedded 3D plaque for email paste; public URL only as last resort. */
 export function resolveEmailBrandLogoSrc(logoDataUrl: string | null, origin?: string): string {
-  if (logoDataUrl && logoDataUrl.length <= MAX_EMAIL_EMBEDDED_LOGO_CHARS) {
+  if (logoDataUrl?.startsWith("data:image")) {
     return logoDataUrl;
   }
   return getBrandLogoPublicUrl(origin);
