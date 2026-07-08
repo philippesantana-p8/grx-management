@@ -89,18 +89,32 @@ async function loadBrandLogoImage(origin?: string): Promise<HTMLImageElement | n
   candidates.add(getBrandLogoPublicUrl(window.location.origin));
 
   for (const logoUrl of candidates) {
-    try {
-      const image = new window.Image();
-      image.crossOrigin = "anonymous";
-      image.decoding = "async";
-      await new Promise<void>((resolve, reject) => {
-        image.onload = () => resolve();
-        image.onerror = () => reject(new Error("logo load failed"));
-        image.src = logoUrl;
-      });
-      if (image.naturalWidth > 0) return image;
-    } catch {
-      /* tenta próxima origem */
+    const sameOrigin = (() => {
+      try {
+        return new URL(logoUrl, window.location.href).origin === window.location.origin;
+      } catch {
+        return false;
+      }
+    })();
+
+    const attempts: Array<string | undefined> = sameOrigin
+      ? [undefined, "anonymous"]
+      : ["anonymous", undefined];
+
+    for (const crossOrigin of attempts) {
+      try {
+        const image = new window.Image();
+        if (crossOrigin) image.crossOrigin = crossOrigin;
+        image.decoding = "async";
+        await new Promise<void>((resolve, reject) => {
+          image.onload = () => resolve();
+          image.onerror = () => reject(new Error("logo load failed"));
+          image.src = logoUrl;
+        });
+        if (image.naturalWidth > 0) return image;
+      } catch {
+        /* tenta próximo modo */
+      }
     }
   }
 

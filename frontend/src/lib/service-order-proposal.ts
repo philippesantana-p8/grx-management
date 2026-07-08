@@ -46,9 +46,13 @@ export function resolveClientProposalShareUrl(
 
 export function sanitizePublicProposalUrl(url: string): string {
   const trimmed = url.trim();
-  const tokenMatch = trimmed.match(/\/proposta\/([a-f0-9]{32,})/i);
-  if (tokenMatch?.[1]) {
-    return buildPublicProposalUrl(tokenMatch[1]);
+  const proposalToken = trimmed.match(/\/proposta\/([a-f0-9]{32,})/i);
+  if (proposalToken?.[1]) {
+    return buildPublicProposalUrl(proposalToken[1]);
+  }
+  const assignmentToken = trimmed.match(/\/designacao\/([a-f0-9]{32,})/i);
+  if (assignmentToken?.[1]) {
+    return `${getPublicAppOrigin()}/designacao/${assignmentToken[1]}`;
   }
   if (isLocalhostPublicProposalUrl(trimmed)) {
     return trimmed.replace(
@@ -118,6 +122,9 @@ function formatClientGreetingName(clientName: string | null | undefined): string
 }
 
 const PROPOSAL_CLIENT_INTRO = "Segue a proposta para análise.";
+const DRIVER_ASSIGNMENT_INTRO =
+  "Segue a designação da ordem de serviço para sua confirmação.";
+const SHARE_INTRO_MARKERS = [PROPOSAL_CLIENT_INTRO, DRIVER_ASSIGNMENT_INTRO] as const;
 const PROPOSAL_CLIENT_CLOSING =
   "Caso concorde, acesse o link que publico abaixo e confirme o aceite da proposta.";
 const PROPOSAL_CLIENT_EMAIL_QR_HINT =
@@ -559,40 +566,73 @@ function normalizeEmailLineBreaks(text: string): string {
   return text.replace(/\r\n/g, "\n").replace(/\n/g, "\r\n");
 }
 
-function buildMailtoSafeBody(fullBody: string, proposalUrl: string): string {
+function buildMailtoSafeBody(fullBody: string, shareUrl: string): string {
   const normalized = fullBody.replace(/\r\n/g, "\n");
   const linkMatch = normalized.match(/https?:\/\/\S+/);
-  const link = sanitizePublicProposalUrl(linkMatch?.[0] ?? proposalUrl);
-  const greetingEnd = normalized.indexOf(PROPOSAL_CLIENT_INTRO);
+  const link = sanitizePublicProposalUrl(linkMatch?.[0] ?? shareUrl);
+
+  let greetingEnd = -1;
+  for (const marker of SHARE_INTRO_MARKERS) {
+    const idx = normalized.indexOf(marker);
+    if (idx >= 0) {
+      greetingEnd = idx + marker.length;
+      break;
+    }
+  }
+
   const greeting =
     greetingEnd >= 0
-      ? normalized.slice(0, greetingEnd + PROPOSAL_CLIENT_INTRO.length)
+      ? normalized.slice(0, greetingEnd)
       : normalized.split("\n").slice(0, 8).join("\n");
 
   const rotaIndex = normalized.indexOf("\nRota\n");
   let summary = "";
   if (rotaIndex >= 0) {
-    summary = normalized.slice(rotaIndex + 1).split("\n").slice(0, 5).join("\n").trim();
+    summary = normalized
+      .slice(rotaIndex + 1)
+      .split("\n")
+      .slice(0, 6)
+      .join("\n")
+      .trim();
   }
+
+  const closingMatch = normalized.match(
+    /(?:Caso concorde, acesse o link|Por favor, acesse o link)[^\n]*/i
+  );
+  const closing =
+    closingMatch?.[0] ??
+    "Por favor, acesse o link abaixo para confirmar.";
 
   const parts = [greeting.trim()];
   if (summary) parts.push("", summary);
-  parts.push("", PROPOSAL_CLIENT_CLOSING);
+  parts.push("", closing);
   if (link) parts.push("", link);
 
   return normalizeEmailLineBreaks(parts.join("\n"));
+}
+
+function buildMailtoFallbackBody(fullBody: string, shareUrl: string): string {
+  const normalized = fullBody.replace(/\r\n/g, "\n");
+  if (normalized.length <= 1800) {
+    return normalizeEmailLineBreaks(normalized);
+  }
+  return buildMailtoSafeBody(normalized, shareUrl);
 }
 
 export type EmailShareOptions = {
   qrDataUrl?: string | null;
   logoDataUrl?: string | null;
   companyName?: string;
+  /** Texto do alerta quando a cópia rica funcionar. */
+  copiedAlertMessage?: string;
 };
 
 export type EmailShareResult = {
   copied: boolean;
+  richCopied: boolean;
   hasQr: boolean;
   hasLogo: boolean;
+  plainBody: string;
 };
 
 export async function openEmailShare(
@@ -605,25 +645,43 @@ export async function openEmailShare(
   const plainBody = body.replace(/\r\n/g, "\n");
   const qrDataUrl = options?.qrDataUrl ?? null;
   const logoDataUrl = options?.logoDataUrl ?? null;
-  const copied = await copyEmailProposalToClipboard(plainBody, safeUrl, {
+  const richCopied = await copyEmailProposalToClipboard(plainBody, safeUrl, {
     qrDataUrl,
     logoDataUrl,
     companyName: options?.companyName,
   });
-  const hasRichPaste = Boolean(copied && (qrDataUrl || logoDataUrl || safeUrl));
-  const mailtoBody = hasRichPaste ? "" : buildMailtoSafeBody(plainBody, safeUrl);
+  const plainCopied = richCopied ? true : await copyTextToClipboard(plainBody);
+  const copied = richCopied || plainCopied;
+  const hasRichPaste = Boolean(richCopied && (qrDataUrl || logoDataUrl));
+  const mailtoBody = hasRichPaste ? "" : buildMailtoFallbackBody(plainBody, safeUrl);
   const to = options?.to?.trim();
   const mailtoPrefix = to ? `mailto:${encodeURIComponent(to)}` : "mailto:";
   const href = `${mailtoPrefix}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(mailtoBody)}`;
 
   if (hasRichPaste) {
     window.alert(
-      "Proposta copiada (link de produção, QR Code e logo 3D GRX).\n\nNo Gmail ou Outlook, clique no corpo do e-mail e pressione Ctrl+V para colar tudo. Não use o texto curto do mailto — só o Ctrl+V traz QR e logo."
+      options?.copiedAlertMessage ??
+        "Mensagem copiada (link de produção, QR Code e logo 3D GRX).\n\nNo Gmail ou Outlook, clique no corpo do e-mail e pressione Ctrl+V para colar tudo. Não use o texto curto do mailto — só o Ctrl+V traz QR e logo."
     );
+  } else if (plainCopied) {
+    window.alert(
+      "Texto copiado para a área de transferência.\n\nCole com Ctrl+V no corpo do e-mail. Se faltar QR Code ou logo, recarregue a página e tente novamente."
+    );
+  } else {
+    window.alert(
+      "Não foi possível copiar automaticamente.\n\nUse o texto que aparecerá no cliente de e-mail ou copie manualmente a mensagem exibida em seguida."
+    );
+    window.prompt("Copie a mensagem:", plainBody);
   }
 
   window.location.href = href;
-  return { copied, hasQr: Boolean(qrDataUrl), hasLogo: Boolean(logoDataUrl) };
+  return {
+    copied,
+    richCopied,
+    hasQr: Boolean(qrDataUrl),
+    hasLogo: Boolean(logoDataUrl),
+    plainBody,
+  };
 }
 
 export function triggerPrintPdf() {

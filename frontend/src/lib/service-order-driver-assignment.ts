@@ -8,6 +8,7 @@ import {
   isWindowsWhatsAppDesktop,
   openEmailShare,
   resolveProposalAmount,
+  type EmailShareResult,
 } from "@/lib/service-order-proposal";
 import { fetchBrandLogoDataUrl } from "@/lib/brand-email";
 import { formatCurrency } from "@/lib/utils";
@@ -171,7 +172,7 @@ export async function openDriverAssignmentEmailShare(
   companyName: string,
   driverName: string,
   assignmentUrl: string
-): Promise<void> {
+): Promise<EmailShareResult> {
   const body = buildDriverAssignmentEmailBody(order, companyName, driverName, assignmentUrl);
   const subject = `Designação OS ${order.code} — ${companyName}`;
   const [qrDataUrl, logoDataUrl] = await Promise.all([
@@ -179,11 +180,13 @@ export async function openDriverAssignmentEmailShare(
     fetchBrandLogoDataUrl(),
   ]);
 
-  await openEmailShare(subject, body, assignmentUrl, {
+  return openEmailShare(subject, body, assignmentUrl, {
     to: driverEmail,
     qrDataUrl,
     logoDataUrl,
     companyName,
+    copiedAlertMessage:
+      "Designação copiada (link de produção, QR Code e logo 3D GRX).\n\nNo Gmail ou Outlook, clique no corpo do e-mail e pressione Ctrl+V para colar tudo. Não use o texto curto do mailto — só o Ctrl+V traz QR e logo.",
   });
 }
 
@@ -265,15 +268,25 @@ export async function respondToDriverAssignment(
 export async function shareDriverAssignmentViaWhatsApp(
   text: string,
   phone?: string | null
-): Promise<void> {
+): Promise<boolean> {
   const links = buildWhatsAppShareLinks(text, phone);
-  await copyTextToClipboard(text);
+  const copied = await copyTextToClipboard(text);
   window.open(links.primaryHref, "_blank", "noopener,noreferrer");
-  if (isWindowsWhatsAppDesktop()) {
-    window.alert(
-      "Mensagem copiada. Se o WhatsApp não abrir sozinho, use Alt+Tab nele e Ctrl+V no chat do motorista."
-    );
+
+  if (copied) {
+    if (isWindowsWhatsAppDesktop()) {
+      window.alert(
+        "Mensagem copiada. Se o WhatsApp não abrir sozinho, use Alt+Tab nele e Ctrl+V no chat do motorista."
+      );
+    }
+    return true;
   }
+
+  window.alert(
+    "Não foi possível copiar automaticamente.\n\nCopie a mensagem exibida em seguida e cole no WhatsApp."
+  );
+  window.prompt("Copie a mensagem:", text);
+  return false;
 }
 
 export const DRIVER_ASSIGNMENT_RESPONSE_LABELS: Record<DriverAssignmentResponse, string> = {

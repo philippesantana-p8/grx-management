@@ -218,18 +218,26 @@ export function ServiceOrderProposalView({
         generateProposalQrDataUrl(url),
         fetchBrandLogoDataUrl(getPublicAppOrigin()),
       ]);
-      const { copied, hasQr, hasLogo } = await openEmailShare(
+      const { copied, richCopied, hasQr, hasLogo } = await openEmailShare(
         `Proposta OS ${order.code} — ${context.companyName}`,
         body,
         url,
-        { qrDataUrl, logoDataUrl, companyName: context.companyName }
+        {
+          qrDataUrl,
+          logoDataUrl,
+          companyName: context.companyName,
+          copiedAlertMessage:
+            "Proposta copiada (link de produção, QR Code e logo 3D GRX).\n\nNo Gmail ou Outlook, clique no corpo do e-mail e pressione Ctrl+V para colar tudo. Não use o texto curto do mailto — só o Ctrl+V traz QR e logo.",
+        }
       );
       setEmailHint(
-        copied
+        richCopied
           ? hasQr && hasLogo
             ? "Copiado: link (produção), QR Code e logo 3D GRX. Use Ctrl+V no corpo do Gmail — não use o texto curto do mailto."
             : "Copiado parcialmente. Use Ctrl+V no corpo do e-mail. Se faltar QR ou logo, recarregue a página e tente de novo."
-          : "Não foi possível copiar automaticamente. Registre o envio, recarregue a página e tente de novo."
+          : copied
+            ? "Texto copiado. Use Ctrl+V no corpo do e-mail."
+            : "Não foi possível copiar automaticamente. Registre o envio, recarregue a página e tente de novo."
       );
     })();
   };
