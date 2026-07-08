@@ -7,7 +7,8 @@ const PLAQUE_PAD_X = 20;
 const PLAQUE_PAD_Y = 14;
 const PLAQUE_RADIUS = 12;
 const LOGO_DEPTH_LAYERS = [2, 1] as const;
-const MAX_EMAIL_EMBEDDED_LOGO_CHARS = 120_000;
+/** Keep embedded logo small — ClipboardItem + QR HTML must stay under browser limits. */
+const MAX_EMAIL_EMBEDDED_LOGO_CHARS = 48_000;
 
 function resolveOrigin(origin?: string): string {
   const fromEnv = process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/$/, "");
@@ -118,16 +119,20 @@ async function loadBrandLogoImage(origin?: string): Promise<HTMLImageElement | n
   return null;
 }
 
-function compressCanvasToEmailDataUrl(canvas: HTMLCanvasElement): string {
-  const png = canvas.toDataURL("image/png");
-  if (png.length <= MAX_EMAIL_EMBEDDED_LOGO_CHARS) return png;
+function compressCanvasToEmailDataUrl(canvas: HTMLCanvasElement): string | null {
+  try {
+    const png = canvas.toDataURL("image/png");
+    if (png.length <= MAX_EMAIL_EMBEDDED_LOGO_CHARS) return png;
 
-  for (const quality of [0.9, 0.82, 0.74, 0.66, 0.58, 0.5]) {
-    const jpeg = canvas.toDataURL("image/jpeg", quality);
-    if (jpeg.length <= MAX_EMAIL_EMBEDDED_LOGO_CHARS) return jpeg;
+    for (const quality of [0.88, 0.78, 0.68, 0.58, 0.48, 0.38, 0.28]) {
+      const jpeg = canvas.toDataURL("image/jpeg", quality);
+      if (jpeg.length <= MAX_EMAIL_EMBEDDED_LOGO_CHARS) return jpeg;
+    }
+
+    return canvas.toDataURL("image/jpeg", 0.22);
+  } catch {
+    return null;
   }
-
-  return canvas.toDataURL("image/jpeg", 0.42);
 }
 
 /** Renderiza o logo padrão 3D (placa escura + profundidade) para colar em e-mails. */
@@ -171,10 +176,14 @@ export function renderBrandLogoPlaque3DToDataUrl(source: HTMLImageElement): stri
 }
 
 export async function fetchBrandLogoDataUrl(origin?: string): Promise<string | null> {
-  const image = await loadBrandLogoImage(origin);
-  if (image) {
-    const plaque3d = renderBrandLogoPlaque3DToDataUrl(image);
-    if (plaque3d) return plaque3d;
+  try {
+    const image = await loadBrandLogoImage(origin);
+    if (image) {
+      const plaque3d = renderBrandLogoPlaque3DToDataUrl(image);
+      if (plaque3d?.startsWith("data:image")) return plaque3d;
+    }
+  } catch {
+    /* fallback abaixo */
   }
 
   return null;

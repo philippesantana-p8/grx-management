@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { BrandLogo } from "@/components/brand/BrandLogo";
 import { Button } from "@/components/ui/Button";
@@ -72,6 +72,10 @@ export function ServiceOrderProposalView({
   const [actionError, setActionError] = useState<string | null>(null);
   const [emailHint, setEmailHint] = useState<string | null>(null);
   const [whatsappHint, setWhatsappHint] = useState<string | null>(null);
+  const [emailPasteAssets, setEmailPasteAssets] = useState<{
+    qrDataUrl: string | null;
+    logoDataUrl: string | null;
+  }>({ qrDataUrl: null, logoDataUrl: null });
   const [publicToken, setPublicToken] = useState(order.proposal_token);
   const [sentAt, setSentAt] = useState(order.proposal_sent_at);
 
@@ -86,6 +90,27 @@ export function ServiceOrderProposalView({
   const shareUrl = publicUrl ?? "";
   const isDev = process.env.NODE_ENV === "development";
   const hasRoute = Boolean(order.freight_origin_address || order.freight_destination_address);
+
+  useEffect(() => {
+    if (!clientShareUrl) {
+      setEmailPasteAssets({ qrDataUrl: null, logoDataUrl: null });
+      return;
+    }
+
+    let cancelled = false;
+    void Promise.all([
+      generateProposalQrDataUrl(clientShareUrl),
+      fetchBrandLogoDataUrl(getPublicAppOrigin()),
+    ]).then(([qrDataUrl, logoDataUrl]) => {
+      if (!cancelled) {
+        setEmailPasteAssets({ qrDataUrl, logoDataUrl });
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [clientShareUrl]);
 
   const handleMarkSent = async () => {
     setMarkingSent(true);
@@ -205,40 +230,48 @@ export function ServiceOrderProposalView({
 
   const shareEmail = () => {
     void (async () => {
-      const url = resolveClientProposalShareUrl(publicToken);
-      if (!url) {
-        window.alert(
-          "Registre o envio da proposta primeiro.\n\nO link, o QR Code e o e-mail só funcionam após gerar o link público de produção."
-        );
-        return;
-      }
-
-      const body = buildProposalEmailBody(order, context, url);
-      const [qrDataUrl, logoDataUrl] = await Promise.all([
-        generateProposalQrDataUrl(url),
-        fetchBrandLogoDataUrl(getPublicAppOrigin()),
-      ]);
-      const { copied, richCopied, hasQr, hasLogo } = await openEmailShare(
-        `Proposta OS ${order.code} — ${context.companyName}`,
-        body,
-        url,
-        {
-          qrDataUrl,
-          logoDataUrl,
-          companyName: context.companyName,
-          copiedAlertMessage:
-            "Proposta copiada (texto, link, QR Code e logo GRX).\n\n1. O e-mail abrirá com assunto e texto.\n2. Clique no corpo do e-mail e pressione Ctrl+V para colar QR Code e logo.",
+      try {
+        const url = resolveClientProposalShareUrl(publicToken);
+        if (!url) {
+          window.alert(
+            "Registre o envio da proposta primeiro.\n\nO link, o QR Code e o e-mail só funcionam após gerar o link público de produção."
+          );
+          return;
         }
-      );
-      setEmailHint(
-        richCopied
-          ? hasQr && hasLogo
-            ? "Copiado: texto + QR + logo GRX. E-mail abre com assunto/texto; use Ctrl+V no corpo para QR e logo."
-            : "Copiado parcialmente. E-mail abre com assunto/texto; use Ctrl+V no corpo."
-          : copied
-            ? "Texto copiado. E-mail abre com assunto e corpo preenchidos."
-            : "E-mail abrirá com assunto e texto. Se faltar conteúdo, recarregue e tente de novo."
-      );
+
+        const body = buildProposalEmailBody(order, context, url);
+        const qrDataUrl =
+          emailPasteAssets.qrDataUrl ?? (await generateProposalQrDataUrl(url));
+        const logoDataUrl =
+          emailPasteAssets.logoDataUrl ??
+          (await fetchBrandLogoDataUrl(getPublicAppOrigin()));
+
+        const { copied, richCopied, hasQr, hasLogo } = await openEmailShare(
+          `Proposta OS ${order.code} — ${context.companyName}`,
+          body,
+          url,
+          {
+            qrDataUrl,
+            logoDataUrl,
+            companyName: context.companyName,
+            copiedAlertMessage:
+              "Proposta copiada (texto, link, QR Code e logo 3D GRX).\n\n1. O e-mail abrirá com assunto e texto.\n2. Clique no corpo do e-mail e pressione Ctrl+V para colar QR Code e logo.",
+          }
+        );
+        setEmailHint(
+          richCopied
+            ? hasQr && hasLogo
+              ? "Copiado: texto + QR + logo 3D GRX. E-mail abre com assunto/texto; use Ctrl+V no corpo para QR e logo."
+              : "Copiado parcialmente. E-mail abre com assunto/texto; use Ctrl+V no corpo."
+            : copied
+              ? "Texto copiado. E-mail abre com assunto e corpo preenchidos."
+              : "E-mail abrirá com assunto e texto. Se faltar conteúdo, recarregue e tente de novo."
+        );
+      } catch {
+        setActionError(
+          "Não foi possível preparar o e-mail. Recarregue a página (F5) e tente novamente."
+        );
+      }
     })();
   };
 

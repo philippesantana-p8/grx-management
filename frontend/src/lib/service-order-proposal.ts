@@ -227,11 +227,13 @@ type EmailClipboardOptions = {
   companyName?: string;
 };
 
-async function copyEmailProposalToClipboard(
+const MAX_CLIPBOARD_HTML_CHARS = 180_000;
+
+function buildEmailProposalHtml(
   plainBody: string,
   proposalUrl: string,
   options?: EmailClipboardOptions
-): Promise<boolean> {
+): string {
   const url = sanitizePublicProposalUrl(proposalUrl.trim());
   const qrDataUrl = options?.qrDataUrl ?? null;
   const logoDataUrl = options?.logoDataUrl ?? null;
@@ -254,16 +256,45 @@ async function copyEmailProposalToClipboard(
     html += buildEmailQrHtmlBlock(qrDataUrl);
   }
 
+  return html;
+}
+
+async function appendEmailBrandFooter(
+  html: string,
+  logoDataUrl: string | null | undefined,
+  companyName?: string
+): Promise<string> {
   const { buildEmailBrandFooterHtml, resolveEmailBrandLogoSrc } = await import("@/lib/brand-email");
-  const logoSrc = resolveEmailBrandLogoSrc(logoDataUrl, getPublicAppOrigin());
-  html += buildEmailBrandFooterHtml(logoSrc, options?.companyName, {
-    framed: !logoSrc.startsWith("data:image"),
-  });
+  const logoSrc = resolveEmailBrandLogoSrc(logoDataUrl ?? null, getPublicAppOrigin());
+  return (
+    html +
+    buildEmailBrandFooterHtml(logoSrc, companyName, {
+      framed: !logoSrc.startsWith("data:image"),
+    })
+  );
+}
+
+async function copyEmailProposalToClipboard(
+  plainBody: string,
+  proposalUrl: string,
+  options?: EmailClipboardOptions
+): Promise<boolean> {
+  let html = buildEmailProposalHtml(plainBody, proposalUrl, options);
+  html = await appendEmailBrandFooter(html, options?.logoDataUrl, options?.companyName);
+
+  if (html.length > MAX_CLIPBOARD_HTML_CHARS && options?.qrDataUrl) {
+    html = buildEmailProposalHtml(plainBody, proposalUrl, {
+      ...options,
+      qrDataUrl: null,
+    });
+    html = await appendEmailBrandFooter(html, options.logoDataUrl, options?.companyName);
+  }
 
   if (
     typeof navigator !== "undefined" &&
     navigator.clipboard?.write &&
-    typeof ClipboardItem !== "undefined"
+    typeof ClipboardItem !== "undefined" &&
+    html.length <= MAX_CLIPBOARD_HTML_CHARS
   ) {
     try {
       await navigator.clipboard.write([
@@ -676,6 +707,23 @@ function buildMailtoBodyForClient(fullBody: string, shareUrl: string): string {
   return buildMailtoSafeBody(fullBody, shareUrl);
 }
 
+const MAX_MAILTO_HREF_LENGTH = 2040;
+
+function buildMailtoHref(
+  mailtoPrefix: string,
+  subject: string,
+  plainBody: string,
+  shareUrl: string
+): string {
+  const body = buildMailtoBodyForClient(plainBody, shareUrl);
+  let href = `${mailtoPrefix}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+
+  if (href.length <= MAX_MAILTO_HREF_LENGTH) return href;
+
+  const safeBody = buildMailtoSafeBody(plainBody, shareUrl);
+  return `${mailtoPrefix}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(safeBody)}`;
+}
+
 export type EmailShareOptions = {
   qrDataUrl?: string | null;
   logoDataUrl?: string | null;
@@ -711,10 +759,10 @@ export async function openEmailShare(
     logoDataUrl,
     companyName: options?.companyName,
   });
-  const plainCopied = await copyTextToClipboard(plainBody);
+  // Never overwrite rich HTML in the clipboard — plain write removes QR/logo on Ctrl+V.
+  const plainCopied = richCopied ? true : await copyTextToClipboard(plainBody);
   const copied = richCopied || plainCopied;
-  const mailtoBody = buildMailtoBodyForClient(plainBody, safeUrl);
-  const href = `${mailtoPrefix}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(mailtoBody)}`;
+  const href = buildMailtoHref(mailtoPrefix, subject, plainBody, safeUrl);
 
   if (richCopied) {
     window.alert(
