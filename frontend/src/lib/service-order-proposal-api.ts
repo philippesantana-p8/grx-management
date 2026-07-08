@@ -95,6 +95,68 @@ export async function respondToProposal(
   };
 }
 
+export async function acceptProposalOnBehalfOfClient(
+  supabase: SupabaseClient,
+  orderId: string
+): Promise<{
+  proposalResponse: ProposalResponse | null;
+  status: string | null;
+  proposalAcceptedAt: string | null;
+  error: string | null;
+}> {
+  const { data, error } = await supabase.rpc("accept_proposal_on_behalf_of_client", {
+    p_order_id: orderId,
+  });
+
+  if (error) {
+    return { proposalResponse: null, status: null, proposalAcceptedAt: null, error: error.message };
+  }
+
+  const payload = data as {
+    proposal_response?: ProposalResponse;
+    status?: string;
+    proposal_accepted_at?: string;
+  } | null;
+
+  return {
+    proposalResponse: payload?.proposal_response ?? "accepted",
+    status: payload?.status ?? "Aberto",
+    proposalAcceptedAt: payload?.proposal_accepted_at ?? null,
+    error: null,
+  };
+}
+
+export async function rejectProposalOnBehalfOfClient(
+  supabase: SupabaseClient,
+  orderId: string
+): Promise<{
+  proposalResponse: ProposalResponse | null;
+  status: string | null;
+  proposalRejectedAt: string | null;
+  error: string | null;
+}> {
+  const { data, error } = await supabase.rpc("reject_proposal_on_behalf_of_client", {
+    p_order_id: orderId,
+  });
+
+  if (error) {
+    return { proposalResponse: null, status: null, proposalRejectedAt: null, error: error.message };
+  }
+
+  const payload = data as {
+    proposal_response?: ProposalResponse;
+    status?: string;
+    proposal_rejected_at?: string;
+  } | null;
+
+  return {
+    proposalResponse: payload?.proposal_response ?? "rejected",
+    status: payload?.status ?? "Aguardando aprovação cliente",
+    proposalRejectedAt: payload?.proposal_rejected_at ?? null,
+    error: null,
+  };
+}
+
 export async function resetProposalClientResponse(
   supabase: SupabaseClient,
   orderId: string

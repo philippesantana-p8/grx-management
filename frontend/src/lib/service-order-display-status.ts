@@ -2,14 +2,21 @@ import { PROPOSAL_RESPONSE_LABELS, type ServiceOrder } from "@/types/database";
 
 export type ServiceOrderStatusRow = Pick<
   ServiceOrder,
-  "status" | "proposal_sent_at" | "proposal_response"
+  "status" | "proposal_sent_at" | "proposal_response" | "proposal_accepted_at"
 >;
+
+function isProposalAcceptedByClient(row: ServiceOrderStatusRow): boolean {
+  return (
+    (row.proposal_response ?? "pending") === "accepted" ||
+    Boolean(row.proposal_accepted_at)
+  );
+}
 
 /** Status operacional único — evita conflito entre colunas Proposta e Status. */
 export function resolveServiceOrderDisplayStatus(row: ServiceOrderStatusRow): string {
   const response = row.proposal_response ?? "pending";
 
-  if (response === "accepted") {
+  if (isProposalAcceptedByClient(row)) {
     return PROPOSAL_RESPONSE_LABELS.accepted;
   }
 

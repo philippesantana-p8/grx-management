@@ -31,6 +31,8 @@ type CrudPageProps<T extends { id: string }> = {
   filterItem?: (item: T) => boolean;
   transformItems?: (items: T[], companyId: string) => Promise<T[]>;
   renderRowActions?: (row: T) => ReactNode;
+  /** Increment to refetch rows after external mutations (e.g. RPC row actions). */
+  refreshKey?: number;
 };
 
 export function CrudPage<T extends { id: string }>({
@@ -46,6 +48,7 @@ export function CrudPage<T extends { id: string }>({
   filterItem,
   transformItems,
   renderRowActions,
+  refreshKey = 0,
 }: CrudPageProps<T>) {
   const { companyId, loading: companyLoading } = useCompany();
   const [items, setItems] = useState<T[]>([]);
@@ -80,11 +83,11 @@ export function CrudPage<T extends { id: string }>({
       setItems(rows);
     }
     setLoading(false);
-  }, [companyId, table, orderBy, softDelete, eqFilters, supabase, transformItems]);
+  }, [companyId, table, orderBy, softDelete, eqFilters, supabase, transformItems, refreshKey]);
 
   useEffect(() => {
     if (companyId) load();
-  }, [companyId, load]);
+  }, [companyId, load, refreshKey]);
 
   const handleSave = async (data: Record<string, unknown>): Promise<string | null> => {
     if (!companyId) return null;

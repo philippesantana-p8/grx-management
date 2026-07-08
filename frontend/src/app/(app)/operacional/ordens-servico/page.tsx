@@ -56,6 +56,7 @@ function OrdensServicoPageContent() {
   const [serviceTypeFilter, setServiceTypeFilter] = useState("");
   const [pendingProposalsFilter, setPendingProposalsFilter] = useState(false);
   const [listRows, setListRows] = useState<ServiceOrderListRow[]>([]);
+  const [listRefreshKey, setListRefreshKey] = useState(0);
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [vehiclesError, setVehiclesError] = useState<string | null>(null);
@@ -159,6 +160,10 @@ function OrdensServicoPageContent() {
     []
   );
 
+  const handleProposalResponseChanged = useCallback(() => {
+    setListRefreshKey((key) => key + 1);
+  }, []);
+
   const visibleCount = useMemo(
     () => listRows.filter(filterItem).length,
     [listRows, filterItem]
@@ -191,6 +196,7 @@ function OrdensServicoPageContent() {
 
   return (
     <CrudPage<ServiceOrderListRow>
+      refreshKey={listRefreshKey}
       title="Ordens de Serviço"
       description="Transporte, estacionamento e lava-rápido — natureza do serviço vinculada às contas DRE"
       table="service_orders"
@@ -220,7 +226,11 @@ function OrdensServicoPageContent() {
         </div>
       }
       renderRowActions={(row) => (
-        <ServiceOrderRowActions row={row} onFollowUpRegistered={handleFollowUpRegistered} />
+        <ServiceOrderRowActions
+          row={row}
+          onFollowUpRegistered={handleFollowUpRegistered}
+          onProposalResponseChanged={handleProposalResponseChanged}
+        />
       )}
       columns={[
         { key: "code", label: "Código" },
