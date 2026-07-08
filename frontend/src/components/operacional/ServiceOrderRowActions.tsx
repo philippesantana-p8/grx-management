@@ -194,7 +194,7 @@ export function ServiceOrderRowActions({
             aria-label={`Registrar recusa por telefone — OS ${row.code}`}
             onClick={() => void handleRejectOnBehalf()}
             className={cn(
-              "inline-flex items-center justify-center rounded-lg border border-slate-300 bg-slate-50 px-2.5 py-1.5 text-slate-700 transition-colors hover:bg-slate-100 disabled:opacity-50"
+              "inline-flex items-center justify-center rounded-lg border border-red-300 bg-red-50 px-2.5 py-1.5 text-red-800 transition-colors hover:bg-red-100 disabled:opacity-50"
             )}
           >
             <PhoneRejectIcon />
