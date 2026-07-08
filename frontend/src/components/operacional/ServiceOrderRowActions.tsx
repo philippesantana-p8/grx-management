@@ -35,13 +35,47 @@ function PhoneIcon({ className }: { className?: string }) {
   );
 }
 
+function ThumbUpIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={cn("h-4 w-4 shrink-0", className)}
+      aria-hidden
+    >
+      <path d="M7 10v12" />
+      <path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.67 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z" />
+    </svg>
+  );
+}
+
+function ThumbDownIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={cn("h-4 w-4 shrink-0", className)}
+      aria-hidden
+    >
+      <path d="M17 14V2" />
+      <path d="M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.33 2h13.67a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22a3.13 3.13 0 0 1-3-3.88Z" />
+    </svg>
+  );
+}
+
 function PhoneAcceptIcon() {
   return (
     <span className="inline-flex items-center gap-1">
       <PhoneIcon />
-      <span className="text-sm leading-none" aria-hidden>
-        💎
-      </span>
+      <ThumbUpIcon />
     </span>
   );
 }
@@ -50,9 +84,7 @@ function PhoneRejectIcon() {
   return (
     <span className="inline-flex items-center gap-1">
       <PhoneIcon />
-      <span className="inline-block rotate-180 text-sm leading-none" aria-hidden>
-        💎
-      </span>
+      <ThumbDownIcon />
     </span>
   );
 }
