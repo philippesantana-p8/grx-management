@@ -72,6 +72,7 @@ export function DriverFormPanel({ item, companyId, saving, onSave, onCancel }: P
       {uploadMsg && <Alert variant="info">{uploadMsg}</Alert>}
 
       <EntityForm
+        key={item?.id ?? "new"}
         saving={saving}
         onCancel={onCancel}
         initial={{
@@ -104,6 +105,9 @@ export function DriverFormPanel({ item, companyId, saving, onSave, onCancel }: P
           if (data.cnh_number === "") data.cnh_number = null;
           else data.cnh_number = normalizeCnh(String(data.cnh_number));
           if (data.cnh_expiry_date === "") data.cnh_expiry_date = null;
+          if (data.email === "") data.email = null;
+          if (data.address === "") data.address = null;
+          if (data.phone === "") data.phone = null;
           data.cnh_categories = sortCnhCategories(
             Array.isArray(data.cnh_categories) ? (data.cnh_categories as string[]) : []
           );
@@ -205,11 +209,26 @@ export function DriverFormPanel({ item, companyId, saving, onSave, onCancel }: P
                     type: "select",
                     options: STATUS_OPTIONS.map((s) => ({ value: s, label: s })),
                   },
-                  { name: "phone", label: "Telefone" },
-                  { name: "email", label: "E-mail", type: "email" },
-                  { name: "address", label: "Endereço", colSpan: 2 },
-                  { name: "document", label: "CPF/CNPJ" },
                 ]}
+              />
+
+              <fieldset className="space-y-4 rounded-lg border border-slate-200 p-4">
+                <legend className="px-1 text-sm font-medium text-slate-700">Contato</legend>
+                <FormFields
+                  form={form}
+                  set={set}
+                  fields={[
+                    { name: "phone", label: "Telefone", colSpan: 2, placeholder: "11999998888" },
+                    { name: "email", label: "E-mail", type: "email", colSpan: 2, placeholder: "motorista@exemplo.com" },
+                    { name: "address", label: "Endereço", colSpan: 2 },
+                  ]}
+                />
+              </fieldset>
+
+              <FormFields
+                form={form}
+                set={set}
+                fields={[{ name: "document", label: "CPF/CNPJ" }]}
               />
 
               <div className="grid gap-4 sm:grid-cols-2">

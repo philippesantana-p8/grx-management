@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useCompany } from "@/lib/company-context";
 import { Button } from "@/components/ui/Button";
@@ -62,7 +62,19 @@ export function CrudPage<T extends { id: string }>({
   const [editing, setEditing] = useState<Partial<T> | null>(null);
   const [isNew, setIsNew] = useState(false);
   const [saving, setSaving] = useState(false);
+  const formPanelRef = useRef<HTMLDivElement>(null);
   const supabase = createClient();
+
+  const formPanelKey = isNew ? "new" : String(editing?.id ?? "edit");
+
+  useEffect(() => {
+    if (!isNew && !editing) return;
+    requestAnimationFrame(() => {
+      formPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start", inline: "start" });
+      document.documentElement.scrollLeft = 0;
+      document.body.scrollLeft = 0;
+    });
+  }, [formPanelKey, isNew, editing]);
 
   const load = useCallback(async () => {
     if (!companyId) return;
@@ -160,17 +172,19 @@ export function CrudPage<T extends { id: string }>({
       {toolbar}
 
       {(isNew || editing) && (
-        <Card>
-          <CardHeader title={editing?.id ? "Editar" : "Novo registro"} />
-          <CardBody>
-            {renderForm({
-              item: editing,
-              onSave: handleSave,
-              onCancel: () => { setEditing(null); setIsNew(false); },
-              saving,
-            })}
-          </CardBody>
-        </Card>
+        <div ref={formPanelRef} id="crud-form-panel">
+          <Card key={formPanelKey}>
+            <CardHeader title={editing?.id ? "Editar" : "Novo registro"} />
+            <CardBody>
+              {renderForm({
+                item: editing,
+                onSave: handleSave,
+                onCancel: () => { setEditing(null); setIsNew(false); },
+                saving,
+              })}
+            </CardBody>
+          </Card>
+        </div>
       )}
 
       <Card>

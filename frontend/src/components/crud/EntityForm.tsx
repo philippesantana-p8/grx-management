@@ -51,7 +51,7 @@ export function FormFields({
   fields: Array<{
     name: string;
     label: string;
-    type?: "text" | "number" | "date" | "checkbox" | "select" | "textarea";
+    type?: "text" | "email" | "number" | "date" | "checkbox" | "select" | "textarea";
     options?: { value: string; label: string }[];
     required?: boolean;
     colSpan?: 1 | 2;
