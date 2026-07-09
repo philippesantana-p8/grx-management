@@ -351,52 +351,23 @@ export function buildProposalEmailMailtoHref(
 }
 
 /**
- * Copia HTML com texto + QR + logo. Abre mailto com corpo vazio quando a cópia rica
- * funciona — evita duplicar texto ao colar (Ctrl+V) no Gmail/Outlook.
+ * Abre mailto com texto completo e link público da proposta (sem QR/logo no e-mail).
  */
 export function launchProposalEmailShareSync(
   subject: string,
   body: string,
   proposalUrl: string,
   options?: {
-    qrDataUrl?: string | null;
-    logoDataUrl?: string | null;
-    companyName?: string;
     to?: string | null;
-    skipCopy?: boolean;
-    richCopied?: boolean;
   }
 ): EmailShareResult {
-  const safeUrl = sanitizePublicProposalUrl(proposalUrl);
   const plainBody = body.replace(/\r\n/g, "\n");
-  const qrDataUrl = options?.qrDataUrl ?? null;
-  const logoDataUrl = options?.logoDataUrl ?? null;
-  const canEmbedRich = Boolean(qrDataUrl || logoDataUrl?.startsWith("data:image"));
-
-  let richCopied = false;
-  if (!options?.skipCopy && canEmbedRich) {
-    const html = buildEmailProposalRichHtml(plainBody, safeUrl, {
-      qrDataUrl,
-      logoDataUrl,
-      companyName: options?.companyName,
-    });
-    richCopied = copyRichHtmlToClipboardSync(html, plainBody);
-  } else if (options?.skipCopy) {
-    richCopied = Boolean(options.richCopied);
-  }
-
-  const hasRichPaste = Boolean(richCopied && canEmbedRich);
-  openMailtoLink(
-    buildProposalEmailMailtoHref(subject, body, proposalUrl, options?.to, {
-      emptyBody: hasRichPaste,
-    })
-  );
-
+  openMailtoLink(buildProposalEmailMailtoHref(subject, body, proposalUrl, options?.to));
   return {
-    copied: richCopied || true,
-    richCopied: hasRichPaste,
-    hasQr: Boolean(qrDataUrl),
-    hasLogo: Boolean(logoDataUrl?.startsWith("data:image")),
+    copied: false,
+    richCopied: false,
+    hasQr: false,
+    hasLogo: false,
     plainBody,
   };
 }
