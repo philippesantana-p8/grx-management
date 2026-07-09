@@ -13,7 +13,7 @@ type Props = {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { token } = await params;
   const pageUrl = `${APP_URL}/proposta/${token}`;
-  const ogImage = `${APP_URL}/proposta/${token}/opengraph-image`;
+  const ogImage = `${APP_URL}/proposta/${token}/opengraph-image?v=5`;
 
   return {
     metadataBase: new URL(APP_URL),

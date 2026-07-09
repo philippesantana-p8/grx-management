@@ -3,10 +3,6 @@ import {
   fetchBrandLogoDataUrl,
   resolveEmailBrandLogoSrc,
 } from "@/lib/brand-email";
-import {
-  buildProposalEmlContent,
-  openEmlInDefaultMailClient,
-} from "@/lib/proposal-email-eml";
 import { formatCurrency } from "@/lib/utils";
 import { normalizePerDiemDetail, perDiemDayTotal, perDiemChargeLabel, isPerDiemClientCharge } from "@/lib/freight-per-diem";
 import { SERVICE_ORDER_TYPE_LABELS } from "@/types/database";
@@ -296,7 +292,7 @@ export function copyRichHtmlToClipboardSync(html: string, plainText?: string): b
   return cfCopied && copied;
 }
 
-/** Abre e-mail no gesto do clique — .eml com logo 3D embutido; fallback mailto + clipboard. */
+/** Abre e-mail no gesto do clique — logo 3D na área de transferência, mailto vazio se a cópia rica funcionar. */
 export function launchProposalEmailShareSync(
   subject: string,
   body: string,
@@ -305,7 +301,9 @@ export function launchProposalEmailShareSync(
     logoDataUrl: string;
     companyName?: string;
     to?: string | null;
-    orderCode?: string;
+    /** Quando true, a cópia rica já foi feita no mousedown — não repetir. */
+    skipCopy?: boolean;
+    richCopied?: boolean;
   }
 ): EmailShareResult {
   const safeUrl = sanitizePublicProposalUrl(proposalUrl);
@@ -319,31 +317,9 @@ export function launchProposalEmailShareSync(
     companyName: options.companyName,
   });
 
-  const filename = options.orderCode
-    ? `Proposta-OS-${options.orderCode}-GRX.eml`
-    : "Proposta-GRX.eml";
-
-  const emlContent = buildProposalEmlContent({
-    subject,
-    plainBody,
-    htmlBody: html,
-    to,
-  });
-
-  const emlOpened = openEmlInDefaultMailClient(emlContent, filename);
-
-  if (emlOpened) {
-    return {
-      copied: true,
-      richCopied: true,
-      emlOpened: true,
-      hasQr: false,
-      hasLogo: Boolean(options.logoDataUrl.startsWith("data:image")),
-      plainBody,
-    };
-  }
-
-  const richCopied = copyRichHtmlToClipboardSync(html, plainBody);
+  const richCopied = options.skipCopy
+    ? Boolean(options.richCopied)
+    : copyRichHtmlToClipboardSync(html, plainBody);
   const plainCopied = richCopied ? true : copyTextToClipboardSync(plainBody);
   const copied = richCopied || plainCopied;
 
@@ -355,7 +331,6 @@ export function launchProposalEmailShareSync(
   return {
     copied,
     richCopied,
-    emlOpened: false,
     hasQr: false,
     hasLogo: Boolean(options.logoDataUrl.startsWith("data:image")),
     plainBody,
@@ -737,8 +712,12 @@ export function buildWhatsAppShareLinks(
   const desktopHref = `whatsapp://send?${desktopParams}`;
   const mobileHref = `${mobileBase}?text=${encodedText}`;
 
-  // Desktop: api.whatsapp.com abre Web ou delega ao app instalado (mais confiável que whatsapp:// no Chrome).
-  const primaryHref = isMobileWhatsAppDevice() ? mobileHref : storeAppHref;
+  // Desktop Windows: whatsapp:// abre o app instalado; api.whatsapp.com costuma cair no Web.
+  const primaryHref = isMobileWhatsAppDevice()
+    ? mobileHref
+    : isWindowsDesktop()
+      ? desktopHref
+      : storeAppHref;
 
   return {
     message: messageForShare,
@@ -1015,7 +994,6 @@ export type EmailShareOptions = {
 export type EmailShareResult = {
   copied: boolean;
   richCopied: boolean;
-  emlOpened?: boolean;
   hasQr: boolean;
   hasLogo: boolean;
   plainBody: string;

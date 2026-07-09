@@ -260,25 +260,26 @@ export function ServiceOrderProposalView({
     }
 
     const body = buildProposalEmailBody(order, context, url);
-    const { copied, richCopied, emlOpened, hasLogo } = launchProposalEmailShareSync(
+    const preCopied = emailRichCopiedRef.current;
+    const { copied, richCopied, hasLogo } = launchProposalEmailShareSync(
       `Proposta OS ${order.code} — ${context.companyName}`,
       body,
       url,
       {
         logoDataUrl: emailPasteAssets.logoDataUrl,
         companyName: context.companyName,
-        orderCode: order.code,
+        skipCopy: preCopied,
+        richCopied: preCopied,
       }
     );
+    emailRichCopiedRef.current = false;
 
     setEmailHint(
-      emlOpened && hasLogo
-        ? "E-mail aberto com texto e logo GRX 3D. Revise e clique Enviar."
-        : richCopied && hasLogo
-          ? "E-mail aberto. No Outlook/Mail o logo entra automaticamente. No Gmail web: Ctrl+V se o corpo estiver vazio."
-          : copied
-            ? "E-mail aberto só com texto. Recarregue (F5) e tente novamente."
-            : "Não foi possível abrir o e-mail. Recarregue (F5) e tente novamente."
+      richCopied && hasLogo
+        ? "E-mail aberto. No Outlook/Mail o texto e o logo GRX 3D entram automaticamente."
+        : copied
+          ? "E-mail aberto com texto. Recarregue (F5) e tente novamente para incluir o logo."
+          : "Não foi possível abrir o e-mail. Recarregue (F5) e tente novamente."
     );
   };
 
@@ -410,14 +411,16 @@ export function ServiceOrderProposalView({
 
           {whatsappShare && (
             <p className="proposal-toolbar mb-4 text-xs text-slate-500 print:hidden">
-              WhatsApp: mensagem copiada ao clicar. Se o chat vier vazio, use Ctrl+V.
-              {whatsappAppHref ? (
+              WhatsApp: mensagem copiada ao clicar. A prévia do link (logo 3D) atualiza em conversas novas — o
+              WhatsApp guarda cache da imagem antiga por alguns dias.
+              {whatsappAppHref && whatsappHref !== whatsappAppHref ? (
                 <>
                   {" "}
-                  App desktop:{" "}
+                  Se o app não abrir,{" "}
                   <a href={whatsappAppHref} className="font-medium text-brand-700 underline">
-                    whatsapp://
+                    abrir no WhatsApp desktop
                   </a>
+                  .
                 </>
               ) : null}
             </p>
