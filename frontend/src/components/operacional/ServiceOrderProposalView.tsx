@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { BrandLogo } from "@/components/brand/BrandLogo";
 import { Button } from "@/components/ui/Button";
@@ -17,10 +17,8 @@ import {
 import { fetchBrandLogoFlat2DDataUrl } from "@/lib/brand-email";
 import {
   buildProposalEmailBody,
-  buildEmailProposalRichHtml,
   buildWhatsAppProposalText,
   buildWhatsAppShareLinks,
-  copyRichHtmlToClipboardSync,
   copyTextToClipboardSync,
   formatServiceDate,
   getPublicAppOrigin,
@@ -72,7 +70,6 @@ export function ServiceOrderProposalView({
   const [actionError, setActionError] = useState<string | null>(null);
   const [whatsappHint, setWhatsappHint] = useState<string | null>(null);
   const [emailLogo2D, setEmailLogo2D] = useState<string | null>(null);
-  const emailLogoCopiedRef = useRef(false);
   const [publicToken, setPublicToken] = useState(order.proposal_token);
   const [sentAt, setSentAt] = useState(order.proposal_sent_at);
 
@@ -216,22 +213,6 @@ export function ServiceOrderProposalView({
     });
   };
 
-  const handleEmailMouseDown = () => {
-    const url = resolveClientProposalShareUrl(publicToken);
-    if (!url || !emailLogo2D) {
-      emailLogoCopiedRef.current = false;
-      return;
-    }
-
-    const body = buildProposalEmailBody(order, context, url);
-    const html = buildEmailProposalRichHtml(body, url, {
-      qrDataUrl: null,
-      logoDataUrl: emailLogo2D,
-      companyName: context.companyName,
-    });
-    emailLogoCopiedRef.current = copyRichHtmlToClipboardSync(html, body);
-  };
-
   const shareEmail = () => {
     const url = resolveClientProposalShareUrl(publicToken);
     if (!url) {
@@ -242,24 +223,15 @@ export function ServiceOrderProposalView({
     }
 
     const body = buildProposalEmailBody(order, context, url);
-    const preCopied = emailLogoCopiedRef.current;
-    const { richCopied, hasLogo } = launchProposalEmailShareSync(
+    launchProposalEmailShareSync(
       `Proposta OS ${order.code} — ${context.companyName}`,
       body,
       url,
       {
         logoDataUrl: emailLogo2D,
         companyName: context.companyName,
-        skipCopy: preCopied,
       }
     );
-    emailLogoCopiedRef.current = false;
-
-    if ((richCopied || preCopied) && hasLogo) {
-      window.alert(
-        "E-mail aberto com assunto e texto.\n\nNo Gmail: clique no corpo e pressione Ctrl+V para incluir o logo GRX 2D.\nNo Outlook: o logo pode entrar automaticamente."
-      );
-    }
   };
 
   const copyLink = async () => {
@@ -342,7 +314,7 @@ export function ServiceOrderProposalView({
                 Enviar no WhatsApp
               </Button>
             )}
-            <Button type="button" variant="secondary" onMouseDown={handleEmailMouseDown} onClick={shareEmail}>
+            <Button type="button" variant="secondary" onClick={shareEmail}>
               Enviar por e-mail
             </Button>
             <Button type="button" variant="secondary" onClick={() => void copyLink()}>

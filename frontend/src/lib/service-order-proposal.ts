@@ -1,6 +1,6 @@
 import {
   buildEmailBrandFooterHtml,
-  fetchBrandLogoDataUrl,
+  fetchBrandLogoFlat2DDataUrl,
   resolveEmailBrandLogoSrc,
 } from "@/lib/brand-email";
 import { formatCurrency } from "@/lib/utils";
@@ -240,8 +240,8 @@ function wrapHtmlForClipboard(innerHtml: string): string {
 }
 
 /**
- * Synchronous rich HTML copy (CF_HTML) — must run inside mousedown/click user gesture.
- * Gmail/Outlook on Windows need CF_HTML for QR Code and embedded logo images on paste.
+ * Synchronous rich HTML copy — must run inside click user gesture.
+ * Tenta CF_HTML (Gmail/Outlook) e cai no execCommand simples (versão ce6a8da).
  */
 export function copyRichHtmlToClipboardSync(html: string, plainText?: string): boolean {
   if (typeof document === "undefined") return false;
@@ -289,7 +289,43 @@ export function copyRichHtmlToClipboardSync(html: string, plainText?: string): b
   document.removeEventListener("copy", onCopy);
   selection?.removeAllRanges();
   document.body.removeChild(container);
-  return cfCopied && copied;
+
+  if (cfCopied || copied) return true;
+
+  return copyRichHtmlExecCommandFallback(html);
+}
+
+function copyRichHtmlExecCommandFallback(html: string): boolean {
+  const container = document.createElement("div");
+  container.innerHTML = html;
+  container.setAttribute("contenteditable", "true");
+  container.style.position = "fixed";
+  container.style.left = "0";
+  container.style.top = "0";
+  container.style.width = "2px";
+  container.style.height = "2px";
+  container.style.overflow = "hidden";
+  container.style.opacity = "0.01";
+  container.style.pointerEvents = "none";
+  document.body.appendChild(container);
+
+  container.focus();
+  const selection = window.getSelection();
+  const range = document.createRange();
+  range.selectNodeContents(container);
+  selection?.removeAllRanges();
+  selection?.addRange(range);
+
+  let copied = false;
+  try {
+    copied = document.execCommand("copy");
+  } catch {
+    copied = false;
+  }
+
+  selection?.removeAllRanges();
+  document.body.removeChild(container);
+  return copied;
 }
 
 /** Monta o href mailto da proposta (útil para testes e integrações). */
@@ -306,7 +342,7 @@ export function buildProposalEmailMailtoHref(
   return `${mailtoPrefix}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(mailtoBody)}`;
 }
 
-/** Abre o cliente de e-mail com assunto e corpo; copia HTML com logo 2D quando disponível. */
+/** Abre e-mail — mailto com texto completo; logo 2D copiado no mesmo clique (fluxo ce6a8da). */
 export function launchProposalEmailShareSync(
   subject: string,
   body: string,
@@ -315,7 +351,6 @@ export function launchProposalEmailShareSync(
     to?: string | null;
     logoDataUrl?: string | null;
     companyName?: string;
-    skipCopy?: boolean;
   }
 ): EmailShareResult {
   const safeUrl = sanitizePublicProposalUrl(proposalUrl);
@@ -323,7 +358,7 @@ export function launchProposalEmailShareSync(
   const logoDataUrl = options?.logoDataUrl ?? null;
 
   let richCopied = false;
-  if (!options?.skipCopy && logoDataUrl?.startsWith("data:image")) {
+  if (logoDataUrl?.startsWith("data:image")) {
     const html = buildEmailProposalRichHtml(plainBody, safeUrl, {
       qrDataUrl: null,
       logoDataUrl,
@@ -1099,17 +1134,14 @@ export async function openEmailShare(
 ): Promise<EmailShareResult> {
   const safeUrl = sanitizePublicProposalUrl(proposalUrl);
   const plainBody = body.replace(/\r\n/g, "\n");
-  const to = options?.to?.trim();
-  const mailtoPrefix = to ? `mailto:${to}` : "mailto:";
-  const qrDataUrl = options?.qrDataUrl ?? null;
   let logoDataUrl = options?.logoDataUrl ?? null;
 
   if (!logoDataUrl?.startsWith("data:image")) {
-    logoDataUrl = await fetchBrandLogoDataUrl(getPublicAppOrigin());
+    logoDataUrl = await fetchBrandLogoFlat2DDataUrl(getPublicAppOrigin());
   }
 
   const html = buildEmailProposalRichHtml(plainBody, safeUrl, {
-    qrDataUrl,
+    qrDataUrl: null,
     logoDataUrl,
     companyName: options?.companyName,
   });
@@ -1120,7 +1152,7 @@ export async function openEmailShare(
   }
   if (!options?.skipCopy && !richCopied) {
     richCopied = await copyEmailProposalToClipboard(plainBody, safeUrl, {
-      qrDataUrl,
+      qrDataUrl: null,
       logoDataUrl,
       companyName: options?.companyName,
     });
@@ -1128,26 +1160,8 @@ export async function openEmailShare(
 
   const plainCopied = richCopied ? true : await copyTextToClipboard(plainBody);
   const copied = richCopied || plainCopied;
-  const mailtoBody = buildMailtoBodyForClient(plainBody, safeUrl);
-  const href = `${mailtoPrefix}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(mailtoBody)}`;
 
-  openMailtoLink(href);
-
-  if (richCopied) {
-    window.alert(
-      options?.copiedAlertMessage ??
-        "E-mail aberto. No Outlook/Mail o texto e o logo GRX 3D entram automaticamente.\n\nNo Gmail web: se o corpo estiver vazio, pressione Ctrl+V uma vez."
-    );
-  } else if (plainCopied) {
-    window.alert(
-      "E-mail aberto só com texto.\n\nRecarregue a página (F5) e tente novamente."
-    );
-  } else {
-    window.alert(
-      "Recarregue a página (F5) e tente novamente.\n\nO e-mail abriu só com texto."
-    );
-    window.prompt("Copie a mensagem:", plainBody);
-  }
+  openMailtoLink(buildProposalEmailMailtoHref(subject, body, proposalUrl, options?.to));
 
   return {
     copied,
