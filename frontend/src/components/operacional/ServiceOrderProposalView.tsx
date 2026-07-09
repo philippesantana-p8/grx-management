@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { BrandLogo } from "@/components/brand/BrandLogo";
 import { Button } from "@/components/ui/Button";
@@ -22,6 +22,7 @@ import {
   copyRichHtmlToClipboardSync,
   copyTextToClipboardSync,
   formatServiceDate,
+  generateProposalQrDataUrl,
   isLocalhostPublicProposalUrl,
   isWindowsWhatsAppDesktop,
   launchProposalEmailShareSync,
@@ -70,6 +71,7 @@ export function ServiceOrderProposalView({
   const [actionError, setActionError] = useState<string | null>(null);
   const [whatsappHint, setWhatsappHint] = useState<string | null>(null);
   const [emailHint, setEmailHint] = useState<string | null>(null);
+  const [emailQrDataUrl, setEmailQrDataUrl] = useState<string | null>(null);
   const emailRichCopiedRef = useRef(false);
   const [publicToken, setPublicToken] = useState(order.proposal_token);
   const [sentAt, setSentAt] = useState(order.proposal_sent_at);
@@ -83,8 +85,27 @@ export function ServiceOrderProposalView({
   const publicUrl = clientShareUrl;
   const qrUrl = acceptanceTestUrl ?? clientShareUrl;
   const shareUrl = publicUrl ?? "";
+  const emailAssetsReady = Boolean(emailQrDataUrl);
   const isDev = process.env.NODE_ENV === "development";
   const hasRoute = Boolean(order.freight_origin_address || order.freight_destination_address);
+
+  useEffect(() => {
+    if (!clientShareUrl) {
+      setEmailQrDataUrl(null);
+      return;
+    }
+
+    let cancelled = false;
+    void generateProposalQrDataUrl(clientShareUrl).then((qrDataUrl) => {
+      if (!cancelled && qrDataUrl) {
+        setEmailQrDataUrl(qrDataUrl);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [clientShareUrl]);
 
   const handleMarkSent = async () => {
     setMarkingSent(true);
@@ -202,22 +223,20 @@ export function ServiceOrderProposalView({
     });
   };
 
-  const copyEmailHtmlWithQr = (url: string, body: string): boolean => {
-    const html = buildEmailProposalRichHtml(body, url, {
-      logoDataUrl: null,
-      companyName: context.companyName,
-    });
-    return copyRichHtmlToClipboardSync(html, body);
-  };
-
   const handleEmailMouseDown = () => {
     const url = resolveClientProposalShareUrl(publicToken);
-    if (!url) {
+    if (!url || !emailQrDataUrl) {
       emailRichCopiedRef.current = false;
       return;
     }
+
     const body = buildProposalEmailBody(order, context, url);
-    emailRichCopiedRef.current = copyEmailHtmlWithQr(url, body);
+    const html = buildEmailProposalRichHtml(body, url, {
+      qrDataUrl: emailQrDataUrl,
+      logoDataUrl: null,
+      companyName: context.companyName,
+    });
+    emailRichCopiedRef.current = copyRichHtmlToClipboardSync(html, body);
   };
 
   const shareEmail = () => {
@@ -230,22 +249,32 @@ export function ServiceOrderProposalView({
     }
 
     const body = buildProposalEmailBody(order, context, url);
-    if (!emailRichCopiedRef.current) {
-      copyEmailHtmlWithQr(url, body);
-    }
-    emailRichCopiedRef.current = false;
 
+    if (!emailAssetsReady || !emailQrDataUrl) {
+      launchProposalEmailShareSync(`Proposta OS ${order.code} — ${context.companyName}`, body, url);
+      setEmailHint("E-mail aberto com texto. Recarregue (F5) e tente de novo para incluir o QR Code.");
+      return;
+    }
+
+    const preCopied = emailRichCopiedRef.current;
     const { richCopied, hasQr } = launchProposalEmailShareSync(
       `Proposta OS ${order.code} — ${context.companyName}`,
       body,
       url,
-      { companyName: context.companyName }
+      {
+        qrDataUrl: emailQrDataUrl,
+        companyName: context.companyName,
+        skipCopy: preCopied,
+        richCopied: preCopied,
+      }
     );
+
+    emailRichCopiedRef.current = false;
 
     setEmailHint(
       richCopied && hasQr
-        ? "E-mail aberto. Pressione Ctrl+V no corpo para incluir o QR Code. No Outlook: Inserir → Imagens → Da Web (URL do QR no texto)."
-        : "E-mail aberto com texto e link do QR Code."
+        ? "E-mail aberto com texto. Clique no corpo e pressione Ctrl+V para incluir o QR Code. (Logo na assinatura do Outlook.)"
+        : "E-mail aberto com texto. Recarregue (F5) se o QR Code não colar com Ctrl+V."
     );
   };
 
@@ -332,10 +361,11 @@ export function ServiceOrderProposalView({
             <Button
               type="button"
               variant="secondary"
+              disabled={!emailAssetsReady}
               onMouseDown={handleEmailMouseDown}
               onClick={shareEmail}
             >
-              Enviar por e-mail
+              {emailAssetsReady ? "Enviar por e-mail" : "Preparando QR Code…"}
             </Button>
             <Button type="button" variant="secondary" onClick={() => void copyLink()}>
               Copiar link público

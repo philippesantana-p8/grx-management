@@ -34,17 +34,6 @@ export function buildPublicProposalUrl(token: string, origin?: string): string {
   return `${base.replace(/\/$/, "")}/proposta/${token}`;
 }
 
-export function extractProposalTokenFromUrl(url: string): string | null {
-  const match = sanitizePublicProposalUrl(url.trim()).match(/\/proposta\/([a-f0-9]{32,})/i);
-  return match?.[1] ?? null;
-}
-
-/** PNG público do QR Code — usado no HTML do e-mail e no Outlook (Inserir imagem da web). */
-export function buildPublicProposalQrImageUrl(token: string, origin?: string): string {
-  const base = (origin ?? getPublicAppOrigin()).replace(/\/$/, "");
-  return `${base}/proposta/${token}/qr`;
-}
-
 /** URL enviada ao cliente — sempre produção, nunca localhost. */
 export function resolveClientProposalShareUrl(
   token: string | null | undefined,
@@ -191,11 +180,10 @@ export async function generateProposalQrDataUrl(
   }
 }
 
-function buildEmailQrHtmlBlock(qrSrc: string): string {
-  const safeSrc = qrSrc.replace(/"/g, "&quot;");
+function buildEmailQrHtmlBlock(qrDataUrl: string): string {
   return [
     `<p style="margin-top:16px;text-align:left">`,
-    `<img src="${safeSrc}" alt="QR Code da proposta GRX" width="220" height="220"`,
+    `<img src="${qrDataUrl}" alt="QR Code da proposta GRX" width="220" height="220"`,
     ` style="display:block;border:1px solid #e2e8f0;border-radius:8px;padding:8px;background:#fff" />`,
     `</p>`,
   ].join("");
@@ -354,37 +342,43 @@ export function buildProposalEmailMailtoHref(
 }
 
 /**
- * Abre mailto com texto completo (inclui URL do QR). Copia HTML com QR para Ctrl+V no corpo.
+ * Abre mailto com texto completo. Copia HTML com QR Code (Ctrl+V no corpo).
+ * Logo fica na assinatura do Outlook — não é incluído pelo app.
  */
 export function launchProposalEmailShareSync(
   subject: string,
   body: string,
   proposalUrl: string,
   options?: {
+    qrDataUrl?: string | null;
     companyName?: string;
     to?: string | null;
+    skipCopy?: boolean;
+    richCopied?: boolean;
   }
 ): EmailShareResult {
   const safeUrl = sanitizePublicProposalUrl(proposalUrl);
   const plainBody = body.replace(/\r\n/g, "\n");
-  const qrSrc = resolveEmailQrImageSrc(safeUrl, {});
+  const qrDataUrl = options?.qrDataUrl ?? null;
 
   let richCopied = false;
-  if (qrSrc) {
+  if (!options?.skipCopy && qrDataUrl) {
     const html = buildEmailProposalRichHtml(plainBody, safeUrl, {
-      qrDataUrl: qrSrc,
+      qrDataUrl,
       logoDataUrl: null,
       companyName: options?.companyName,
     });
     richCopied = copyRichHtmlToClipboardSync(html, plainBody);
+  } else if (options?.skipCopy) {
+    richCopied = Boolean(options.richCopied);
   }
 
   openMailtoLink(buildProposalEmailMailtoHref(subject, body, proposalUrl, options?.to));
 
   return {
     copied: true,
-    richCopied: Boolean(richCopied && qrSrc),
-    hasQr: Boolean(qrSrc),
+    richCopied: Boolean(richCopied && qrDataUrl),
+    hasQr: Boolean(qrDataUrl),
     hasLogo: false,
     plainBody,
   };
@@ -423,17 +417,10 @@ export function copyPreparedEmailHtmlToClipboard(html: string, plainBody: string
 }
 
 type EmailClipboardOptions = {
-  /** Data URL ou URL https do PNG do QR Code. */
   qrDataUrl?: string | null;
   logoDataUrl?: string | null;
   companyName?: string;
 };
-
-function resolveEmailQrImageSrc(proposalUrl: string, options?: EmailClipboardOptions): string | null {
-  if (options?.qrDataUrl) return options.qrDataUrl;
-  const token = extractProposalTokenFromUrl(proposalUrl);
-  return token ? buildPublicProposalQrImageUrl(token) : null;
-}
 
 function buildEmailProposalHtml(
   plainBody: string,
@@ -441,7 +428,7 @@ function buildEmailProposalHtml(
   options?: EmailClipboardOptions
 ): string {
   const url = sanitizePublicProposalUrl(proposalUrl.trim());
-  const qrSrc = resolveEmailQrImageSrc(url, options);
+  const qrDataUrl = options?.qrDataUrl ?? null;
   const logoDataUrl = options?.logoDataUrl ?? null;
   let qrInserted = false;
   const htmlLines = plainBody.split("\n").flatMap((line) => {
@@ -449,8 +436,8 @@ function buildEmailProposalHtml(
     if (url && (lineTrim === url || lineTrim === proposalUrl.trim())) {
       const safe = escapeHtml(url);
       const parts = [`<a href="${safe}">${safe}</a>`];
-      if (qrSrc && !qrInserted) {
-        parts.push(buildEmailQrHtmlBlock(qrSrc));
+      if (qrDataUrl && !qrInserted) {
+        parts.push(buildEmailQrHtmlBlock(qrDataUrl));
         qrInserted = true;
       }
       return parts;
@@ -458,8 +445,8 @@ function buildEmailProposalHtml(
     return [escapeHtml(line)];
   });
   let html = `<div>${htmlLines.join("<br>")}</div>`;
-  if (qrSrc && !qrInserted) {
-    html += buildEmailQrHtmlBlock(qrSrc);
+  if (qrDataUrl && !qrInserted) {
+    html += buildEmailQrHtmlBlock(qrDataUrl);
   }
 
   return html;
@@ -605,10 +592,6 @@ export function buildProposalEmailBody(
 
   if (proposalUrl) {
     appendClientProposalClosingWithLink(lines, proposalUrl);
-    const token = extractProposalTokenFromUrl(proposalUrl);
-    if (token) {
-      lines.push("", `QR Code (imagem): ${buildPublicProposalQrImageUrl(token)}`);
-    }
     appendProposalEmailSignoff(lines);
   }
 
@@ -1158,8 +1141,9 @@ export async function openEmailShare(
   const safeUrl = sanitizePublicProposalUrl(proposalUrl);
   const plainBody = body.replace(/\r\n/g, "\n");
   let qrDataUrl = options?.qrDataUrl ?? null;
-  if (!qrDataUrl) {
-    qrDataUrl = resolveEmailQrImageSrc(safeUrl, options);
+
+  if (!qrDataUrl && safeUrl) {
+    qrDataUrl = await generateProposalQrDataUrl(safeUrl);
   }
 
   const html = buildEmailProposalRichHtml(plainBody, safeUrl, {
