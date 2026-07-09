@@ -1,7 +1,12 @@
 import {
   buildEmailBrandFooterHtml,
+  fetchBrandLogoDataUrl,
   resolveEmailBrandLogoSrc,
 } from "@/lib/brand-email";
+import {
+  buildProposalEmlContent,
+  openEmlInDefaultMailClient,
+} from "@/lib/proposal-email-eml";
 import { formatCurrency } from "@/lib/utils";
 import { normalizePerDiemDetail, perDiemDayTotal, perDiemChargeLabel, isPerDiemClientCharge } from "@/lib/freight-per-diem";
 import { SERVICE_ORDER_TYPE_LABELS } from "@/types/database";
@@ -352,13 +357,8 @@ function appendEmailBrandFooter(
   logoDataUrl: string | null | undefined,
   companyName?: string
 ): string {
-  const logoSrc = resolveEmailBrandLogoSrc(logoDataUrl ?? null, getPublicAppOrigin());
-  return (
-    html +
-    buildEmailBrandFooterHtml(logoSrc, companyName, {
-      framed: !logoSrc.startsWith("data:image"),
-    })
-  );
+  const logoSrc = resolveEmailBrandLogoSrc(logoDataUrl ?? null);
+  return html + buildEmailBrandFooterHtml(logoSrc, companyName);
 }
 
 export function buildEmailProposalRichHtml(
@@ -926,6 +926,7 @@ export type EmailShareBundle = {
   shareUrl: string;
   htmlForClipboard: string;
   mailtoHref: string;
+  to?: string | null;
   hasQr: boolean;
   hasLogo: boolean;
 };
@@ -941,7 +942,10 @@ export async function prepareEmailShareBundle(
   const to = options?.to?.trim();
   const mailtoPrefix = to ? `mailto:${to}` : "mailto:";
   const qrDataUrl = options?.qrDataUrl ?? null;
-  const logoDataUrl = options?.logoDataUrl ?? null;
+  let logoDataUrl = options?.logoDataUrl ?? null;
+  if (!logoDataUrl?.startsWith("data:image")) {
+    logoDataUrl = await fetchBrandLogoDataUrl(getPublicAppOrigin());
+  }
 
   const htmlForClipboard = buildEmailProposalRichHtml(plainBody, safeUrl, {
     qrDataUrl,
@@ -956,8 +960,9 @@ export async function prepareEmailShareBundle(
     shareUrl: safeUrl,
     htmlForClipboard,
     mailtoHref,
+    to: to ?? null,
     hasQr: Boolean(qrDataUrl),
-    hasLogo: Boolean(logoDataUrl),
+    hasLogo: Boolean(logoDataUrl?.startsWith("data:image")),
   };
 }
 
@@ -967,35 +972,60 @@ export type EmailShareLaunchOptions = {
   skipCopy?: boolean;
   /** When skipCopy is true, whether the prior mousedown copy succeeded. */
   richCopied?: boolean;
+  orderCode?: string;
 };
 
-export function launchPreparedEmailShare(
+export function launchAutomaticProposalEmail(
   bundle: EmailShareBundle,
   options?: EmailShareLaunchOptions
 ): EmailShareResult {
+  const filename = options?.orderCode
+    ? `Proposta-OS-${options.orderCode}-GRX.eml`
+    : "Proposta-GRX.eml";
+
+  const emlContent = buildProposalEmlContent({
+    subject: bundle.subject,
+    plainBody: bundle.plainBody,
+    htmlBody: bundle.htmlForClipboard,
+    to: bundle.to,
+  });
+
+  const emlOpened = openEmlInDefaultMailClient(emlContent, filename);
+
   const richCopied = options?.skipCopy
     ? Boolean(options.richCopied)
     : copyPreparedEmailHtmlToClipboard(bundle.htmlForClipboard, bundle.plainBody);
-  const plainCopied = richCopied ? true : copyTextToClipboardSync(bundle.plainBody);
-  const copied = richCopied || plainCopied;
 
-  if (richCopied) {
-    window.alert(
-      options?.copiedAlertMessage ??
-        "Proposta copiada (texto, link, QR Code e logo GRX).\n\n1. O e-mail abrirá com assunto e texto.\n2. Clique no corpo do e-mail e pressione Ctrl+V para colar QR Code e logo."
-    );
-  } else if (plainCopied) {
-    window.alert(
-      "Texto copiado.\n\nO e-mail abrirá com assunto e texto. Pressione Ctrl+V no corpo se quiser tentar colar novamente."
-    );
-  } else {
-    window.alert(
-      "Não foi possível copiar automaticamente.\n\nO e-mail abrirá com assunto e texto. Copie manualmente se necessário."
-    );
-    window.prompt("Copie a mensagem:", bundle.plainBody);
+  if (!options?.skipCopy && !richCopied) {
+    void copyPreparedEmailHtmlToClipboardAsync(bundle.htmlForClipboard, bundle.plainBody);
   }
 
-  openMailtoLink(bundle.mailtoHref);
+  const plainCopied = richCopied ? true : copyTextToClipboardSync(bundle.plainBody);
+  const copied = emlOpened || richCopied || plainCopied;
+
+  if (emlOpened) {
+    window.alert(
+      options?.copiedAlertMessage ??
+        "E-mail aberto com a proposta completa (texto, link, QR Code e logo GRX).\n\nRevise no seu programa de e-mail e clique Enviar."
+    );
+  } else if (richCopied) {
+    window.alert(
+      options?.copiedAlertMessage ??
+        "Não foi possível abrir o e-mail com imagens automaticamente.\n\nTexto, QR Code e logo GRX foram copiados. O compose abrirá em seguida — pressione Ctrl+V no corpo se as imagens não aparecerem."
+    );
+    openMailtoLink(bundle.mailtoHref);
+  } else if (plainCopied) {
+    window.alert(
+      "Texto copiado.\n\nO e-mail abrirá com assunto e texto. Tente Ctrl+V no corpo para colar QR Code e logo."
+    );
+    openMailtoLink(bundle.mailtoHref);
+  } else {
+    window.alert(
+      "Não foi possível abrir o e-mail automaticamente.\n\nCopie a mensagem manualmente se necessário."
+    );
+    window.prompt("Copie a mensagem:", bundle.plainBody);
+    openMailtoLink(bundle.mailtoHref);
+  }
 
   return {
     copied,
@@ -1006,66 +1036,24 @@ export function launchPreparedEmailShare(
   };
 }
 
+export function launchPreparedEmailShare(
+  bundle: EmailShareBundle,
+  options?: EmailShareLaunchOptions
+): EmailShareResult {
+  return launchAutomaticProposalEmail(bundle, options);
+}
+
 export async function openEmailShare(
   subject: string,
   body: string,
   proposalUrl = "",
-  options?: EmailShareOptions & { to?: string | null }
+  options?: EmailShareOptions & { to?: string | null; orderCode?: string }
 ): Promise<EmailShareResult> {
-  const safeUrl = sanitizePublicProposalUrl(proposalUrl);
-  const plainBody = body.replace(/\r\n/g, "\n");
-  const to = options?.to?.trim();
-  const mailtoPrefix = to ? `mailto:${to}` : "mailto:";
-  const qrDataUrl = options?.qrDataUrl ?? null;
-  const logoDataUrl = options?.logoDataUrl ?? null;
-
-  const html = buildEmailProposalRichHtml(plainBody, safeUrl, {
-    qrDataUrl,
-    logoDataUrl,
-    companyName: options?.companyName,
+  const bundle = await prepareEmailShareBundle(subject, body, proposalUrl, options);
+  return launchAutomaticProposalEmail(bundle, {
+    copiedAlertMessage: options?.copiedAlertMessage,
+    orderCode: options?.orderCode,
   });
-
-  let richCopied = copyRichHtmlToClipboardSync(html);
-  if (!richCopied) {
-    richCopied = await copyRichHtmlViaClipboardApi(html, plainBody);
-  }
-  if (!richCopied) {
-    richCopied = await copyEmailProposalToClipboard(plainBody, safeUrl, {
-      qrDataUrl,
-      logoDataUrl,
-      companyName: options?.companyName,
-    });
-  }
-
-  const plainCopied = richCopied ? true : await copyTextToClipboard(plainBody);
-  const copied = richCopied || plainCopied;
-  const href = buildMailtoHref(mailtoPrefix, subject, plainBody, safeUrl);
-
-  if (richCopied) {
-    window.alert(
-      options?.copiedAlertMessage ??
-        "Proposta copiada (texto, link, QR Code e logo GRX).\n\n1. O e-mail abrirá com assunto e texto.\n2. Clique no corpo do e-mail e pressione Ctrl+V para colar QR Code e logo."
-    );
-  } else if (plainCopied) {
-    window.alert(
-      "Texto copiado.\n\nO e-mail abrirá com assunto e texto. Pressione Ctrl+V no corpo se quiser tentar colar novamente."
-    );
-  } else {
-    window.alert(
-      "Não foi possível copiar automaticamente.\n\nO e-mail abrirá com assunto e texto. Copie manualmente se necessário."
-    );
-    window.prompt("Copie a mensagem:", plainBody);
-  }
-
-  openMailtoLink(href);
-
-  return {
-    copied,
-    richCopied,
-    hasQr: Boolean(qrDataUrl),
-    hasLogo: Boolean(logoDataUrl),
-    plainBody,
-  };
 }
 
 export function triggerPrintPdf() {
