@@ -21,7 +21,7 @@ import {
   buildWhatsAppProposalText,
   buildWhatsAppShareLinks,
   buildEmailProposalRichHtml,
-  copyRichHtmlToClipboardSync,
+  copyRichHtmlFromElementWithCfHtml,
   copyTextToClipboardSync,
   formatServiceDate,
   generateProposalQrDataUrl,
@@ -79,6 +79,7 @@ export function ServiceOrderProposalView({
     logoDataUrl: string | null;
   }>({ qrDataUrl: null, logoDataUrl: null });
   const emailRichCopiedRef = useRef(false);
+  const emailPreviewRef = useRef<HTMLDivElement>(null);
   const [publicToken, setPublicToken] = useState(order.proposal_token);
   const [sentAt, setSentAt] = useState(order.proposal_sent_at);
 
@@ -94,6 +95,23 @@ export function ServiceOrderProposalView({
   const emailAssetsReady = Boolean(
     emailPasteAssets.qrDataUrl && emailPasteAssets.logoDataUrl?.startsWith("data:image")
   );
+
+  const emailPreviewHtml = useMemo(() => {
+    if (!emailAssetsReady || !clientShareUrl) return null;
+    const body = buildProposalEmailBody(order, context, clientShareUrl);
+    return buildEmailProposalRichHtml(body, clientShareUrl, {
+      qrDataUrl: emailPasteAssets.qrDataUrl,
+      logoDataUrl: emailPasteAssets.logoDataUrl,
+      companyName: context.companyName,
+    });
+  }, [
+    emailAssetsReady,
+    clientShareUrl,
+    order,
+    context,
+    emailPasteAssets.qrDataUrl,
+    emailPasteAssets.logoDataUrl,
+  ]);
   const isDev = process.env.NODE_ENV === "development";
   const hasRoute = Boolean(order.freight_origin_address || order.freight_destination_address);
 
@@ -235,20 +253,16 @@ export function ServiceOrderProposalView({
   };
 
   const handleEmailMouseDown = () => {
-    const url = resolveClientProposalShareUrl(publicToken);
-    const { qrDataUrl, logoDataUrl } = emailPasteAssets;
-    if (!url || !qrDataUrl || !logoDataUrl?.startsWith("data:image")) {
+    if (!emailPreviewRef.current || !emailAssetsReady || !clientShareUrl) {
       emailRichCopiedRef.current = false;
       return;
     }
 
-    const body = buildProposalEmailBody(order, context, url);
-    const html = buildEmailProposalRichHtml(body, url, {
-      qrDataUrl,
-      logoDataUrl,
-      companyName: context.companyName,
-    });
-    emailRichCopiedRef.current = copyRichHtmlToClipboardSync(html, body);
+    const body = buildProposalEmailBody(order, context, clientShareUrl);
+    emailRichCopiedRef.current = copyRichHtmlFromElementWithCfHtml(
+      emailPreviewRef.current,
+      body
+    );
   };
 
   const shareEmail = () => {
@@ -276,17 +290,18 @@ export function ServiceOrderProposalView({
         qrDataUrl: emailPasteAssets.qrDataUrl,
         logoDataUrl: emailPasteAssets.logoDataUrl,
         companyName: context.companyName,
+        copyFromElement: emailPreviewRef.current,
       }
     );
 
     setEmailHint(
       richCopied && hasQr && hasLogo
-        ? "✓ QR Code e logo 3D copiados. No Gmail: clique no corpo do e-mail e pressione Ctrl+V agora."
+        ? "Passo 1: Gmail abriu com o texto. Passo 2: clique no corpo do e-mail. Passo 3: pressione Ctrl+V — você verá o QR Code e o logo 3D da prévia abaixo."
         : richCopied
-          ? "Proposta copiada parcialmente. Ctrl+V no corpo do Gmail."
+          ? "Copiado parcialmente. Ctrl+V no corpo do Gmail."
           : copied
-            ? "Só o texto foi copiado. Recarregue (F5) e tente de novo."
-            : "Não foi possível copiar. Recarregue a página (F5) e tente novamente."
+            ? "Não foi possível copiar QR/logo. Selecione a prévia azul abaixo, Ctrl+C, e cole no Gmail."
+            : "Recarregue (F5) e tente novamente."
     );
   };
 
@@ -408,6 +423,19 @@ export function ServiceOrderProposalView({
             <p className="proposal-toolbar mb-4 rounded-lg border-2 border-blue-400 bg-blue-50 px-4 py-3 text-base font-medium text-blue-950 print:hidden">
               {emailHint}
             </p>
+          )}
+
+          {emailPreviewHtml && !isPublic && (
+            <div className="proposal-toolbar mb-4 rounded-lg border border-slate-200 bg-slate-50 p-4 print:hidden">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Prévia do e-mail (QR Code + logo 3D GRX — igual ao que vai no Ctrl+V)
+              </p>
+              <div
+                ref={emailPreviewRef}
+                className="max-h-72 overflow-y-auto rounded border border-white bg-white p-4 text-sm text-slate-800"
+                dangerouslySetInnerHTML={{ __html: emailPreviewHtml }}
+              />
+            </div>
           )}
 
           {whatsappHint && (

@@ -10,6 +10,8 @@ const APP_URL = (
   "https://grx-management.vercel.app"
 ).replace(/\/$/, "");
 
+const LOGO_DEPTH_LAYERS = [5, 4, 3, 2, 1] as const;
+
 export default async function ProposalOpenGraphImage() {
   const logoUrl = `${APP_URL}/grx-logo.png`;
 
@@ -24,7 +26,6 @@ export default async function ProposalOpenGraphImage() {
           alignItems: "center",
           justifyContent: "center",
           background: "linear-gradient(165deg, #181818 0%, #0a0a0a 52%, #050505 100%)",
-          padding: 48,
         }}
       >
         <div
@@ -35,24 +36,44 @@ export default async function ProposalOpenGraphImage() {
             justifyContent: "center",
             background: "linear-gradient(165deg, #181818 0%, #0a0a0a 52%, #050505 100%)",
             borderRadius: 20,
-            padding: "36px 56px",
+            padding: "40px 64px",
             boxShadow: "0 18px 48px rgba(0,0,0,0.55)",
             border: "1px solid rgba(255,255,255,0.08)",
           }}
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={logoUrl}
-            alt="GRX"
-            width={420}
-            height={168}
-            style={{ objectFit: "contain" }}
-          />
+          <div
+            style={{
+              position: "relative",
+              width: 420,
+              height: 168,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            {[...LOGO_DEPTH_LAYERS].reverse().map((depth) => (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                key={`depth-${depth}`}
+                src={logoUrl}
+                alt=""
+                width={420}
+                height={168}
+                style={{
+                  position: "absolute",
+                  left: depth * 2.5,
+                  top: depth * 2.5,
+                  opacity: depth === 1 ? 1 : 0.35,
+                  filter: depth === 1 ? "none" : "brightness(0.35)",
+                }}
+              />
+            ))}
+          </div>
         </div>
         <p
           style={{
-            marginTop: 32,
-            fontSize: 28,
+            marginTop: 36,
+            fontSize: 30,
             color: "#f8fafc",
             letterSpacing: "0.08em",
             textTransform: "uppercase",

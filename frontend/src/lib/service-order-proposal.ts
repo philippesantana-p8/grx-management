@@ -304,6 +304,7 @@ export function launchProposalEmailShareSync(
     logoDataUrl: string;
     companyName?: string;
     to?: string | null;
+    copyFromElement?: HTMLElement | null;
   }
 ): EmailShareResult {
   const safeUrl = sanitizePublicProposalUrl(proposalUrl);
@@ -317,7 +318,14 @@ export function launchProposalEmailShareSync(
     companyName: options.companyName,
   });
 
-  const richCopied = copyRichHtmlToClipboardSync(html, plainBody);
+  let richCopied = false;
+  if (options.copyFromElement) {
+    richCopied = copyRichHtmlFromElementWithCfHtml(options.copyFromElement, plainBody);
+  }
+  if (!richCopied) {
+    richCopied = copyRichHtmlToClipboardSync(html, plainBody);
+  }
+
   const plainCopied = richCopied ? true : copyTextToClipboardSync(plainBody);
   const copied = richCopied || plainCopied;
   const href = buildMailtoHref(mailtoPrefix, subject, plainBody, safeUrl);
@@ -621,6 +629,29 @@ export function copyRichHtmlFromElement(
   }
 
   selection.removeAllRanges();
+  return copied;
+}
+
+/** Copia elemento visível com CF_HTML — melhor para colar QR + logo 3D no Gmail. */
+export function copyRichHtmlFromElementWithCfHtml(
+  element: HTMLElement,
+  plainText: string
+): boolean {
+  if (typeof document === "undefined") return false;
+
+  const cfHtml = buildCfHtmlDocument(element.innerHTML);
+  let cfCopied = false;
+  const onCopy = (event: ClipboardEvent) => {
+    if (!event.clipboardData) return;
+    event.clipboardData.setData("text/html", cfHtml);
+    event.clipboardData.setData("text/plain", plainText);
+    event.preventDefault();
+    cfCopied = true;
+  };
+
+  document.addEventListener("copy", onCopy);
+  const copied = copyRichHtmlFromElement(element);
+  document.removeEventListener("copy", onCopy);
   return copied;
 }
 
