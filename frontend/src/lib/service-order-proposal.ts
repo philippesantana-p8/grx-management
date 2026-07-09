@@ -3,6 +3,10 @@ import {
   fetchBrandLogoDataUrl,
   resolveEmailBrandLogoSrc,
 } from "@/lib/brand-email";
+import {
+  buildProposalEmlContent,
+  openEmlInDefaultMailClient,
+} from "@/lib/proposal-email-eml";
 import { formatCurrency } from "@/lib/utils";
 import { normalizePerDiemDetail, perDiemDayTotal, perDiemChargeLabel, isPerDiemClientCharge } from "@/lib/freight-per-diem";
 import { SERVICE_ORDER_TYPE_LABELS } from "@/types/database";
@@ -132,8 +136,6 @@ const DRIVER_ASSIGNMENT_INTRO =
 const SHARE_INTRO_MARKERS = [PROPOSAL_CLIENT_INTRO, DRIVER_ASSIGNMENT_INTRO] as const;
 const PROPOSAL_CLIENT_CLOSING =
   "Caso concorde, acesse o link que publico abaixo e confirme o aceite da proposta.";
-const PROPOSAL_CLIENT_EMAIL_QR_HINT =
-  "Escaneie o QR Code abaixo para abrir a proposta no celular.";
 const PROPOSAL_CLIENT_EMAIL_SIGNOFF = ["Fico no aguardo,", "Obrigado pela atenção!"] as const;
 const CLIENT_GREETING_BREAK = "\n\n\n";
 
@@ -291,20 +293,19 @@ export function copyRichHtmlToClipboardSync(html: string, plainText?: string): b
   document.removeEventListener("copy", onCopy);
   selection?.removeAllRanges();
   document.body.removeChild(container);
-  return copied;
+  return cfCopied && copied;
 }
 
-/** Abre e-mail no gesto do clique — exige QR e logo já carregados (sem await). */
+/** Abre e-mail no gesto do clique — .eml com logo 3D embutido; fallback mailto + clipboard. */
 export function launchProposalEmailShareSync(
   subject: string,
   body: string,
   proposalUrl: string,
   options: {
-    qrDataUrl: string;
     logoDataUrl: string;
     companyName?: string;
     to?: string | null;
-    copyFromElement?: HTMLElement | null;
+    orderCode?: string;
   }
 ): EmailShareResult {
   const safeUrl = sanitizePublicProposalUrl(proposalUrl);
@@ -313,29 +314,49 @@ export function launchProposalEmailShareSync(
   const mailtoPrefix = to ? `mailto:${to}` : "mailto:";
 
   const html = buildEmailProposalRichHtml(plainBody, safeUrl, {
-    qrDataUrl: options.qrDataUrl,
+    qrDataUrl: null,
     logoDataUrl: options.logoDataUrl,
     companyName: options.companyName,
   });
 
-  let richCopied = false;
-  if (options.copyFromElement) {
-    richCopied = copyRichHtmlFromElementWithCfHtml(options.copyFromElement, plainBody);
-  }
-  if (!richCopied) {
-    richCopied = copyRichHtmlToClipboardSync(html, plainBody);
+  const filename = options.orderCode
+    ? `Proposta-OS-${options.orderCode}-GRX.eml`
+    : "Proposta-GRX.eml";
+
+  const emlContent = buildProposalEmlContent({
+    subject,
+    plainBody,
+    htmlBody: html,
+    to,
+  });
+
+  const emlOpened = openEmlInDefaultMailClient(emlContent, filename);
+
+  if (emlOpened) {
+    return {
+      copied: true,
+      richCopied: true,
+      emlOpened: true,
+      hasQr: false,
+      hasLogo: Boolean(options.logoDataUrl.startsWith("data:image")),
+      plainBody,
+    };
   }
 
+  const richCopied = copyRichHtmlToClipboardSync(html, plainBody);
   const plainCopied = richCopied ? true : copyTextToClipboardSync(plainBody);
   const copied = richCopied || plainCopied;
-  const href = buildMailtoHref(mailtoPrefix, subject, plainBody, safeUrl);
+
+  const mailtoBody = richCopied ? "" : buildMailtoBodyForClient(plainBody, safeUrl);
+  const href = `${mailtoPrefix}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(mailtoBody)}`;
 
   openMailtoLink(href);
 
   return {
     copied,
     richCopied,
-    hasQr: Boolean(options.qrDataUrl),
+    emlOpened: false,
+    hasQr: false,
     hasLogo: Boolean(options.logoDataUrl.startsWith("data:image")),
     plainBody,
   };
@@ -549,7 +570,6 @@ export function buildProposalEmailBody(
 
   if (proposalUrl) {
     appendClientProposalClosingWithLink(lines, proposalUrl);
-    lines.push("", PROPOSAL_CLIENT_EMAIL_QR_HINT);
     appendProposalEmailSignoff(lines);
   }
 
@@ -995,6 +1015,7 @@ export type EmailShareOptions = {
 export type EmailShareResult = {
   copied: boolean;
   richCopied: boolean;
+  emlOpened?: boolean;
   hasQr: boolean;
   hasLogo: boolean;
   plainBody: string;
@@ -1127,18 +1148,19 @@ export async function openEmailShare(
 
   const plainCopied = richCopied ? true : await copyTextToClipboard(plainBody);
   const copied = richCopied || plainCopied;
-  const href = buildMailtoHref(mailtoPrefix, subject, plainBody, safeUrl);
+  const mailtoBody = richCopied ? "" : buildMailtoBodyForClient(plainBody, safeUrl);
+  const href = `${mailtoPrefix}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(mailtoBody)}`;
 
   openMailtoLink(href);
 
   if (richCopied) {
     window.alert(
       options?.copiedAlertMessage ??
-        "Proposta copiada com QR Code e logo GRX 3D.\n\nClique no corpo do e-mail e pressione Ctrl+V para colar as imagens."
+        "E-mail aberto. No Outlook/Mail o texto e o logo GRX 3D entram automaticamente.\n\nNo Gmail web: se o corpo estiver vazio, pressione Ctrl+V uma vez."
     );
   } else if (plainCopied) {
     window.alert(
-      "Texto copiado.\n\nPressione Ctrl+V no corpo do e-mail para tentar colar QR Code e logo."
+      "E-mail aberto só com texto.\n\nRecarregue a página (F5) e tente novamente."
     );
   } else {
     window.alert(
