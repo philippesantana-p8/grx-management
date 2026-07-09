@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Loading } from "@/components/ui/Badge";
 import { useCompany } from "@/lib/company-context";
@@ -12,13 +12,17 @@ import {
 import { fetchActiveServiceOrdersByDriver } from "@/lib/driver-service-orders";
 import { assignServiceOrderDriver } from "@/lib/service-order-driver-api";
 import {
-  buildDriverAssignmentWhatsAppText,
-  buildDriverAssignmentWhatsAppUrlText,
   buildPublicDriverAssignmentUrl,
-  openDriverAssignmentEmailShare,
+  prepareDriverAssignmentSharePayload,
   sendDriverAssignment,
-  shareDriverAssignmentViaWhatsApp,
+  type DriverAssignmentSharePayload,
 } from "@/lib/service-order-driver-assignment";
+import {
+  copyPreparedEmailHtmlToClipboard,
+  copyTextToClipboardSync,
+  isWindowsWhatsAppDesktop,
+  launchPreparedEmailShare,
+} from "@/lib/service-order-proposal";
 import { createClient } from "@/lib/supabase/client";
 import { cn, formatCurrency } from "@/lib/utils";
 import type { Driver, ServiceOrder } from "@/types/database";
@@ -99,9 +103,21 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
   const [error, setError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState("");
 
+  const [sharePayload, setSharePayload] = useState<DriverAssignmentSharePayload | null>(null);
+  const [shareDriverName, setShareDriverName] = useState("");
+  const emailRichCopiedRef = useRef(false);
+
+  const secondaryActionClass =
+    "inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-50";
+
   const companyName = company?.trade_name || company?.name || "GRX Transportes e Logística";
   const amount = order.freight_agreed_amount ?? order.service_amount;
   const selectedDriver = drivers.find((d) => d.id === selectedId);
+
+  const resetShareStep = () => {
+    setSharePayload(null);
+    setShareDriverName("");
+  };
 
   const loadDrivers = useCallback(async () => {
     if (!companyId) return;
@@ -145,6 +161,7 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
   useEffect(() => {
     if (!open) return;
     setSelectedId("");
+    resetShareStep();
     void loadDrivers();
   }, [open, loadDrivers]);
 
@@ -176,91 +193,88 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
     onClose();
   };
 
-  const handleSendWhatsApp = async () => {
+  const registerAssignmentShare = async (): Promise<boolean> => {
     if (!selectedDriver) {
       window.alert("Selecione um motorista.");
-      return;
-    }
-
-    if (!selectedDriver.phone?.trim()) {
-      window.alert(
-        "Cadastre o telefone do motorista em Cadastros → Motoristas antes de enviar por WhatsApp."
-      );
-      return;
+      return false;
     }
 
     if (!isDriverAvailableForContact(selectedDriver)) {
       window.alert("Motorista indisponível para esta designação.");
-      return;
+      return false;
     }
 
     setSaving(true);
     const { token, error: sendError } = await sendDriverAssignment(supabase, order.id, selectedId);
-    setSaving(false);
-
     if (sendError || !token) {
+      setSaving(false);
       window.alert(sendError ?? "Não foi possível registrar a designação.");
-      return;
+      return false;
     }
 
     const assignmentUrl = buildPublicDriverAssignmentUrl(token);
-    const message = buildDriverAssignmentWhatsAppText(
+    const payload = await prepareDriverAssignmentSharePayload(
+      selectedDriver.email,
       order,
       companyName,
       selectedDriver.name,
-      assignmentUrl
+      assignmentUrl,
+      selectedDriver.phone
     );
-    const urlMessage = buildDriverAssignmentWhatsAppUrlText(
-      order,
-      companyName,
-      selectedDriver.name,
-      assignmentUrl
-    );
+    setSaving(false);
 
-    await shareDriverAssignmentViaWhatsApp(message, selectedDriver.phone, {
-      urlText: urlMessage,
-    });
+    setSharePayload(payload);
+    setShareDriverName(selectedDriver.name);
     onAssignmentSent?.(selectedId, selectedDriver.name);
-    onClose();
+    return true;
   };
 
-  const handleSendEmail = async () => {
-    if (!selectedDriver) {
-      window.alert("Selecione um motorista.");
-      return;
-    }
-
-    if (!selectedDriver.email?.trim()) {
+  const handlePrepareShare = () => {
+    if (!selectedDriver?.phone?.trim() && !selectedDriver?.email?.trim()) {
       window.alert(
-        "Cadastre o e-mail do motorista em Cadastros → Motoristas antes de enviar por e-mail."
+        "Cadastre telefone ou e-mail do motorista em Cadastros → Motoristas antes de enviar o link."
       );
       return;
     }
+    void registerAssignmentShare();
+  };
 
-    if (!isDriverAvailableForContact(selectedDriver)) {
-      window.alert("Motorista indisponível para esta designação.");
-      return;
-    }
+  const handleWhatsAppShareMouseDown = () => {
+    if (!sharePayload) return;
+    copyTextToClipboardSync(sharePayload.whatsappMessage);
+  };
 
-    setSaving(true);
-    const { token, error: sendError } = await sendDriverAssignment(supabase, order.id, selectedId);
-    setSaving(false);
-
-    if (sendError || !token) {
-      window.alert(sendError ?? "Não foi possível registrar a designação.");
-      return;
-    }
-
-    const assignmentUrl = buildPublicDriverAssignmentUrl(token);
-    await openDriverAssignmentEmailShare(
-      selectedDriver.email.trim(),
-      order,
-      companyName,
-      selectedDriver.name,
-      assignmentUrl
+  const handleWhatsAppShareClick = () => {
+    if (!sharePayload) return;
+    window.open(sharePayload.whatsappLinks.primaryHref, "_blank", "noopener,noreferrer");
+    window.alert(
+      isWindowsWhatsAppDesktop()
+        ? "Mensagem copiada. Se o WhatsApp da Microsoft Store não abrir com o texto, use Alt+Tab nele e Ctrl+V no chat do motorista."
+        : "Mensagem copiada. Confira o chat do motorista e pressione Enter. Use Ctrl+V se o texto não aparecer."
     );
-    onAssignmentSent?.(selectedId, selectedDriver.name);
-    onClose();
+  };
+
+  const handleEmailShareMouseDown = () => {
+    if (!sharePayload?.emailBundle) return;
+    emailRichCopiedRef.current = copyPreparedEmailHtmlToClipboard(
+      sharePayload.emailBundle.htmlForClipboard,
+      sharePayload.emailBundle.plainBody
+    );
+  };
+
+  const handleEmailShareClick = () => {
+    if (!sharePayload?.emailBundle) {
+      window.alert("E-mail do motorista não cadastrado ou conteúdo ainda não preparado.");
+      return;
+    }
+
+    launchPreparedEmailShare(sharePayload.emailBundle, {
+      skipCopy: true,
+      richCopied: emailRichCopiedRef.current,
+      copiedAlertMessage: emailRichCopiedRef.current
+        ? "Designação copiada (texto, link, QR Code e logo GRX).\n\n1. O e-mail abrirá com assunto e texto.\n2. Clique no corpo do e-mail e pressione Ctrl+V para colar QR Code e logo."
+        : "O e-mail abrirá com assunto e texto.\n\nPressione Ctrl+V no corpo — se QR/logo não aparecerem, clique em «Abrir e-mail» novamente.",
+    });
   };
 
   if (!open) return null;
@@ -311,7 +325,37 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
         </div>
 
         <div className="max-h-[50vh] overflow-y-auto px-5 py-4">
-          {loading ? (
+          {sharePayload ? (
+            <div className="space-y-4">
+              <p className="text-sm text-emerald-800">
+                Designação registrada para <strong>{shareDriverName}</strong>. Clique abaixo para
+                enviar — a mensagem é copiada no clique (gesto do utilizador).
+              </p>
+              <p className="break-all text-xs text-slate-500">{sharePayload.assignmentUrl}</p>
+              {selectedDriver?.phone?.trim() ? (
+                <a
+                  href={sharePayload.whatsappLinks.primaryHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={cn(secondaryActionClass, "w-full")}
+                  onMouseDown={handleWhatsAppShareMouseDown}
+                  onClick={handleWhatsAppShareClick}
+                >
+                  Abrir WhatsApp do motorista
+                </a>
+              ) : null}
+              {sharePayload.emailBundle ? (
+                <button
+                  type="button"
+                  className={cn(secondaryActionClass, "w-full")}
+                  onMouseDown={handleEmailShareMouseDown}
+                  onClick={handleEmailShareClick}
+                >
+                  Abrir e-mail do motorista
+                </button>
+              ) : null}
+            </div>
+          ) : loading ? (
             <Loading />
           ) : error ? (
             <p className="text-sm text-red-600">{error}</p>
@@ -398,44 +442,34 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
         <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 px-5 py-4">
           <div className="flex flex-wrap gap-2">
             <Button type="button" variant="secondary" disabled={saving} onClick={onClose}>
-              Cancelar
+              {sharePayload ? "Fechar" : "Cancelar"}
             </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              disabled={saving || loading || !selectedId}
-              onClick={() => void handleDirectAssign()}
-            >
-              Confirmar sem link
-            </Button>
+            {!sharePayload ? (
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={saving || loading || !selectedId}
+                onClick={() => void handleDirectAssign()}
+              >
+                Confirmar sem link
+              </Button>
+            ) : null}
           </div>
-          <div className="flex flex-wrap gap-2">
+          {!sharePayload ? (
             <Button
               type="button"
-              variant="secondary"
-              disabled={saving || loading || !selectedId || !selectedDriver?.email?.trim()}
-              title={
-                selectedDriver?.email?.trim()
-                  ? "Enviar designação por e-mail"
-                  : "Cadastre e-mail do motorista"
+              disabled={
+                saving ||
+                loading ||
+                !selectedId ||
+                (!selectedDriver?.phone?.trim() && !selectedDriver?.email?.trim())
               }
-              onClick={() => void handleSendEmail()}
+              title="Registra o link e abre opções de envio com cópia no clique"
+              onClick={handlePrepareShare}
             >
-              {saving ? "Enviando…" : "Enviar por e-mail"}
+              {saving ? "Preparando…" : "Gerar link e enviar"}
             </Button>
-            <Button
-              type="button"
-              disabled={saving || loading || !selectedId || !selectedDriver?.phone?.trim()}
-              title={
-                selectedDriver?.phone?.trim()
-                  ? "Enviar designação por WhatsApp"
-                  : "Cadastre telefone do motorista"
-              }
-              onClick={() => void handleSendWhatsApp()}
-            >
-              Enviar WhatsApp
-            </Button>
-          </div>
+          ) : null}
         </div>
       </div>
     </div>

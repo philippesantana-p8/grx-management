@@ -1,3 +1,7 @@
+import {
+  buildEmailBrandFooterHtml,
+  resolveEmailBrandLogoSrc,
+} from "@/lib/brand-email";
 import { formatCurrency } from "@/lib/utils";
 import { normalizePerDiemDetail, perDiemDayTotal, perDiemChargeLabel, isPerDiemClientCharge } from "@/lib/freight-per-diem";
 import { SERVICE_ORDER_TYPE_LABELS } from "@/types/database";
@@ -187,15 +191,29 @@ function buildEmailQrHtmlBlock(qrDataUrl: string): string {
   ].join("");
 }
 
-function copyRichHtmlFallback(html: string, plainText: string): Promise<boolean> {
-  if (typeof document === "undefined") return Promise.resolve(false);
+const MAX_CLIPBOARD_HTML_CHARS = 180_000;
+
+/** Windows/Gmail paste works more reliably with HTML fragment markers. */
+function wrapHtmlForClipboard(innerHtml: string): string {
+  if (innerHtml.includes("StartFragment")) return innerHtml;
+  return `<html><body><!--StartFragment-->${innerHtml}<!--EndFragment--></body></html>`;
+}
+
+/**
+ * Synchronous rich HTML copy — must run inside mousedown/click user gesture.
+ * Never falls back to plain text (that would erase QR/logo from the clipboard).
+ */
+export function copyRichHtmlToClipboardSync(html: string): boolean {
+  if (typeof document === "undefined") return false;
 
   const container = document.createElement("div");
-  container.innerHTML = html;
+  container.innerHTML = wrapHtmlForClipboard(html);
   container.setAttribute("contenteditable", "true");
   container.style.position = "fixed";
   container.style.left = "-9999px";
   container.style.top = "0";
+  container.style.opacity = "0";
+  container.style.pointerEvents = "none";
   document.body.appendChild(container);
 
   const selection = window.getSelection();
@@ -213,12 +231,30 @@ function copyRichHtmlFallback(html: string, plainText: string): Promise<boolean>
 
   selection?.removeAllRanges();
   document.body.removeChild(container);
+  return copied;
+}
 
-  if (!copied) {
-    return copyTextToClipboard(plainText);
+async function copyRichHtmlViaClipboardApi(html: string, plainText: string): Promise<boolean> {
+  if (
+    typeof navigator === "undefined" ||
+    !navigator.clipboard?.write ||
+    typeof ClipboardItem === "undefined" ||
+    html.length > MAX_CLIPBOARD_HTML_CHARS
+  ) {
+    return false;
   }
 
-  return Promise.resolve(true);
+  try {
+    await navigator.clipboard.write([
+      new ClipboardItem({
+        "text/plain": new Blob([plainText], { type: "text/plain" }),
+        "text/html": new Blob([wrapHtmlForClipboard(html)], { type: "text/html" }),
+      }),
+    ]);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 type EmailClipboardOptions = {
@@ -226,8 +262,6 @@ type EmailClipboardOptions = {
   logoDataUrl?: string | null;
   companyName?: string;
 };
-
-const MAX_CLIPBOARD_HTML_CHARS = 180_000;
 
 function buildEmailProposalHtml(
   plainBody: string,
@@ -259,12 +293,11 @@ function buildEmailProposalHtml(
   return html;
 }
 
-async function appendEmailBrandFooter(
+function appendEmailBrandFooter(
   html: string,
   logoDataUrl: string | null | undefined,
   companyName?: string
-): Promise<string> {
-  const { buildEmailBrandFooterHtml, resolveEmailBrandLogoSrc } = await import("@/lib/brand-email");
+): string {
   const logoSrc = resolveEmailBrandLogoSrc(logoDataUrl ?? null, getPublicAppOrigin());
   return (
     html +
@@ -274,42 +307,40 @@ async function appendEmailBrandFooter(
   );
 }
 
-async function copyEmailProposalToClipboard(
+export function buildEmailProposalRichHtml(
   plainBody: string,
   proposalUrl: string,
   options?: EmailClipboardOptions
-): Promise<boolean> {
+): string {
   let html = buildEmailProposalHtml(plainBody, proposalUrl, options);
-  html = await appendEmailBrandFooter(html, options?.logoDataUrl, options?.companyName);
+  html = appendEmailBrandFooter(html, options?.logoDataUrl, options?.companyName);
 
   if (html.length > MAX_CLIPBOARD_HTML_CHARS && options?.qrDataUrl) {
     html = buildEmailProposalHtml(plainBody, proposalUrl, {
       ...options,
       qrDataUrl: null,
     });
-    html = await appendEmailBrandFooter(html, options.logoDataUrl, options?.companyName);
+    html = appendEmailBrandFooter(html, options?.logoDataUrl, options?.companyName);
   }
 
-  if (
-    typeof navigator !== "undefined" &&
-    navigator.clipboard?.write &&
-    typeof ClipboardItem !== "undefined" &&
-    html.length <= MAX_CLIPBOARD_HTML_CHARS
-  ) {
-    try {
-      await navigator.clipboard.write([
-        new ClipboardItem({
-          "text/plain": new Blob([plainBody], { type: "text/plain" }),
-          "text/html": new Blob([html], { type: "text/html" }),
-        }),
-      ]);
-      return true;
-    } catch {
-      /* fallback abaixo */
-    }
-  }
+  return html;
+}
 
-  return await copyRichHtmlFallback(html, plainBody);
+export function copyPreparedEmailHtmlToClipboard(html: string, plainBody: string): boolean {
+  if (copyRichHtmlToClipboardSync(html)) return true;
+  void copyRichHtmlViaClipboardApi(html, plainBody);
+  return false;
+}
+
+async function copyEmailProposalToClipboard(
+  plainBody: string,
+  proposalUrl: string,
+  options?: EmailClipboardOptions
+): Promise<boolean> {
+  const html = buildEmailProposalRichHtml(plainBody, proposalUrl, options);
+  if (copyRichHtmlToClipboardSync(html)) return true;
+  if (await copyRichHtmlViaClipboardApi(html, plainBody)) return true;
+  return false;
 }
 
 export function buildWhatsAppProposalText(
@@ -447,7 +478,7 @@ export function isWindowsWhatsAppDesktop(): boolean {
   return isWindowsDesktop();
 }
 
-const WHATSAPP_URL_TEXT_BUDGET = 1500;
+const WHATSAPP_URL_TEXT_BUDGET = 2800;
 
 function truncateTextForWhatsAppUrl(text: string): string {
   if (encodeURIComponent(text).length <= WHATSAPP_URL_TEXT_BUDGET) return text;
@@ -537,6 +568,25 @@ export function buildWhatsAppSendUrl(text: string, phone?: string | null): strin
   return isMobileWhatsAppDevice() ? links.mobileHref : links.desktopHref;
 }
 
+/** Copia texto no gesto do utilizador (mousedown/click) — não usar após await. */
+export function copyTextToClipboardSync(text: string): boolean {
+  if (typeof document === "undefined") return false;
+  try {
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.setAttribute("readonly", "");
+    textarea.style.position = "fixed";
+    textarea.style.left = "-9999px";
+    document.body.appendChild(textarea);
+    textarea.select();
+    const ok = document.execCommand("copy");
+    document.body.removeChild(textarea);
+    return ok;
+  } catch {
+    return false;
+  }
+}
+
 /** Copia em background — não bloqueia a abertura do app. */
 export function copyTextToClipboard(text: string): Promise<boolean> {
   if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
@@ -602,10 +652,12 @@ export async function shareViaWhatsAppPrepared(
   urlText: string,
   clipboardText: string,
   phone?: string | null,
-  options?: { preOpenedWindow?: Window | null; copiedHint?: string }
+  options?: { preOpenedWindow?: Window | null; copiedHint?: string; skipCopy?: boolean }
 ): Promise<WhatsAppShareResult> {
   const links = buildWhatsAppShareLinks(urlText, phone);
-  const copied = await copyTextToClipboard(clipboardText);
+  const copied = options?.skipCopy
+    ? true
+    : copyTextToClipboardSync(clipboardText) || (await copyTextToClipboard(clipboardText));
   openExternalUrl(links.primaryHref, options?.preOpenedWindow ?? null);
 
   if (copied) {
@@ -740,29 +792,64 @@ export type EmailShareResult = {
   plainBody: string;
 };
 
-export async function openEmailShare(
+export type EmailShareBundle = {
+  subject: string;
+  plainBody: string;
+  shareUrl: string;
+  htmlForClipboard: string;
+  mailtoHref: string;
+  hasQr: boolean;
+  hasLogo: boolean;
+};
+
+export async function prepareEmailShareBundle(
   subject: string,
   body: string,
   proposalUrl = "",
   options?: EmailShareOptions & { to?: string | null }
-): Promise<EmailShareResult> {
+): Promise<EmailShareBundle> {
   const safeUrl = sanitizePublicProposalUrl(proposalUrl);
   const plainBody = body.replace(/\r\n/g, "\n");
   const to = options?.to?.trim();
   const mailtoPrefix = to ? `mailto:${to}` : "mailto:";
+  const qrDataUrl = options?.qrDataUrl ?? null;
+  const logoDataUrl = options?.logoDataUrl ?? null;
 
-  let qrDataUrl = options?.qrDataUrl ?? null;
-  let logoDataUrl = options?.logoDataUrl ?? null;
-
-  const richCopied = await copyEmailProposalToClipboard(plainBody, safeUrl, {
+  const htmlForClipboard = buildEmailProposalRichHtml(plainBody, safeUrl, {
     qrDataUrl,
     logoDataUrl,
     companyName: options?.companyName,
   });
-  // Never overwrite rich HTML in the clipboard — plain write removes QR/logo on Ctrl+V.
-  const plainCopied = richCopied ? true : await copyTextToClipboard(plainBody);
+  const mailtoHref = buildMailtoHref(mailtoPrefix, subject, plainBody, safeUrl);
+
+  return {
+    subject,
+    plainBody,
+    shareUrl: safeUrl,
+    htmlForClipboard,
+    mailtoHref,
+    hasQr: Boolean(qrDataUrl),
+    hasLogo: Boolean(logoDataUrl),
+  };
+}
+
+export type EmailShareLaunchOptions = {
+  copiedAlertMessage?: string;
+  /** When true, skip clipboard write (already done on mousedown). */
+  skipCopy?: boolean;
+  /** When skipCopy is true, whether the prior mousedown copy succeeded. */
+  richCopied?: boolean;
+};
+
+export function launchPreparedEmailShare(
+  bundle: EmailShareBundle,
+  options?: EmailShareLaunchOptions
+): EmailShareResult {
+  const richCopied = options?.skipCopy
+    ? Boolean(options.richCopied)
+    : copyPreparedEmailHtmlToClipboard(bundle.htmlForClipboard, bundle.plainBody);
+  const plainCopied = richCopied ? true : copyTextToClipboardSync(bundle.plainBody);
   const copied = richCopied || plainCopied;
-  const href = buildMailtoHref(mailtoPrefix, subject, plainBody, safeUrl);
 
   if (richCopied) {
     window.alert(
@@ -777,18 +864,30 @@ export async function openEmailShare(
     window.alert(
       "Não foi possível copiar automaticamente.\n\nO e-mail abrirá com assunto e texto. Copie manualmente se necessário."
     );
-    window.prompt("Copie a mensagem:", plainBody);
+    window.prompt("Copie a mensagem:", bundle.plainBody);
   }
 
-  openMailtoLink(href);
+  openMailtoLink(bundle.mailtoHref);
 
   return {
     copied,
     richCopied,
-    hasQr: Boolean(qrDataUrl),
-    hasLogo: Boolean(logoDataUrl),
-    plainBody,
+    hasQr: bundle.hasQr,
+    hasLogo: bundle.hasLogo,
+    plainBody: bundle.plainBody,
   };
+}
+
+export async function openEmailShare(
+  subject: string,
+  body: string,
+  proposalUrl = "",
+  options?: EmailShareOptions & { to?: string | null }
+): Promise<EmailShareResult> {
+  const bundle = await prepareEmailShareBundle(subject, body, proposalUrl, options);
+  return launchPreparedEmailShare(bundle, {
+    copiedAlertMessage: options?.copiedAlertMessage,
+  });
 }
 
 export function triggerPrintPdf() {

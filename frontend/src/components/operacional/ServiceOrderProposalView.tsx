@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { BrandLogo } from "@/components/brand/BrandLogo";
 import { Button } from "@/components/ui/Button";
@@ -20,17 +20,20 @@ import {
   buildPublicProposalUrl,
   buildWhatsAppProposalText,
   buildWhatsAppShareLinks,
-  copyTextToClipboard,
+  copyPreparedEmailHtmlToClipboard,
+  copyTextToClipboardSync,
   formatServiceDate,
   generateProposalQrDataUrl,
   getPublicAppOrigin,
   isLocalhostPublicProposalUrl,
   isWindowsWhatsAppDesktop,
-  openEmailShare,
+  launchPreparedEmailShare,
+  prepareEmailShareBundle,
   resolveClientProposalShareUrl,
   resolveProposalAcceptanceTestUrl,
   resolveProposalAmount,
   triggerClientPdfForWhatsApp,
+  type EmailShareBundle,
   type ServiceOrderProposalContext,
 } from "@/lib/service-order-proposal";
 import { markProposalSent, resetProposalClientResponse } from "@/lib/service-order-proposal-api";
@@ -76,6 +79,8 @@ export function ServiceOrderProposalView({
     qrDataUrl: string | null;
     logoDataUrl: string | null;
   }>({ qrDataUrl: null, logoDataUrl: null });
+  const [emailShareBundle, setEmailShareBundle] = useState<EmailShareBundle | null>(null);
+  const [emailAssetsLoading, setEmailAssetsLoading] = useState(false);
   const [publicToken, setPublicToken] = useState(order.proposal_token);
   const [sentAt, setSentAt] = useState(order.proposal_sent_at);
 
@@ -94,23 +99,42 @@ export function ServiceOrderProposalView({
   useEffect(() => {
     if (!clientShareUrl) {
       setEmailPasteAssets({ qrDataUrl: null, logoDataUrl: null });
+      setEmailShareBundle(null);
       return;
     }
 
     let cancelled = false;
+    setEmailAssetsLoading(true);
+
     void Promise.all([
       generateProposalQrDataUrl(clientShareUrl),
       fetchBrandLogoDataUrl(getPublicAppOrigin()),
-    ]).then(([qrDataUrl, logoDataUrl]) => {
-      if (!cancelled) {
+    ])
+      .then(async ([qrDataUrl, logoDataUrl]) => {
+        if (cancelled) return;
         setEmailPasteAssets({ qrDataUrl, logoDataUrl });
-      }
-    });
+
+        const body = buildProposalEmailBody(order, context, clientShareUrl);
+        const bundle = await prepareEmailShareBundle(
+          `Proposta OS ${order.code} — ${context.companyName}`,
+          body,
+          clientShareUrl,
+          {
+            qrDataUrl,
+            logoDataUrl,
+            companyName: context.companyName,
+          }
+        );
+        if (!cancelled) setEmailShareBundle(bundle);
+      })
+      .finally(() => {
+        if (!cancelled) setEmailAssetsLoading(false);
+      });
 
     return () => {
       cancelled = true;
     };
-  }, [clientShareUrl]);
+  }, [clientShareUrl, order, context]);
 
   const handleMarkSent = async () => {
     setMarkingSent(true);
@@ -154,7 +178,7 @@ export function ServiceOrderProposalView({
 
   const handleWhatsAppAnchorMouseDown = () => {
     if (!whatsappShare) return;
-    void copyTextToClipboard(whatsappShare.message);
+    copyTextToClipboardSync(whatsappShare.message);
   };
 
   const handleWhatsAppAnchorClick = () => {
@@ -228,51 +252,59 @@ export function ServiceOrderProposalView({
     });
   };
 
-  const shareEmail = () => {
-    void (async () => {
-      try {
-        const url = resolveClientProposalShareUrl(publicToken);
-        if (!url) {
-          window.alert(
-            "Registre o envio da proposta primeiro.\n\nO link, o QR Code e o e-mail só funcionam após gerar o link público de produção."
-          );
-          return;
+  const emailRichCopiedRef = useRef(false);
+
+  const handleEmailMouseDown = () => {
+    if (!emailShareBundle) return;
+    emailRichCopiedRef.current = copyPreparedEmailHtmlToClipboard(
+      emailShareBundle.htmlForClipboard,
+      emailShareBundle.plainBody
+    );
+  };
+
+  const handleEmailClick = () => {
+    if (!clientShareUrl) {
+      window.alert(
+        "Registre o envio da proposta primeiro.\n\nO link, o QR Code e o e-mail só funcionam após gerar o link público de produção."
+      );
+      return;
+    }
+
+    if (!emailShareBundle) {
+      window.alert(
+        emailAssetsLoading
+          ? "Aguarde — QR Code e logo ainda estão sendo preparados. Tente novamente em alguns segundos."
+          : "Não foi possível preparar o e-mail. Recarregue a página (F5) e tente novamente."
+      );
+      return;
+    }
+
+    try {
+      const { copied, richCopied, hasQr, hasLogo } = launchPreparedEmailShare(
+        emailShareBundle,
+        {
+          skipCopy: true,
+          richCopied: emailRichCopiedRef.current,
+          copiedAlertMessage:
+            emailRichCopiedRef.current
+              ? "Proposta copiada (texto, link, QR Code e logo 3D GRX).\n\n1. O e-mail abrirá com assunto e texto.\n2. Clique no corpo do e-mail e pressione Ctrl+V para colar QR Code e logo."
+              : "O e-mail abrirá com assunto e texto.\n\nPressione Ctrl+V no corpo — se QR/logo não aparecerem, recarregue a página e clique em «Enviar por e-mail» novamente.",
         }
-
-        const body = buildProposalEmailBody(order, context, url);
-        const qrDataUrl =
-          emailPasteAssets.qrDataUrl ?? (await generateProposalQrDataUrl(url));
-        const logoDataUrl =
-          emailPasteAssets.logoDataUrl ??
-          (await fetchBrandLogoDataUrl(getPublicAppOrigin()));
-
-        const { copied, richCopied, hasQr, hasLogo } = await openEmailShare(
-          `Proposta OS ${order.code} — ${context.companyName}`,
-          body,
-          url,
-          {
-            qrDataUrl,
-            logoDataUrl,
-            companyName: context.companyName,
-            copiedAlertMessage:
-              "Proposta copiada (texto, link, QR Code e logo 3D GRX).\n\n1. O e-mail abrirá com assunto e texto.\n2. Clique no corpo do e-mail e pressione Ctrl+V para colar QR Code e logo.",
-          }
-        );
-        setEmailHint(
-          richCopied
-            ? hasQr && hasLogo
-              ? "Copiado: texto + QR + logo 3D GRX. E-mail abre com assunto/texto; use Ctrl+V no corpo para QR e logo."
-              : "Copiado parcialmente. E-mail abre com assunto/texto; use Ctrl+V no corpo."
-            : copied
-              ? "Texto copiado. E-mail abre com assunto e corpo preenchidos."
-              : "E-mail abrirá com assunto e texto. Se faltar conteúdo, recarregue e tente de novo."
-        );
-      } catch {
-        setActionError(
-          "Não foi possível preparar o e-mail. Recarregue a página (F5) e tente novamente."
-        );
-      }
-    })();
+      );
+      setEmailHint(
+        richCopied
+          ? hasQr && hasLogo
+            ? "Copiado: texto + QR + logo 3D GRX. E-mail abre com assunto/texto; use Ctrl+V no corpo para QR e logo."
+            : "Copiado parcialmente. E-mail abre com assunto/texto; use Ctrl+V no corpo."
+          : copied
+            ? "Texto copiado. E-mail abre com assunto e corpo preenchidos."
+            : "E-mail abrirá com assunto e texto. Se faltar conteúdo, recarregue e tente novamente."
+      );
+    } catch {
+      setActionError(
+        "Não foi possível preparar o e-mail. Recarregue a página (F5) e tente novamente."
+      );
+    }
   };
 
   const copyLink = async () => {
@@ -355,9 +387,23 @@ export function ServiceOrderProposalView({
                 Enviar no WhatsApp
               </Button>
             )}
-            <Button type="button" variant="secondary" onClick={shareEmail}>
-              Enviar por e-mail
-            </Button>
+            <button
+              type="button"
+              className={cn(
+                secondaryActionClass,
+                (emailAssetsLoading || !emailShareBundle) && "opacity-70"
+              )}
+              disabled={!clientShareUrl}
+              title={
+                emailAssetsLoading
+                  ? "Preparando QR Code e logo para colar no e-mail…"
+                  : "Copia QR + logo no clique; abre o e-mail com assunto e texto"
+              }
+              onMouseDown={handleEmailMouseDown}
+              onClick={handleEmailClick}
+            >
+              {emailAssetsLoading ? "Preparando e-mail…" : "Enviar por e-mail"}
+            </button>
             <Button type="button" variant="secondary" onClick={() => void copyLink()}>
               Copiar link público
             </Button>

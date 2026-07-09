@@ -4,10 +4,11 @@ import {
   generateProposalQrDataUrl,
   getPublicAppOrigin,
   isWindowsWhatsAppDesktop,
-  openEmailShare,
+  prepareEmailShareBundle,
   resolveProposalAmount,
-  shareViaWhatsAppPrepared,
-  type EmailShareResult,
+  buildWhatsAppShareLinks,
+  type EmailShareBundle,
+  type WhatsAppShareLinks,
 } from "@/lib/service-order-proposal";
 import { fetchBrandLogoDataUrl } from "@/lib/brand-email";
 import { formatCurrency } from "@/lib/utils";
@@ -183,13 +184,13 @@ export function buildDriverAssignmentEmailBody(
   return lines.join("\n");
 }
 
-export async function openDriverAssignmentEmailShare(
+export async function prepareDriverAssignmentEmailBundle(
   driverEmail: string,
   order: DriverAssignmentOrderSummary,
   companyName: string,
   driverName: string,
   assignmentUrl: string
-): Promise<EmailShareResult> {
+): Promise<EmailShareBundle> {
   const body = buildDriverAssignmentEmailBody(order, companyName, driverName, assignmentUrl);
   const subject = `Designação OS ${order.code} — ${companyName}`;
   const [qrDataUrl, logoDataUrl] = await Promise.all([
@@ -197,14 +198,82 @@ export async function openDriverAssignmentEmailShare(
     fetchBrandLogoDataUrl(getPublicAppOrigin()),
   ]);
 
-  return openEmailShare(subject, body, assignmentUrl, {
+  return prepareEmailShareBundle(subject, body, assignmentUrl, {
     to: driverEmail,
     qrDataUrl,
     logoDataUrl,
     companyName,
+  });
+}
+
+/** @deprecated Use prepareDriverAssignmentEmailBundle + launchPreparedEmailShare on user click. */
+export async function openDriverAssignmentEmailShare(
+  driverEmail: string,
+  order: DriverAssignmentOrderSummary,
+  companyName: string,
+  driverName: string,
+  assignmentUrl: string
+) {
+  const bundle = await prepareDriverAssignmentEmailBundle(
+    driverEmail,
+    order,
+    companyName,
+    driverName,
+    assignmentUrl
+  );
+  const { launchPreparedEmailShare } = await import("@/lib/service-order-proposal");
+  return launchPreparedEmailShare(bundle, {
     copiedAlertMessage:
       "Designação copiada (texto, link, QR Code e logo GRX).\n\n1. O e-mail abrirá com assunto e texto.\n2. Clique no corpo do e-mail e pressione Ctrl+V para colar QR Code e logo.",
   });
+}
+
+export type DriverAssignmentSharePayload = {
+  assignmentUrl: string;
+  whatsappMessage: string;
+  whatsappLinks: WhatsAppShareLinks;
+  emailBundle: EmailShareBundle | null;
+};
+
+export async function prepareDriverAssignmentSharePayload(
+  driverEmail: string | null | undefined,
+  order: DriverAssignmentOrderSummary,
+  companyName: string,
+  driverName: string,
+  assignmentUrl: string,
+  driverPhone?: string | null
+): Promise<DriverAssignmentSharePayload> {
+  const whatsappMessage = buildDriverAssignmentWhatsAppText(
+    order,
+    companyName,
+    driverName,
+    assignmentUrl
+  );
+  const urlMessage = buildDriverAssignmentWhatsAppUrlText(
+    order,
+    companyName,
+    driverName,
+    assignmentUrl
+  );
+  const whatsappLinks = buildWhatsAppShareLinks(urlMessage, driverPhone);
+
+  let emailBundle: EmailShareBundle | null = null;
+  if (driverEmail?.trim()) {
+    emailBundle = await prepareDriverAssignmentEmailBundle(
+      driverEmail.trim(),
+      order,
+      companyName,
+      driverName,
+      assignmentUrl
+    );
+  }
+
+  return {
+    assignmentUrl,
+    whatsappMessage,
+    whatsappLinks,
+    emailBundle,
+  };
 }
 
 export async function sendDriverAssignment(
@@ -285,11 +354,13 @@ export async function respondToDriverAssignment(
 export async function shareDriverAssignmentViaWhatsApp(
   text: string,
   phone?: string | null,
-  options?: { preOpenedWindow?: Window | null; urlText?: string }
+  options?: { preOpenedWindow?: Window | null; urlText?: string; skipCopy?: boolean }
 ): Promise<boolean> {
+  const { shareViaWhatsAppPrepared } = await import("@/lib/service-order-proposal");
   const urlMessage = options?.urlText ?? text;
   const result = await shareViaWhatsAppPrepared(urlMessage, text, phone, {
     preOpenedWindow: options?.preOpenedWindow,
+    skipCopy: options?.skipCopy,
     copiedHint: isWindowsWhatsAppDesktop()
       ? "Mensagem copiada. Se o WhatsApp não abrir com o texto, use Alt+Tab nele e Ctrl+V no chat do motorista."
       : "Mensagem copiada. Confira o chat do motorista e pressione Enter. Use Ctrl+V se o texto não aparecer.",
