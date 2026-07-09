@@ -22,6 +22,7 @@ import {
   copyTextToClipboardSync,
   isWindowsWhatsAppDesktop,
   launchPreparedEmailShare,
+  openWhatsAppShareHref,
 } from "@/lib/service-order-proposal";
 import { createClient } from "@/lib/supabase/client";
 import { cn, formatCurrency } from "@/lib/utils";
@@ -241,15 +242,15 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
 
   const handleWhatsAppShareMouseDown = () => {
     if (!sharePayload) return;
-    copyTextToClipboardSync(sharePayload.whatsappMessage);
+    copyTextToClipboardSync(sharePayload.whatsappLinks.message);
   };
 
   const handleWhatsAppShareClick = () => {
     if (!sharePayload) return;
-    window.open(sharePayload.whatsappLinks.primaryHref, "_blank", "noopener,noreferrer");
+    openWhatsAppShareHref(sharePayload.whatsappLinks.primaryHref);
     window.alert(
       isWindowsWhatsAppDesktop()
-        ? "Mensagem copiada. Se o WhatsApp da Microsoft Store não abrir com o texto, use Alt+Tab nele e Ctrl+V no chat do motorista."
+        ? "Mensagem copiada. O WhatsApp desktop deve abrir (não o navegador). Use Alt+Tab nele e Ctrl+V se o texto não aparecer."
         : "Mensagem copiada. Confira o chat do motorista e pressione Enter. Use Ctrl+V se o texto não aparecer."
     );
   };

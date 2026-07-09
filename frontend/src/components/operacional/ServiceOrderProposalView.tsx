@@ -27,6 +27,8 @@ import {
   getPublicAppOrigin,
   isLocalhostPublicProposalUrl,
   isWindowsWhatsAppDesktop,
+  openWhatsAppShareHref,
+  isWhatsAppNativeHref,
   launchPreparedEmailShare,
   prepareEmailShareBundle,
   resolveClientProposalShareUrl,
@@ -181,12 +183,15 @@ export function ServiceOrderProposalView({
     copyTextToClipboardSync(whatsappShare.message);
   };
 
-  const handleWhatsAppAnchorClick = () => {
+  const handleWhatsAppAnchorClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
     if (!whatsappShare) return;
+    if (isWhatsAppNativeHref(whatsappShare.primaryHref)) {
+      event.preventDefault();
+      openWhatsAppShareHref(whatsappShare.primaryHref);
+    }
     setWhatsappHint(
       isWindowsWhatsAppDesktop()
-        ? "Mensagem copiada. Se o WhatsApp da Microsoft Store não abrir sozinho, use Alt+Tab nele e Ctrl+V. " +
-            "Na 1ª vez, o Windows pode pedir para abrir no app — escolha WhatsApp e marque «Sempre»."
+        ? "Mensagem copiada. O WhatsApp desktop deve abrir (não o navegador). Se não abrir, use Alt+Tab → WhatsApp → Ctrl+V."
         : "Mensagem copiada. Confira o chat do cliente e pressione Enter. Use Ctrl+V se o texto não aparecer."
     );
   };
@@ -374,8 +379,9 @@ export function ServiceOrderProposalView({
             {whatsappHref ? (
               <a
                 href={whatsappHref}
-                target="_blank"
-                rel="noopener noreferrer"
+                {...(isWhatsAppNativeHref(whatsappHref)
+                  ? {}
+                  : { target: "_blank", rel: "noopener noreferrer" })}
                 className={cn(secondaryActionClass, markingSent && "pointer-events-none opacity-50")}
                 onMouseDown={handleWhatsAppAnchorMouseDown}
                 onClick={handleWhatsAppAnchorClick}
@@ -444,27 +450,26 @@ export function ServiceOrderProposalView({
           {whatsappShare && (
             <div className="proposal-toolbar mb-4 space-y-2 text-xs text-slate-500 print:hidden">
               <p>
-                <strong>WhatsApp (Microsoft Store):</strong> a mensagem é copiada ao clicar. Se o app não
-                focar sozinho, use <strong>Alt+Tab</strong> → WhatsApp → <strong>Ctrl+V</strong> no chat do
-                cliente {(order.phone ?? "").trim() || ""}.
+                <strong>WhatsApp desktop:</strong> abre o app instalado (não o WhatsApp Web). A mensagem é
+                copiada ao clicar; o link da proposta vem sem card de preview do site.
               </p>
               <p>
-                Link direto do app:{" "}
-                <a href={whatsappShare.desktopHref} className="font-medium text-brand-700 underline">
-                  whatsapp:// (protocolo nativo)
-                </a>
-                {" · "}
+                Se o app não focar sozinho: <strong>Alt+Tab</strong> → WhatsApp → <strong>Ctrl+V</strong> no
+                chat {(order.phone ?? "").trim() || "do cliente"}.
+              </p>
+              <p>
+                Alternativa (abre no navegador):{" "}
                 <a
                   href={whatsappShare.storeAppHref}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="font-medium text-brand-700 underline"
                 >
-                  api.whatsapp.com (Store)
+                  api.whatsapp.com
                 </a>
               </p>
               <p>
-                Configuração Windows (1×): Configurações → Aplicativos → Aplicativos padrão →{" "}
+                Windows (1×): Configurações → Aplicativos → Aplicativos padrão →{" "}
                 <em>Escolher padrões por tipo de link</em> → <strong>WHATSAPP</strong> → WhatsApp.
               </p>
             </div>

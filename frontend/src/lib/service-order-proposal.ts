@@ -469,6 +469,22 @@ function plainTextForWhatsAppUrl(text: string): string {
   return text.replace(/\*/g, "").replace(/—/g, "-");
 }
 
+/** Quebra detecção de URL pelo WhatsApp para não montar card de preview (OG do site). */
+export function suppressWhatsAppLinkPreview(url: string): string {
+  const trimmed = url.trim();
+  if (!trimmed) return trimmed;
+  return trimmed.replace(/^(https?:\/\/)/i, "$1\u200B");
+}
+
+function obfuscateUrlsInWhatsAppText(text: string): string {
+  return text.replace(/https?:\/\/[^\s\n]+/g, (match) => suppressWhatsAppLinkPreview(match));
+}
+
+/** Mensagem final para clipboard e parâmetro text= (URLs sem preview). */
+export function formatWhatsAppShareMessage(text: string): string {
+  return obfuscateUrlsInWhatsAppText(text);
+}
+
 function isWindowsDesktop(): boolean {
   if (typeof navigator === "undefined") return false;
   return /Windows/i.test(navigator.userAgent) && !isMobileWhatsAppDevice();
@@ -512,7 +528,8 @@ export function buildWhatsAppShareLinks(
   phone?: string | null
 ): WhatsAppShareLinks {
   const normalized = phone ? formatPhoneForWhatsApp(phone) : null;
-  const plainMessage = plainTextForWhatsAppUrl(text);
+  const messageForShare = formatWhatsAppShareMessage(text);
+  const plainMessage = plainTextForWhatsAppUrl(messageForShare);
   const urlText = truncateTextForWhatsAppUrl(plainMessage);
   const encodedText = encodeURIComponent(urlText);
   const desktopParams = normalized
@@ -527,15 +544,32 @@ export function buildWhatsAppShareLinks(
   const desktopHref = `whatsapp://send/?${desktopParams}`;
   const mobileHref = `${mobileBase}?text=${encodedText}`;
 
-  const primaryHref = isMobileWhatsAppDevice() ? mobileHref : storeAppHref;
+  // Desktop: protocolo nativo whatsapp:// abre o app instalado; api.whatsapp.com abre o navegador (Web).
+  const primaryHref = isMobileWhatsAppDevice() ? mobileHref : desktopHref;
 
   return {
-    message: text,
+    message: messageForShare,
     desktopHref,
     storeAppHref,
     mobileHref,
     primaryHref,
   };
+}
+
+export function isWhatsAppNativeHref(href: string): boolean {
+  return href.startsWith("whatsapp://");
+}
+
+export function openWhatsAppShareHref(href: string, targetWindow?: Window | null): void {
+  if (isWhatsAppNativeHref(href)) {
+    if (targetWindow && !targetWindow.closed) {
+      targetWindow.location.href = href;
+      return;
+    }
+    launchCustomProtocol(href);
+    return;
+  }
+  openExternalUrl(href, targetWindow);
 }
 
 export function openExternalUrl(url: string, targetWindow?: Window | null): void {
@@ -658,7 +692,7 @@ export async function shareViaWhatsAppPrepared(
   const copied = options?.skipCopy
     ? true
     : copyTextToClipboardSync(clipboardText) || (await copyTextToClipboard(clipboardText));
-  openExternalUrl(links.primaryHref, options?.preOpenedWindow ?? null);
+  openWhatsAppShareHref(links.primaryHref, options?.preOpenedWindow ?? null);
 
   if (copied) {
     if (options?.copiedHint) {
