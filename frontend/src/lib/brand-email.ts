@@ -2,13 +2,17 @@ const BRAND_LOGO_PATH = "/grx-logo.png";
 const DEFAULT_PUBLIC_APP_URL = "https://grx-management.vercel.app";
 const DEFAULT_COMPANY_TAGLINE = "GRX Transportes e Logística";
 
-const PLAQUE_LOGO_WIDTH = 200;
-const PLAQUE_PAD_X = 20;
-const PLAQUE_PAD_Y = 14;
+const PLAQUE_LOGO_WIDTH = 220;
+const PLAQUE_PAD_X = 22;
+const PLAQUE_PAD_Y = 16;
 const PLAQUE_RADIUS = 12;
-const LOGO_DEPTH_LAYERS = [2, 1] as const;
+const PLAQUE_SHADOW_PAD = 10;
+/** Mesmas camadas do BrandLogo (variant plaque3d, performanceLite=false). */
+const LOGO_DEPTH_LAYERS = [5, 4, 3, 2, 1] as const;
 /** Keep embedded logo small — ClipboardItem + QR HTML must stay under browser limits. */
 const MAX_EMAIL_EMBEDDED_LOGO_CHARS = 48_000;
+
+let cachedBrandLogoPlaque3D: string | null = null;
 
 function resolveOrigin(origin?: string): string {
   const fromEnv = process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/$/, "");
@@ -46,8 +50,21 @@ function roundRectPath(
 function drawPlaqueBackground(
   ctx: CanvasRenderingContext2D,
   width: number,
-  height: number
+  height: number,
+  withDropShadow = false
 ): void {
+  if (withDropShadow) {
+    ctx.save();
+    ctx.shadowColor = "rgba(0, 0, 0, 0.42)";
+    ctx.shadowBlur = 16;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 6;
+    roundRectPath(ctx, 0.5, 0.5, width - 1, height - 1, PLAQUE_RADIUS);
+    ctx.fillStyle = "#0a0a0a";
+    ctx.fill();
+    ctx.restore();
+  }
+
   roundRectPath(ctx, 0.5, 0.5, width - 1, height - 1, PLAQUE_RADIUS);
 
   const gradient = ctx.createLinearGradient(0, 0, width * 0.35, height);
@@ -92,14 +109,35 @@ function loadImageFromObjectUrl(objectUrl: string): Promise<HTMLImageElement> {
   });
 }
 
+function loadImageDirect(src: string): Promise<HTMLImageElement | null> {
+  return new Promise((resolve) => {
+    const image = new window.Image();
+    image.crossOrigin = "anonymous";
+    image.onload = () => resolve(image.naturalWidth > 0 ? image : null);
+    image.onerror = () => resolve(null);
+    image.src = src;
+  });
+}
+
 async function loadBrandLogoImage(origin?: string): Promise<HTMLImageElement | null> {
   if (typeof window === "undefined") return null;
 
-  const candidates = new Set<string>();
-  candidates.add(getBrandLogoPublicUrl(origin));
-  candidates.add(getBrandLogoPublicUrl(window.location.origin));
+  const candidates: string[] = [];
+  candidates.push(BRAND_LOGO_PATH);
+  if (window.location.origin) {
+    candidates.push(`${window.location.origin}${BRAND_LOGO_PATH}`);
+  }
+  candidates.push(getBrandLogoPublicUrl(origin));
+  candidates.push(getBrandLogoPublicUrl(window.location.origin));
 
+  const seen = new Set<string>();
   for (const logoUrl of candidates) {
+    if (seen.has(logoUrl)) continue;
+    seen.add(logoUrl);
+
+    const direct = await loadImageDirect(logoUrl);
+    if (direct) return direct;
+
     try {
       const response = await fetch(logoUrl);
       if (!response.ok) continue;
@@ -119,20 +157,87 @@ async function loadBrandLogoImage(origin?: string): Promise<HTMLImageElement | n
   return null;
 }
 
-function compressCanvasToEmailDataUrl(canvas: HTMLCanvasElement): string | null {
+function exportCanvasToDataUrl(canvas: HTMLCanvasElement): string | null {
   try {
     const png = canvas.toDataURL("image/png");
     if (png.length <= MAX_EMAIL_EMBEDDED_LOGO_CHARS) return png;
 
-    for (const quality of [0.88, 0.78, 0.68, 0.58, 0.48, 0.38, 0.28]) {
+    for (const quality of [0.92, 0.84, 0.76, 0.68, 0.6, 0.52]) {
       const jpeg = canvas.toDataURL("image/jpeg", quality);
       if (jpeg.length <= MAX_EMAIL_EMBEDDED_LOGO_CHARS) return jpeg;
     }
-
-    return canvas.toDataURL("image/jpeg", 0.22);
   } catch {
     return null;
   }
+  return null;
+}
+
+function compressCanvasToEmailDataUrl(canvas: HTMLCanvasElement): string | null {
+  let result = exportCanvasToDataUrl(canvas);
+  if (result) return result;
+
+  let source: HTMLCanvasElement | HTMLImageElement = canvas;
+  let width = canvas.width;
+  let height = canvas.height;
+
+  for (let step = 0; step < 4; step += 1) {
+    width = Math.max(120, Math.round(width * 0.86));
+    height = Math.max(48, Math.round(height * 0.86));
+    const scaled = document.createElement("canvas");
+    scaled.width = width;
+    scaled.height = height;
+    const ctx = scaled.getContext("2d");
+    if (!ctx) break;
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(source, 0, 0, width, height);
+    result = exportCanvasToDataUrl(scaled);
+    if (result) return result;
+    source = scaled;
+  }
+
+  try {
+    return canvas.toDataURL("image/jpeg", 0.48);
+  } catch {
+    return null;
+  }
+}
+
+function drawLogo3DStack(
+  ctx: CanvasRenderingContext2D,
+  source: HTMLImageElement,
+  baseX: number,
+  baseY: number,
+  logoWidth: number,
+  logoHeight: number
+): void {
+  const centerX = baseX + logoWidth / 2;
+  const centerY = baseY + logoHeight / 2;
+
+  ctx.save();
+  ctx.translate(centerX, centerY);
+  // Aproxima perspective + rotateY(-5deg) + rotateX(4deg) do CSS.
+  ctx.transform(1, 0.065, -0.095, 0.94, 0, 0);
+  ctx.translate(-centerX, -centerY);
+
+  for (const depth of LOGO_DEPTH_LAYERS) {
+    const offset = depth * 1.1;
+    ctx.save();
+    ctx.globalAlpha = Math.max(0.2, 1 - depth * 0.08);
+    ctx.globalCompositeOperation = "lighten";
+    ctx.filter = "brightness(0.55) saturate(1.15)";
+    ctx.drawImage(source, baseX + offset, baseY + offset, logoWidth, logoHeight);
+    ctx.restore();
+  }
+
+  ctx.save();
+  ctx.globalCompositeOperation = "source-over";
+  ctx.filter =
+    "drop-shadow(-1px -1px 0 rgba(255, 90, 110, 0.22)) drop-shadow(0 0 10px rgba(208, 0, 31, 0.28))";
+  ctx.drawImage(source, baseX, baseY, logoWidth, logoHeight);
+  ctx.restore();
+
+  ctx.restore();
 }
 
 /** Renderiza o logo padrão 3D (placa escura + profundidade) para colar em e-mails. */
@@ -145,42 +250,32 @@ export function renderBrandLogoPlaque3DToDataUrl(source: HTMLImageElement): stri
   const plaqueHeight = logoHeight + PLAQUE_PAD_Y * 2;
 
   const canvas = document.createElement("canvas");
-  canvas.width = plaqueWidth;
-  canvas.height = plaqueHeight;
+  canvas.width = plaqueWidth + PLAQUE_SHADOW_PAD * 2;
+  canvas.height = plaqueHeight + PLAQUE_SHADOW_PAD * 2;
   const ctx = canvas.getContext("2d");
   if (!ctx) return null;
 
-  drawPlaqueBackground(ctx, plaqueWidth, plaqueHeight);
+  ctx.translate(PLAQUE_SHADOW_PAD, PLAQUE_SHADOW_PAD);
+  drawPlaqueBackground(ctx, plaqueWidth, plaqueHeight, true);
 
-  const baseX = PLAQUE_PAD_X;
-  const baseY = PLAQUE_PAD_Y;
-
-  for (const depth of LOGO_DEPTH_LAYERS) {
-    const offset = depth * 1.1;
-    ctx.save();
-    ctx.globalAlpha = Math.max(0.2, 1 - depth * 0.08);
-    ctx.filter = "brightness(0.55) saturate(1.15)";
-    ctx.drawImage(source, baseX + offset, baseY + offset, logoWidth, logoHeight);
-    ctx.restore();
-  }
-
-  ctx.save();
-  ctx.shadowColor = "rgba(208, 0, 31, 0.28)";
-  ctx.shadowBlur = 10;
-  ctx.shadowOffsetX = 0;
-  ctx.shadowOffsetY = 0;
-  ctx.drawImage(source, baseX, baseY, logoWidth, logoHeight);
-  ctx.restore();
+  drawLogo3DStack(ctx, source, PLAQUE_PAD_X, PLAQUE_PAD_Y, logoWidth, logoHeight);
 
   return compressCanvasToEmailDataUrl(canvas);
 }
 
 export async function fetchBrandLogoDataUrl(origin?: string): Promise<string | null> {
+  if (cachedBrandLogoPlaque3D?.startsWith("data:image")) {
+    return cachedBrandLogoPlaque3D;
+  }
+
   try {
     const image = await loadBrandLogoImage(origin);
     if (image) {
       const plaque3d = renderBrandLogoPlaque3DToDataUrl(image);
-      if (plaque3d?.startsWith("data:image")) return plaque3d;
+      if (plaque3d?.startsWith("data:image")) {
+        cachedBrandLogoPlaque3D = plaque3d;
+        return plaque3d;
+      }
     }
   } catch {
     /* fallback abaixo */
@@ -208,7 +303,9 @@ export function buildEmailBrandFooterHtml(
         `<img src="${logoSrc}" alt="${safeCompany}" width="200" height="80" style="display:block;max-width:200px;height:auto" />`,
         `</div>`,
       ].join("")
-    : `<img src="${logoSrc}" alt="${safeCompany}" width="240" style="display:block;max-width:240px;height:auto;border-radius:12px" />`;
+    : [
+        `<img src="${logoSrc}" alt="${safeCompany}" width="264" style="display:block;max-width:264px;height:auto;border-radius:12px;box-shadow:0 12px 28px rgba(0,0,0,0.28),0 4px 10px rgba(208,0,31,0.08)" />`,
+      ].join("");
 
   return [
     `<div style="margin-top:28px;padding-top:20px;border-top:1px solid #e2e8f0;text-align:left">`,
