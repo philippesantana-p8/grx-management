@@ -539,9 +539,40 @@ function obfuscateUrlsInWhatsAppText(text: string): string {
   return text.replace(/https?:\/\/[^\s\n]+/g, (match) => suppressWhatsAppLinkPreview(match));
 }
 
-/** Mensagem final para clipboard e parâmetro text= (URLs sem preview). */
+/** Mensagem final para clipboard e parâmetro text= (URL limpa → preview WhatsApp com logo OG). */
 export function formatWhatsAppShareMessage(text: string): string {
-  return obfuscateUrlsInWhatsAppText(text);
+  return text;
+}
+
+/** Copia HTML rico a partir de um elemento visível na tela (mais confiável que div oculta). */
+export function copyRichHtmlFromElement(
+  element: HTMLElement,
+  options?: { selectAll?: boolean }
+): boolean {
+  if (typeof document === "undefined" || typeof window === "undefined") return false;
+
+  element.focus();
+  const selection = window.getSelection();
+  if (!selection) return false;
+
+  const range = document.createRange();
+  if (options?.selectAll !== false) {
+    range.selectNodeContents(element);
+  } else {
+    range.selectNode(element);
+  }
+  selection.removeAllRanges();
+  selection.addRange(range);
+
+  let copied = false;
+  try {
+    copied = document.execCommand("copy");
+  } catch {
+    copied = false;
+  }
+
+  selection.removeAllRanges();
+  return copied;
 }
 
 function isWindowsDesktop(): boolean {

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { BrandLogo } from "@/components/brand/BrandLogo";
+import { EmailShareDialog, type EmailShareDialogData } from "@/components/operacional/EmailShareDialog";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { cn } from "@/lib/utils";
@@ -26,7 +27,7 @@ import {
   getPublicAppOrigin,
   isLocalhostPublicProposalUrl,
   isWindowsWhatsAppDesktop,
-  openEmailShare,
+  prepareEmailShareBundle,
   resolveClientProposalShareUrl,
   resolveProposalAcceptanceTestUrl,
   resolveProposalAmount,
@@ -76,6 +77,7 @@ export function ServiceOrderProposalView({
     qrDataUrl: string | null;
     logoDataUrl: string | null;
   }>({ qrDataUrl: null, logoDataUrl: null });
+  const [emailDialog, setEmailDialog] = useState<EmailShareDialogData | null>(null);
   const [publicToken, setPublicToken] = useState(order.proposal_token);
   const [sentAt, setSentAt] = useState(order.proposal_sent_at);
 
@@ -244,7 +246,7 @@ export function ServiceOrderProposalView({
         emailPasteAssets.logoDataUrl ??
         (await fetchBrandLogoDataUrl(getPublicAppOrigin()));
 
-      const { copied, richCopied, hasQr, hasLogo } = await openEmailShare(
+      const bundle = await prepareEmailShareBundle(
         `Proposta OS ${order.code} — ${context.companyName}`,
         body,
         url,
@@ -255,15 +257,14 @@ export function ServiceOrderProposalView({
         }
       );
 
-      setEmailHint(
-        richCopied
-          ? hasQr && hasLogo
-            ? "Copiado com QR + logo. Gmail mostra só texto — use Ctrl+V no corpo."
-            : "Copiado parcialmente. Use Ctrl+V no corpo do Gmail."
-          : copied
-            ? "Texto copiado. Use Ctrl+V no corpo se faltar QR ou logo."
-            : "Recarregue a página (F5) e tente novamente."
-      );
+      setEmailDialog({
+        subject: bundle.subject,
+        plainBody: bundle.plainBody,
+        htmlForClipboard: bundle.htmlForClipboard,
+        mailtoHref: bundle.mailtoHref,
+        hasQr: bundle.hasQr,
+        hasLogo: bundle.hasLogo,
+      });
     })();
   };
 
@@ -282,6 +283,7 @@ export function ServiceOrderProposalView({
 
   return (
     <>
+      <EmailShareDialog data={emailDialog} onClose={() => setEmailDialog(null)} />
       <style>{`
         @media print {
           aside, .app-shell-header, .proposal-toolbar { display: none !important; }
