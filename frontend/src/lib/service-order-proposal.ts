@@ -182,14 +182,22 @@ export async function generateProposalQrDataUrl(
 
 function buildEmailQrHtmlBlock(qrDataUrl: string): string {
   return [
-    `<p style="margin-top:16px;text-align:left">`,
+    `<p style="margin:16px 0 0;text-align:left">`,
     `<img src="${qrDataUrl}" alt="QR Code da proposta GRX" width="220" height="220"`,
-    ` style="display:block;border:1px solid #e2e8f0;border-radius:8px;padding:8px;background:#fff" />`,
+    ` style="display:block;margin:0;border:1px solid #e2e8f0;border-radius:8px;padding:8px;background:#fff" />`,
     `</p>`,
   ].join("");
 }
 
 const MAX_CLIPBOARD_HTML_CHARS = 180_000;
+
+/** HTML simples para colar no Gmail (sem cabeçalho CF_HTML que vira texto visível). */
+function buildClipboardHtmlDocument(fragmentHtml: string): string {
+  return (
+    `<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"></head>` +
+    `<body>${fragmentHtml}</body></html>`
+  );
+}
 
 function cfHtmlByteLength(value: string): number {
   return new TextEncoder().encode(value).length;
@@ -246,7 +254,7 @@ export function copyRichHtmlToClipboardSync(html: string, plainText?: string): b
   if (typeof document === "undefined") return false;
 
   const plain = plainText ?? html.replace(/<[^>]+>/g, "");
-  const cfHtml = buildCfHtmlDocument(html);
+  const htmlForClipboard = buildClipboardHtmlDocument(html);
 
   const container = document.createElement("div");
   container.innerHTML = html;
@@ -261,13 +269,13 @@ export function copyRichHtmlToClipboardSync(html: string, plainText?: string): b
   container.style.pointerEvents = "none";
   document.body.appendChild(container);
 
-  let cfCopied = false;
+  let htmlCopied = false;
   const onCopy = (event: ClipboardEvent) => {
     if (!event.clipboardData) return;
-    event.clipboardData.setData("text/html", cfHtml);
+    event.clipboardData.setData("text/html", htmlForClipboard);
     event.clipboardData.setData("text/plain", plain);
     event.preventDefault();
-    cfCopied = true;
+    htmlCopied = true;
   };
 
   document.addEventListener("copy", onCopy);
@@ -289,7 +297,7 @@ export function copyRichHtmlToClipboardSync(html: string, plainText?: string): b
   selection?.removeAllRanges();
   document.body.removeChild(container);
 
-  if (cfCopied || copied) return true;
+  if (htmlCopied || copied) return true;
 
   return copyRichHtmlExecCommandFallback(html);
 }
@@ -332,18 +340,19 @@ export function buildProposalEmailMailtoHref(
   subject: string,
   body: string,
   proposalUrl: string,
-  to?: string | null
+  to?: string | null,
+  options?: { emptyBody?: boolean }
 ): string {
   const safeUrl = sanitizePublicProposalUrl(proposalUrl);
   const plainBody = body.replace(/\r\n/g, "\n");
   const mailtoPrefix = to?.trim() ? `mailto:${to.trim()}` : "mailto:";
-  const mailtoBody = buildMailtoBodyForClient(plainBody, safeUrl);
+  const mailtoBody = options?.emptyBody ? "" : buildMailtoBodyForClient(plainBody, safeUrl);
   return `${mailtoPrefix}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(mailtoBody)}`;
 }
 
 /**
- * Abre mailto com texto completo. Copia HTML com QR Code (Ctrl+V no corpo).
- * Logo fica na assinatura do Outlook — não é incluído pelo app.
+ * Copia HTML com texto + QR + logo. Abre mailto com corpo vazio quando a cópia rica
+ * funciona — evita duplicar texto ao colar (Ctrl+V) no Gmail/Outlook.
  */
 export function launchProposalEmailShareSync(
   subject: string,
@@ -351,6 +360,7 @@ export function launchProposalEmailShareSync(
   proposalUrl: string,
   options?: {
     qrDataUrl?: string | null;
+    logoDataUrl?: string | null;
     companyName?: string;
     to?: string | null;
     skipCopy?: boolean;
@@ -360,12 +370,14 @@ export function launchProposalEmailShareSync(
   const safeUrl = sanitizePublicProposalUrl(proposalUrl);
   const plainBody = body.replace(/\r\n/g, "\n");
   const qrDataUrl = options?.qrDataUrl ?? null;
+  const logoDataUrl = options?.logoDataUrl ?? null;
+  const canEmbedRich = Boolean(qrDataUrl || logoDataUrl?.startsWith("data:image"));
 
   let richCopied = false;
-  if (!options?.skipCopy && qrDataUrl) {
+  if (!options?.skipCopy && canEmbedRich) {
     const html = buildEmailProposalRichHtml(plainBody, safeUrl, {
       qrDataUrl,
-      logoDataUrl: null,
+      logoDataUrl,
       companyName: options?.companyName,
     });
     richCopied = copyRichHtmlToClipboardSync(html, plainBody);
@@ -373,13 +385,18 @@ export function launchProposalEmailShareSync(
     richCopied = Boolean(options.richCopied);
   }
 
-  openMailtoLink(buildProposalEmailMailtoHref(subject, body, proposalUrl, options?.to));
+  const hasRichPaste = Boolean(richCopied && canEmbedRich);
+  openMailtoLink(
+    buildProposalEmailMailtoHref(subject, body, proposalUrl, options?.to, {
+      emptyBody: hasRichPaste,
+    })
+  );
 
   return {
-    copied: true,
-    richCopied: Boolean(richCopied && qrDataUrl),
+    copied: richCopied || true,
+    richCopied: hasRichPaste,
     hasQr: Boolean(qrDataUrl),
-    hasLogo: false,
+    hasLogo: Boolean(logoDataUrl?.startsWith("data:image")),
     plainBody,
   };
 }
@@ -390,12 +407,12 @@ async function copyRichHtmlViaClipboardApi(html: string, plainText: string): Pro
   }
   if (html.length > MAX_CLIPBOARD_HTML_CHARS) return false;
 
-  const cfHtml = buildCfHtmlDocument(html);
+  const htmlForClipboard = buildClipboardHtmlDocument(html);
   try {
     await navigator.clipboard.write([
       new ClipboardItem({
         "text/plain": new Blob([plainText], { type: "text/plain" }),
-        "text/html": new Blob([cfHtml], { type: "text/html" }),
+        "text/html": new Blob([htmlForClipboard], { type: "text/html" }),
       }),
     ]);
     return true;
@@ -1104,7 +1121,7 @@ export function launchPreparedEmailShare(
   if (richCopied) {
     window.alert(
       options?.copiedAlertMessage ??
-        "Proposta copiada (texto, link, QR Code e logo GRX).\n\n1. O e-mail abrirá com assunto e texto.\n2. Clique no corpo do e-mail e pressione Ctrl+V para colar QR Code e logo."
+        "Proposta copiada (texto, link, QR Code e logo GRX).\n\n1. O e-mail abrirá só com o assunto.\n2. Clique no corpo e pressione Ctrl+V."
     );
   } else if (plainCopied) {
     window.alert(
@@ -1117,7 +1134,13 @@ export function launchPreparedEmailShare(
     window.prompt("Copie a mensagem:", bundle.plainBody);
   }
 
-  openMailtoLink(bundle.mailtoHref);
+  openMailtoLink(
+    richCopied
+      ? buildProposalEmailMailtoHref(bundle.subject, bundle.plainBody, bundle.shareUrl, undefined, {
+          emptyBody: true,
+        })
+      : bundle.mailtoHref
+  );
 
   return {
     copied,
@@ -1141,14 +1164,19 @@ export async function openEmailShare(
   const safeUrl = sanitizePublicProposalUrl(proposalUrl);
   const plainBody = body.replace(/\r\n/g, "\n");
   let qrDataUrl = options?.qrDataUrl ?? null;
+  let logoDataUrl = options?.logoDataUrl ?? null;
 
   if (!qrDataUrl && safeUrl) {
     qrDataUrl = await generateProposalQrDataUrl(safeUrl);
   }
+  if (!logoDataUrl?.startsWith("data:image")) {
+    const { fetchBrandLogoDataUrl } = await import("@/lib/brand-email");
+    logoDataUrl = await fetchBrandLogoDataUrl(getPublicAppOrigin());
+  }
 
   const html = buildEmailProposalRichHtml(plainBody, safeUrl, {
     qrDataUrl,
-    logoDataUrl: null,
+    logoDataUrl,
     companyName: options?.companyName,
   });
 
@@ -1159,21 +1187,26 @@ export async function openEmailShare(
   if (!options?.skipCopy && !richCopied) {
     richCopied = await copyEmailProposalToClipboard(plainBody, safeUrl, {
       qrDataUrl,
-      logoDataUrl: null,
+      logoDataUrl,
       companyName: options?.companyName,
     });
   }
 
   const plainCopied = richCopied ? true : await copyTextToClipboard(plainBody);
   const copied = richCopied || plainCopied;
+  const canEmbedRich = Boolean(qrDataUrl || logoDataUrl?.startsWith("data:image"));
 
-  openMailtoLink(buildProposalEmailMailtoHref(subject, body, proposalUrl, options?.to));
+  openMailtoLink(
+    buildProposalEmailMailtoHref(subject, body, proposalUrl, options?.to, {
+      emptyBody: Boolean(richCopied && canEmbedRich),
+    })
+  );
 
   return {
     copied,
-    richCopied: Boolean(richCopied && qrDataUrl),
+    richCopied: Boolean(richCopied && canEmbedRich),
     hasQr: Boolean(qrDataUrl),
-    hasLogo: false,
+    hasLogo: Boolean(logoDataUrl?.startsWith("data:image")),
     plainBody,
   };
 }
