@@ -22,7 +22,7 @@ const password = process.env.IMPORT_PASSWORD;
 const ORIGIN = "São Paulo, SP";
 const DESTINATION = "Vitória, ES";
 const CLIENT_NAME = "Distribuidora Atlântica Ltda (DEMO)";
-const PHONE = "(11) 98765-4321";
+const PHONE = "(11) 98348-1803";
 
 const DEMO_TOLLS = [
   { order: 1, name: "Imigrantes", city: "São Bernardo do Campo", state: "SP", amount: 42.5 },

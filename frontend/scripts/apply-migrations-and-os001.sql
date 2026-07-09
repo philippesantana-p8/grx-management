@@ -146,7 +146,7 @@ BEGIN
         v_vehicle.id,
         UPPER(REPLACE(REPLACE(v_vehicle.plate, ' ', ''), '-', '')),
         NULL, v_vehicle.model, v_vehicle.year, v_vehicle.vehicle_category,
-        'Distribuidora Atlântica Ltda (DEMO)', '(11) 98765-4321',
+        'Distribuidora Atlântica Ltda (DEMO)', '(11) 98348-1803',
         ARRAY['Frete']::TEXT[], 'Frete', 6756,
         v_dre_id,
         'São Paulo, SP', 'Vitória, ES', 865.91,
