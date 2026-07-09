@@ -6,13 +6,17 @@ const PLAQUE_LOGO_WIDTH = 220;
 const PLAQUE_PAD_X = 22;
 const PLAQUE_PAD_Y = 16;
 const PLAQUE_RADIUS = 12;
-const PLAQUE_SHADOW_PAD = 10;
-/** Mesmas camadas do BrandLogo (variant plaque3d, performanceLite=false). */
+const PLAQUE_SHADOW_PAD = 14;
+const PLAQUE_RENDER_SCALE = 2;
+/** Mesmas camadas do BrandLogo (variant plaque3d, full). */
 const LOGO_DEPTH_LAYERS = [5, 4, 3, 2, 1] as const;
+const DEPTH_OFFSET_PX = 1.35;
 /** Keep embedded logo small — ClipboardItem + QR HTML must stay under browser limits. */
-const MAX_EMAIL_EMBEDDED_LOGO_CHARS = 48_000;
+const MAX_EMAIL_EMBEDDED_LOGO_CHARS = 64_000;
 
 let cachedBrandLogoPlaque3D: string | null = null;
+let cachedBrandLogoPlaqueVersion = 0;
+const PLAQUE_CACHE_VERSION = 3;
 
 function resolveOrigin(origin?: string): string {
   const fromEnv = process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/$/, "");
@@ -216,24 +220,34 @@ function drawLogo3DStack(
 
   ctx.save();
   ctx.translate(centerX, centerY);
-  // Aproxima perspective + rotateY(-5deg) + rotateX(4deg) do CSS.
-  ctx.transform(1, 0.065, -0.095, 0.94, 0, 0);
+  ctx.transform(1, 0.08, -0.12, 0.9, 0, 0);
   ctx.translate(-centerX, -centerY);
 
-  for (const depth of LOGO_DEPTH_LAYERS) {
-    const offset = depth * 1.1;
+  for (const depth of [...LOGO_DEPTH_LAYERS].reverse()) {
+    const offset = depth * DEPTH_OFFSET_PX;
     ctx.save();
-    ctx.globalAlpha = Math.max(0.2, 1 - depth * 0.08);
+    ctx.globalAlpha = 0.45;
+    ctx.filter = "brightness(0.28) saturate(1.1)";
+    ctx.drawImage(source, baseX + offset + 1.5, baseY + offset + 1.5, logoWidth, logoHeight);
+    ctx.restore();
+  }
+
+  for (const depth of LOGO_DEPTH_LAYERS) {
+    const offset = depth * DEPTH_OFFSET_PX;
+    ctx.save();
+    ctx.globalAlpha = Math.max(0.25, 1 - depth * 0.07);
     ctx.globalCompositeOperation = "lighten";
-    ctx.filter = "brightness(0.55) saturate(1.15)";
+    ctx.filter = "brightness(0.52) saturate(1.2)";
     ctx.drawImage(source, baseX + offset, baseY + offset, logoWidth, logoHeight);
     ctx.restore();
   }
 
   ctx.save();
   ctx.globalCompositeOperation = "source-over";
-  ctx.filter =
-    "drop-shadow(-1px -1px 0 rgba(255, 90, 110, 0.22)) drop-shadow(0 0 10px rgba(208, 0, 31, 0.28))";
+  ctx.shadowColor = "rgba(208, 0, 31, 0.45)";
+  ctx.shadowBlur = 14;
+  ctx.shadowOffsetX = -2;
+  ctx.shadowOffsetY = -2;
   ctx.drawImage(source, baseX, baseY, logoWidth, logoHeight);
   ctx.restore();
 
@@ -248,23 +262,28 @@ export function renderBrandLogoPlaque3DToDataUrl(source: HTMLImageElement): stri
   const logoHeight = Math.max(1, Math.round((source.naturalHeight / source.naturalWidth) * logoWidth));
   const plaqueWidth = logoWidth + PLAQUE_PAD_X * 2;
   const plaqueHeight = logoHeight + PLAQUE_PAD_Y * 2;
+  const totalWidth = plaqueWidth + PLAQUE_SHADOW_PAD * 2;
+  const totalHeight = plaqueHeight + PLAQUE_SHADOW_PAD * 2;
 
   const canvas = document.createElement("canvas");
-  canvas.width = plaqueWidth + PLAQUE_SHADOW_PAD * 2;
-  canvas.height = plaqueHeight + PLAQUE_SHADOW_PAD * 2;
+  canvas.width = totalWidth * PLAQUE_RENDER_SCALE;
+  canvas.height = totalHeight * PLAQUE_RENDER_SCALE;
   const ctx = canvas.getContext("2d");
   if (!ctx) return null;
 
+  ctx.scale(PLAQUE_RENDER_SCALE, PLAQUE_RENDER_SCALE);
   ctx.translate(PLAQUE_SHADOW_PAD, PLAQUE_SHADOW_PAD);
   drawPlaqueBackground(ctx, plaqueWidth, plaqueHeight, true);
-
   drawLogo3DStack(ctx, source, PLAQUE_PAD_X, PLAQUE_PAD_Y, logoWidth, logoHeight);
 
   return compressCanvasToEmailDataUrl(canvas);
 }
 
 export async function fetchBrandLogoDataUrl(origin?: string): Promise<string | null> {
-  if (cachedBrandLogoPlaque3D?.startsWith("data:image")) {
+  if (
+    cachedBrandLogoPlaque3D?.startsWith("data:image") &&
+    cachedBrandLogoPlaqueVersion === PLAQUE_CACHE_VERSION
+  ) {
     return cachedBrandLogoPlaque3D;
   }
 
@@ -274,6 +293,7 @@ export async function fetchBrandLogoDataUrl(origin?: string): Promise<string | n
       const plaque3d = renderBrandLogoPlaque3DToDataUrl(image);
       if (plaque3d?.startsWith("data:image")) {
         cachedBrandLogoPlaque3D = plaque3d;
+        cachedBrandLogoPlaqueVersion = PLAQUE_CACHE_VERSION;
         return plaque3d;
       }
     }

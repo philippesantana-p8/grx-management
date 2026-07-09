@@ -22,7 +22,7 @@ import {
   copyTextToClipboardSync,
   isWindowsWhatsAppDesktop,
   launchPreparedEmailShare,
-  openExternalUrl,
+  openWhatsAppShareHref,
 } from "@/lib/service-order-proposal";
 import { createClient } from "@/lib/supabase/client";
 import { cn, formatCurrency } from "@/lib/utils";
@@ -247,10 +247,10 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
 
   const handleWhatsAppShareClick = () => {
     if (!sharePayload) return;
-    openExternalUrl(sharePayload.whatsappLinks.primaryHref);
+    openWhatsAppShareHref(sharePayload.whatsappLinks.primaryHref);
     window.alert(
       isWindowsWhatsAppDesktop()
-        ? "Mensagem copiada. WhatsApp abrirá com o texto. Use Ctrl+V se o chat vier vazio."
+        ? "Mensagem copiada. Se o Chrome perguntar «Abrir WhatsApp?», clique Abrir e marque Sempre permitir."
         : "Mensagem copiada. Confira o chat do motorista e pressione Enter."
     );
   };

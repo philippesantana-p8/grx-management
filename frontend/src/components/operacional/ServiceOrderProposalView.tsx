@@ -27,6 +27,7 @@ import {
   getPublicAppOrigin,
   isLocalhostPublicProposalUrl,
   isWindowsWhatsAppDesktop,
+  isWhatsAppNativeHref,
   prepareEmailShareBundle,
   resolveClientProposalShareUrl,
   resolveProposalAcceptanceTestUrl,
@@ -150,6 +151,7 @@ export function ServiceOrderProposalView({
   }, [publicToken, order, context]);
 
   const whatsappHref = whatsappShare?.primaryHref ?? null;
+  const whatsappWebHref = whatsappShare?.storeAppHref ?? null;
 
   const secondaryActionClass =
     "inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-50";
@@ -163,7 +165,7 @@ export function ServiceOrderProposalView({
     if (!whatsappShare) return;
     setWhatsappHint(
       isWindowsWhatsAppDesktop()
-        ? "Mensagem copiada. WhatsApp abrirá com o texto. Use Ctrl+V se o chat vier vazio."
+        ? "Mensagem copiada. Se o Chrome perguntar «Abrir WhatsApp?», clique Abrir e marque Sempre permitir."
         : "Mensagem copiada. Confira o chat do cliente e pressione Enter."
     );
   };
@@ -336,8 +338,9 @@ export function ServiceOrderProposalView({
             {whatsappHref ? (
               <a
                 href={whatsappHref}
-                target="_blank"
-                rel="noopener noreferrer"
+                {...(isWhatsAppNativeHref(whatsappHref)
+                  ? {}
+                  : { target: "_blank", rel: "noopener noreferrer" })}
                 className={cn(secondaryActionClass, markingSent && "pointer-events-none opacity-50")}
                 onMouseDown={handleWhatsAppAnchorMouseDown}
                 onClick={handleWhatsAppAnchorClick}
@@ -391,8 +394,21 @@ export function ServiceOrderProposalView({
 
           {whatsappShare && (
             <p className="proposal-toolbar mb-4 text-xs text-slate-500 print:hidden">
-              WhatsApp: mensagem copiada ao clicar. Se o chat vier vazio, use Ctrl+V. E-mail: Gmail abre só
-              com texto — Ctrl+V no corpo para QR e logo 3D.
+              WhatsApp abre o <strong>app desktop</strong> (não o Web). Na 1ª vez o Chrome pede permissão.
+              {whatsappWebHref ? (
+                <>
+                  {" "}
+                  Alternativa:{" "}
+                  <a
+                    href={whatsappWebHref}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-medium text-brand-700 underline"
+                  >
+                    WhatsApp Web
+                  </a>
+                </>
+              ) : null}
             </p>
           )}
 
