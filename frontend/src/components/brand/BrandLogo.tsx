@@ -7,12 +7,12 @@ type BrandLogoProps = {
   caption?: string;
   captionTone?: "on-dark" | "on-light";
   size?: "sm" | "md" | "lg" | "proposal";
-  variant?: "default" | "plaque3d";
-  /** Sidebar: tighter dark frame. Page: slightly larger for login. */
+  /** default: logo plano | plaque3d: placa branca (documentos) | mark: só a marca, fundo transparente (menu do sistema) */
+  variant?: "default" | "plaque3d" | "mark";
+  /** @deprecated Use variant="mark" no menu lateral. */
   plaqueSurface?: "sidebar" | "page";
-  /** Use for print/PDF to avoid Next image optimization issues. */
   unoptimized?: boolean;
-  /** @deprecated Mantido por compatibilidade; logo branco não usa camadas extras. */
+  /** @deprecated Mantido por compatibilidade. */
   performanceLite?: boolean;
 };
 
@@ -23,8 +23,10 @@ const sizes = {
   proposal: { width: 240, height: 96 },
 };
 
-/** Cache bust — força navegador a carregar logo nova do Rafael. */
-const BRAND_LOGO_SRC = "/grx-logo.png?v=2";
+/** Logo com placa branca (voucher, proposta, login). */
+const BRAND_LOGO_SRC = "/grx-logo.png?v=3";
+/** Marca GRX + tagline, fundo transparente (menu cinza do sistema). */
+const BRAND_LOGO_MARK_SRC = "/grx-logo-mark.png?v=1";
 
 function LogoImage({
   dim,
@@ -33,6 +35,7 @@ function LogoImage({
   alt = "",
   ariaHidden = true,
   unoptimized = false,
+  src = BRAND_LOGO_SRC,
 }: {
   dim: { width: number; height: number };
   className?: string;
@@ -40,10 +43,11 @@ function LogoImage({
   alt?: string;
   ariaHidden?: boolean;
   unoptimized?: boolean;
+  src?: string;
 }) {
   return (
     <Image
-      src={BRAND_LOGO_SRC}
+      src={src}
       alt={alt}
       aria-hidden={ariaHidden}
       width={dim.width}
@@ -67,6 +71,32 @@ export function BrandLogo({
   unoptimized = false,
 }: BrandLogoProps) {
   const dim = sizes[size];
+
+  if (variant === "mark") {
+    return (
+      <div className={cn("brand-logo-mark", className)}>
+        <LogoImage
+          dim={dim}
+          src={BRAND_LOGO_MARK_SRC}
+          priority
+          unoptimized={unoptimized}
+          alt="GRX Transportes e Logística"
+          ariaHidden={false}
+          className={cn("brand-logo-mark-image", imageClassName)}
+        />
+        {caption ? (
+          <p
+            className={cn(
+              "brand-logo-caption",
+              captionTone === "on-light" && "brand-logo-caption--light"
+            )}
+          >
+            {caption}
+          </p>
+        ) : null}
+      </div>
+    );
+  }
 
   const image = (
     <Image

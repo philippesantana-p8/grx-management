@@ -712,6 +712,10 @@ body {
   transform: perspective(880px) rotateY(-2deg) rotateX(2deg);
 }
 
+.brand-logo-link:hover .brand-logo-mark-image {
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.35));
+}
+
 .brand-logo-link:active {
   transform: translateY(1px);
 }
@@ -720,6 +724,20 @@ body {
   display: flex;
   flex-direction: column;
   align-items: stretch;
+}
+
+.brand-logo-mark {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.brand-logo-mark-image {
+  display: block;
+  width: 100%;
+  height: auto;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.28));
+  transition: filter 0.18s ease;
 }
 
 .brand-logo-plaque {

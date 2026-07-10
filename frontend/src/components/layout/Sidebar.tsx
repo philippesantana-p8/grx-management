@@ -70,7 +70,7 @@ export function Sidebar() {
     <aside className="sidebar-shell flex w-64 flex-col border-r border-white/10 text-white">
       <div className="sidebar-brand-zone">
         <Link href="/dashboard" className="brand-logo-link">
-          <BrandLogo variant="plaque3d" plaqueSurface="sidebar" size="sm" />
+          <BrandLogo variant="mark" size="sm" />
         </Link>
       </div>
       <nav className="flex-1 overflow-y-auto px-3 py-4">
