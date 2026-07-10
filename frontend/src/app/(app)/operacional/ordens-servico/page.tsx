@@ -155,6 +155,7 @@ function OrdensServicoPageContent() {
           proposal_response: item.proposal_response ?? "pending",
           proposal_follow_up_count: item.proposal_follow_up_count ?? 0,
           driver_assignment_response: item.driver_assignment_response ?? "pending",
+          service_follow_up_count: item.service_follow_up_count ?? 0,
         };
       });
       setListRows(rows);
@@ -263,6 +264,12 @@ function OrdensServicoPageContent() {
                 driver_assignment_rejected_driver_ids:
                   patch.driver_assignment_rejected_driver_ids ??
                   row.driver_assignment_rejected_driver_ids,
+                driver_name:
+                  patch.driver_id && patch.driver_assignment_response === "accepted"
+                    ? row.driver_name
+                    : patch.driver_assignment_response === "rejected"
+                      ? row.driver_name
+                      : row.driver_name,
               }
             : row
         )
@@ -292,6 +299,41 @@ function OrdensServicoPageContent() {
     );
     setListRefreshKey((key) => key + 1);
   }, []);
+
+  const handleServiceFollowUpRegistered = useCallback(
+    (orderId: string, count: number, lastAt: string | null) => {
+      setListRows((rows) =>
+        rows.map((row) =>
+          row.id === orderId
+            ? {
+                ...row,
+                service_follow_up_count: count,
+                service_last_follow_up_at: lastAt,
+              }
+            : row
+        )
+      );
+    },
+    []
+  );
+
+  const handleServiceOrderCompleted = useCallback(
+    (orderId: string, completedAt: string | null) => {
+      setListRows((rows) =>
+        rows.map((row) =>
+          row.id === orderId
+            ? {
+                ...row,
+                status: "Concluido",
+                service_completed_at: completedAt,
+              }
+            : row
+        )
+      );
+      setListRefreshKey((key) => key + 1);
+    },
+    []
+  );
 
   const visibleCount = useMemo(
     () => listRows.filter(filterItem).length,
@@ -365,6 +407,8 @@ function OrdensServicoPageContent() {
           onAssignmentSent={handleAssignmentSent}
           onDriverAssignmentReset={handleDriverAssignmentReset}
           onDriverAssignmentResponded={handleDriverAssignmentResponded}
+          onServiceFollowUpRegistered={handleServiceFollowUpRegistered}
+          onServiceOrderCompleted={handleServiceOrderCompleted}
         />
       )}
       columns={[

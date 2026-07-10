@@ -37,9 +37,18 @@ export function isDriverConfirmedOnServiceOrder(row: ServiceOrderStatusRow): boo
   );
 }
 
+export function isServiceOrderCompleted(row: ServiceOrderStatusRow): boolean {
+  return row.status === "Concluido";
+}
+
 /** Cliente aceitou e a OS ainda precisa de motorista confirmado. */
 export function needsDriverAssignment(row: ServiceOrderStatusRow): boolean {
   return isProposalAcceptedByClient(row) && !isDriverConfirmedOnServiceOrder(row);
+}
+
+/** Motorista confirmou — frete em execução ou conclusão pendente. */
+export function isFreightInExecution(row: ServiceOrderStatusRow): boolean {
+  return isDriverConfirmedOnServiceOrder(row) && !isServiceOrderCompleted(row);
 }
 
 export function canAssignDriverToServiceOrder(
@@ -58,6 +67,9 @@ export function resolveServiceOrderDisplayStatus(row: ServiceOrderStatusRow): st
     const assignment = (row.driver_assignment_response ?? "pending") as DriverAssignmentResponse;
     if (assignment === "rejected") {
       return DRIVER_ASSIGNMENT_RESPONSE_LABELS.rejected;
+    }
+    if (isServiceOrderCompleted(row)) {
+      return "Concluido";
     }
     if (isDriverConfirmedOnServiceOrder(row)) {
       return DRIVER_ASSIGNMENT_RESPONSE_LABELS.accepted;
@@ -160,7 +172,8 @@ export function canEditServiceOrder(row: ServiceOrderStatusRow): boolean {
     label !== "Aguardando designação motorista" &&
     label !== DRIVER_ASSIGNMENT_RESPONSE_LABELS.pending &&
     label !== DRIVER_ASSIGNMENT_RESPONSE_LABELS.accepted &&
-    label !== DRIVER_ASSIGNMENT_RESPONSE_LABELS.rejected
+    label !== DRIVER_ASSIGNMENT_RESPONSE_LABELS.rejected &&
+    label !== "Concluido"
   );
 }
 

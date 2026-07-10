@@ -7,13 +7,19 @@ import { cn } from "@/lib/utils";
 import {
   canAssignDriverToServiceOrder,
   isDriverAssignmentRejected,
+  isFreightInExecution,
   isPendingClientProposal,
   isPendingDriverAssignment,
+  isServiceOrderCompleted,
 } from "@/lib/service-order-display-status";
 import {
   resetDriverAssignment,
   respondToDriverAssignment,
 } from "@/lib/service-order-driver-assignment";
+import {
+  completeServiceOrder,
+  registerServiceOrderFollowUp,
+} from "@/lib/service-order-operational-api";
 import {
   registerProposalFollowUp,
   resetProposalClientResponse,
@@ -46,6 +52,8 @@ type Props = {
       driver_assignment_rejected_driver_ids?: string[];
     }
   ) => void;
+  onServiceFollowUpRegistered?: (orderId: string, count: number, lastAt: string | null) => void;
+  onServiceOrderCompleted?: (orderId: string, completedAt: string | null) => void;
 };
 
 function PhoneIcon({ className }: { className?: string }) {
@@ -127,8 +135,12 @@ export function ServiceOrderRowActions({
   onAssignmentSent,
   onDriverAssignmentReset,
   onDriverAssignmentResponded,
+  onServiceFollowUpRegistered,
+  onServiceOrderCompleted,
 }: Props) {
   const [loading, setLoading] = useState(false);
+  const [operationalLoading, setOperationalLoading] = useState(false);
+  const [completing, setCompleting] = useState(false);
   const [accepting, setAccepting] = useState(false);
   const [rejecting, setRejecting] = useState(false);
   const [driverAccepting, setDriverAccepting] = useState(false);
@@ -143,6 +155,9 @@ export function ServiceOrderRowActions({
   const driverRejected = isDriverAssignmentRejected(row);
   const canResetProposal =
     Boolean(row.proposal_sent_at) && (row.proposal_response ?? "pending") !== "pending";
+  const canOperationalFollowUp = isFreightInExecution(row);
+  const canCompleteFreight = isFreightInExecution(row);
+  const completed = isServiceOrderCompleted(row);
 
   const requireProposalToken = (): string | null => {
     const token = row.proposal_token?.trim();
@@ -298,6 +313,46 @@ export function ServiceOrderRowActions({
     window.alert("Designação cancelada. Você pode designar o motorista novamente.");
   };
 
+  const handleOperationalFollowUp = async () => {
+    setOperationalLoading(true);
+    const supabase = createClient();
+    const { count, lastAt, error } = await registerServiceOrderFollowUp(supabase, row.id);
+    setOperationalLoading(false);
+
+    if (error) {
+      window.alert(error);
+      return;
+    }
+
+    onServiceFollowUpRegistered?.(row.id, count, lastAt);
+    window.alert(
+      `Acompanhamento operacional registrado (${count} registro${count === 1 ? "" : "s"}).`
+    );
+  };
+
+  const handleCompleteFreight = async () => {
+    if (
+      !window.confirm(
+        `Registrar conclusão do frete OS ${row.code}?\n\nA OS ficará como «Concluído» e você poderá salvar o PDF em «PDF / Proposta».`
+      )
+    ) {
+      return;
+    }
+
+    setCompleting(true);
+    const supabase = createClient();
+    const { completedAt, error } = await completeServiceOrder(supabase, row.id);
+    setCompleting(false);
+
+    if (error) {
+      window.alert(error);
+      return;
+    }
+
+    onServiceOrderCompleted?.(row.id, completedAt);
+    window.alert("Frete concluído. Abra «PDF / Proposta» para salvar o documento da OS.");
+  };
+
   const handleResetProposal = async () => {
     if (
       !window.confirm(
@@ -341,7 +396,7 @@ export function ServiceOrderRowActions({
           "inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
         )}
       >
-        PDF / Proposta
+        PDF / {completed ? "OS concluída" : "Proposta"}
       </Link>
       {canAssignDriver && (
         <button
@@ -398,6 +453,32 @@ export function ServiceOrderRowActions({
             )}
           >
             <PhoneRejectIcon />
+          </button>
+        </>
+      )}
+      {canOperationalFollowUp && (
+        <>
+          <button
+            type="button"
+            disabled={operationalLoading || completing}
+            title="Registrar acompanhamento do frete em execução"
+            onClick={() => void handleOperationalFollowUp()}
+            className={cn(
+              "inline-flex items-center justify-center rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-sm font-medium text-amber-900 transition-colors hover:bg-amber-100 disabled:opacity-50"
+            )}
+          >
+            {operationalLoading ? "Registrando…" : "Registrar acompanhamento"}
+          </button>
+          <button
+            type="button"
+            disabled={completing || operationalLoading}
+            title="Concluir frete e liberar PDF da OS"
+            onClick={() => void handleCompleteFreight()}
+            className={cn(
+              "inline-flex items-center justify-center rounded-lg border border-emerald-400 bg-emerald-50 px-3 py-1.5 text-sm font-medium text-emerald-900 transition-colors hover:bg-emerald-100 disabled:opacity-50"
+            )}
+          >
+            {completing ? "Concluindo…" : "Concluir frete"}
           </button>
         </>
       )}
