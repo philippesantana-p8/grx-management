@@ -32,10 +32,10 @@ body {
   --brand-dark: #a80019;
   --brand-black: #000000;
 
-  /* Sidebar — preto mais suave (carvão) */
-  --sidebar-bg-top: #3a404c;
-  --sidebar-bg-mid: #2f3540;
-  --sidebar-bg-bottom: #272c36;
+  /* Sidebar — cinza carvão (ajuste leve para destacar logo 3D) */
+  --sidebar-bg-top: #434b58;
+  --sidebar-bg-mid: #383f4c;
+  --sidebar-bg-bottom: #2f3642;
 
   /* Liquid Glass */
   --glass-highlight: rgba(255, 255, 255, 0.42);
@@ -676,7 +676,7 @@ body {
 .sidebar-nav-group {
   margin-top: 1.125rem;
   padding-top: 0.875rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.14);
+  border-top: 1px solid rgba(255, 255, 255, 0.16);
 }
 
 .sidebar-nav-group:first-of-type {
@@ -691,7 +691,7 @@ body {
 
 .sidebar-brand-zone {
   padding: 0.75rem 1rem 0.625rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
   background: transparent;
 }
 
