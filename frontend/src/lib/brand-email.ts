@@ -1,4 +1,4 @@
-const BRAND_LOGO_PATH = "/grx-logo.png";
+const BRAND_LOGO_PATH = "/grx-logo.png?v=2";
 const DEFAULT_PUBLIC_APP_URL = "https://grx-management.vercel.app";
 const DEFAULT_COMPANY_TAGLINE = "GRX Transportes e Logística";
 
@@ -8,15 +8,12 @@ const PLAQUE_PAD_Y = 16;
 const PLAQUE_RADIUS = 12;
 const PLAQUE_SHADOW_PAD = 14;
 const PLAQUE_RENDER_SCALE = 2;
-/** Mesmas camadas do BrandLogo (variant plaque3d, full). */
-const LOGO_DEPTH_LAYERS = [5, 4, 3, 2, 1] as const;
-const DEPTH_OFFSET_PX = 1.35;
 /** Keep embedded logo small — ClipboardItem + QR HTML must stay under browser limits. */
 const MAX_EMAIL_EMBEDDED_LOGO_CHARS = 64_000;
 
 let cachedBrandLogoPlaque3D: string | null = null;
 let cachedBrandLogoPlaqueVersion = 0;
-const PLAQUE_CACHE_VERSION = 4;
+const PLAQUE_CACHE_VERSION = 5;
 
 function resolveOrigin(origin?: string): string {
   const fromEnv = process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/$/, "");
@@ -59,12 +56,12 @@ function drawPlaqueBackground(
 ): void {
   if (withDropShadow) {
     ctx.save();
-    ctx.shadowColor = "rgba(0, 0, 0, 0.42)";
-    ctx.shadowBlur = 16;
+    ctx.shadowColor = "rgba(15, 23, 42, 0.14)";
+    ctx.shadowBlur = 14;
     ctx.shadowOffsetX = 0;
-    ctx.shadowOffsetY = 6;
+    ctx.shadowOffsetY = 5;
     roundRectPath(ctx, 0.5, 0.5, width - 1, height - 1, PLAQUE_RADIUS);
-    ctx.fillStyle = "#0a0a0a";
+    ctx.fillStyle = "#ffffff";
     ctx.fill();
     ctx.restore();
   }
@@ -72,35 +69,13 @@ function drawPlaqueBackground(
   roundRectPath(ctx, 0.5, 0.5, width - 1, height - 1, PLAQUE_RADIUS);
 
   const gradient = ctx.createLinearGradient(0, 0, width * 0.35, height);
-  gradient.addColorStop(0, "#181818");
-  gradient.addColorStop(0.52, "#0a0a0a");
-  gradient.addColorStop(1, "#050505");
+  gradient.addColorStop(0, "#ffffff");
+  gradient.addColorStop(1, "#f8fafc");
   ctx.fillStyle = gradient;
   ctx.fill();
 
-  ctx.strokeStyle = "rgba(255, 255, 255, 0.07)";
+  ctx.strokeStyle = "rgba(15, 23, 42, 0.08)";
   ctx.lineWidth = 1;
-  ctx.stroke();
-
-  ctx.save();
-  roundRectPath(ctx, 1, 1, width - 2, height - 2, PLAQUE_RADIUS - 1);
-  const highlight = ctx.createLinearGradient(0, 0, width, height * 0.6);
-  highlight.addColorStop(0, "rgba(255, 255, 255, 0.07)");
-  highlight.addColorStop(0.38, "rgba(255, 255, 255, 0)");
-  ctx.fillStyle = highlight;
-  ctx.fill();
-  ctx.restore();
-
-  const accentY = height - 6;
-  const accent = ctx.createLinearGradient(width * 0.15, accentY, width * 0.85, accentY);
-  accent.addColorStop(0, "rgba(208, 0, 31, 0)");
-  accent.addColorStop(0.5, "rgba(208, 0, 31, 0.35)");
-  accent.addColorStop(1, "rgba(208, 0, 31, 0)");
-  ctx.strokeStyle = accent;
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(width * 0.12, accentY);
-  ctx.lineTo(width * 0.88, accentY);
   ctx.stroke();
 }
 
@@ -226,46 +201,16 @@ function drawLogo3DStack(
   logoWidth: number,
   logoHeight: number
 ): void {
-  const centerX = baseX + logoWidth / 2;
-  const centerY = baseY + logoHeight / 2;
-
   ctx.save();
-  ctx.translate(centerX, centerY);
-  ctx.transform(1, 0.08, -0.12, 0.9, 0, 0);
-  ctx.translate(-centerX, -centerY);
-
-  for (const depth of [...LOGO_DEPTH_LAYERS].reverse()) {
-    const offset = depth * DEPTH_OFFSET_PX;
-    ctx.save();
-    ctx.globalAlpha = 0.45;
-    ctx.filter = "brightness(0.28) saturate(1.1)";
-    ctx.drawImage(source, baseX + offset + 1.5, baseY + offset + 1.5, logoWidth, logoHeight);
-    ctx.restore();
-  }
-
-  for (const depth of LOGO_DEPTH_LAYERS) {
-    const offset = depth * DEPTH_OFFSET_PX;
-    ctx.save();
-    ctx.globalAlpha = Math.max(0.25, 1 - depth * 0.07);
-    ctx.globalCompositeOperation = "lighten";
-    ctx.filter = "brightness(0.52) saturate(1.2)";
-    ctx.drawImage(source, baseX + offset, baseY + offset, logoWidth, logoHeight);
-    ctx.restore();
-  }
-
-  ctx.save();
-  ctx.globalCompositeOperation = "source-over";
-  ctx.shadowColor = "rgba(208, 0, 31, 0.45)";
-  ctx.shadowBlur = 14;
-  ctx.shadowOffsetX = -2;
-  ctx.shadowOffsetY = -2;
+  ctx.shadowColor = "rgba(15, 23, 42, 0.1)";
+  ctx.shadowBlur = 6;
+  ctx.shadowOffsetX = 0;
+  ctx.shadowOffsetY = 2;
   ctx.drawImage(source, baseX, baseY, logoWidth, logoHeight);
-  ctx.restore();
-
   ctx.restore();
 }
 
-/** Renderiza o logo padrão 3D (placa escura + profundidade) para colar em e-mails. */
+/** Renderiza o logo padrão (placa branca + logo Rafael) para colar em e-mails. */
 export function renderBrandLogoPlaque3DToDataUrl(source: HTMLImageElement): string | null {
   if (typeof document === "undefined") return null;
 

@@ -726,25 +726,22 @@ body {
   position: relative;
   overflow: hidden;
   border-radius: 0.625rem;
-  background: linear-gradient(165deg, #181818 0%, #0a0a0a 52%, #050505 100%);
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.06);
   box-shadow:
-    0 6px 16px rgba(0, 0, 0, 0.42),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.45);
+    0 4px 14px rgba(15, 23, 42, 0.1),
+    0 1px 3px rgba(15, 23, 42, 0.06);
 }
 
 .brand-logo-plaque--sidebar {
-  padding: 0.1875rem 0.3125rem 0.25rem;
+  padding: 0.25rem 0.375rem 0.3125rem;
 }
 
 .brand-logo-plaque--page {
-  padding: 0.375rem 0.5rem 0.4375rem;
+  padding: 0.5rem 0.625rem 0.5625rem;
   box-shadow:
-    0 12px 28px rgba(0, 0, 0, 0.28),
-    0 4px 10px rgba(208, 0, 31, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.06),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.45);
+    0 8px 22px rgba(15, 23, 42, 0.12),
+    0 2px 6px rgba(15, 23, 42, 0.06);
 }
 
 .brand-logo-plaque::before {
@@ -753,68 +750,35 @@ body {
   inset: 0;
   background: linear-gradient(
     135deg,
-    rgba(255, 255, 255, 0.07) 0%,
-    transparent 38%,
-    transparent 100%
+    rgba(255, 255, 255, 0.85) 0%,
+    rgba(255, 255, 255, 0) 42%
   );
   pointer-events: none;
 }
 
 .brand-logo-plaque::after {
-  content: "";
-  position: absolute;
-  left: 0.5rem;
-  right: 0.5rem;
-  bottom: 0.2rem;
-  height: 1px;
-  border-radius: 999px;
-  background: linear-gradient(90deg, transparent, rgba(208, 0, 31, 0.35), transparent);
-  pointer-events: none;
+  display: none;
 }
 
 .brand-logo-3d-stage {
-  perspective: 880px;
-  transform: perspective(880px) rotateY(-5deg) rotateX(4deg);
+  perspective: 720px;
+  transform: perspective(720px) rotateY(-2deg) rotateX(2deg);
   transform-style: preserve-3d;
   transition: transform 0.2s ease;
 }
 
 .brand-logo-3d-stage--sidebar {
-  transform: perspective(880px) rotateY(-6deg) rotateX(5deg);
-}
-
-.brand-logo-3d-stack {
-  position: relative;
-  display: grid;
-  place-items: center;
-}
-
-.brand-logo-3d-stack img {
-  grid-area: 1 / 1;
-  width: 100%;
-  height: auto;
-  max-width: 100%;
-  mix-blend-mode: lighten;
-}
-
-.brand-logo-depth-layer {
-  transform: translate(
-    calc(var(--depth) * 1.1px),
-    calc(var(--depth) * 1.1px)
-  );
-  filter: brightness(0.55) saturate(1.15);
-  opacity: calc(1 - (var(--depth) * 0.08));
-  pointer-events: none;
-  user-select: none;
+  transform: perspective(720px) rotateY(-3deg) rotateX(3deg);
 }
 
 .brand-logo-image--front {
   position: relative;
   z-index: 2;
-  transform: translateZ(6px);
-  filter:
-    drop-shadow(-1px -1px 0 rgba(255, 90, 110, 0.22))
-    drop-shadow(0 0 10px rgba(208, 0, 31, 0.28));
+  display: block;
+  width: 100%;
+  height: auto;
+  transform: translateZ(4px);
+  filter: drop-shadow(0 2px 4px rgba(15, 23, 42, 0.08));
 }
 
 .brand-logo-image {

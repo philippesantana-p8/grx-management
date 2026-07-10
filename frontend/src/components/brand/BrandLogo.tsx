@@ -1,7 +1,5 @@
-import type { CSSProperties } from "react";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
-
 type BrandLogoProps = {
   className?: string;
   imageClassName?: string;
@@ -14,7 +12,7 @@ type BrandLogoProps = {
   plaqueSurface?: "sidebar" | "page";
   /** Use for print/PDF to avoid Next image optimization issues. */
   unoptimized?: boolean;
-  /** Menos camadas 3D — carrega mais rápido na tela. */
+  /** @deprecated Mantido por compatibilidade; logo branco não usa camadas extras. */
   performanceLite?: boolean;
 };
 
@@ -25,13 +23,12 @@ const sizes = {
   proposal: { width: 240, height: 96 },
 };
 
-const LOGO_DEPTH_LAYERS_FULL = [5, 4, 3, 2, 1] as const;
-const LOGO_DEPTH_LAYERS_LITE = [2, 1] as const;
+/** Cache bust — força navegador a carregar logo nova do Rafael. */
+const BRAND_LOGO_SRC = "/grx-logo.png?v=2";
 
 function LogoImage({
   dim,
   className,
-  depth,
   priority = false,
   alt = "",
   ariaHidden = true,
@@ -39,7 +36,6 @@ function LogoImage({
 }: {
   dim: { width: number; height: number };
   className?: string;
-  depth?: number;
   priority?: boolean;
   alt?: string;
   ariaHidden?: boolean;
@@ -47,16 +43,13 @@ function LogoImage({
 }) {
   return (
     <Image
-      src="/grx-logo.png"
+      src={BRAND_LOGO_SRC}
       alt={alt}
       aria-hidden={ariaHidden}
       width={dim.width}
       height={dim.height}
       priority={priority}
       unoptimized={unoptimized}
-      style={
-        depth !== undefined ? ({ ["--depth"]: depth } as CSSProperties) : undefined
-      }
       className={className}
     />
   );
@@ -72,14 +65,12 @@ export function BrandLogo({
   variant = "default",
   plaqueSurface = "page",
   unoptimized = false,
-  performanceLite = false,
 }: BrandLogoProps) {
   const dim = sizes[size];
-  const depthLayers = performanceLite ? LOGO_DEPTH_LAYERS_LITE : LOGO_DEPTH_LAYERS_FULL;
 
   const image = (
     <Image
-      src="/grx-logo.png"
+      src={BRAND_LOGO_SRC}
       alt="GRX Transportes e Logística"
       width={dim.width}
       height={dim.height}
@@ -105,25 +96,14 @@ export function BrandLogo({
               isSidebar && "brand-logo-3d-stage--sidebar"
             )}
           >
-            <div className="brand-logo-3d-stack">
-              {depthLayers.map((depth) => (
-                <LogoImage
-                  key={depth}
-                  dim={dim}
-                  depth={depth}
-                  unoptimized={unoptimized}
-                  className="brand-logo-depth-layer"
-                />
-              ))}
-              <LogoImage
-                dim={dim}
-                priority
-                unoptimized={unoptimized}
-                alt="GRX Transportes e Logística"
-                ariaHidden={false}
-                className={cn("brand-logo-image brand-logo-image--front", imageClassName)}
-              />
-            </div>
+            <LogoImage
+              dim={dim}
+              priority
+              unoptimized={unoptimized}
+              alt="GRX Transportes e Logística"
+              ariaHidden={false}
+              className={cn("brand-logo-image brand-logo-image--front", imageClassName)}
+            />
           </div>
         </div>
         {caption ? (
