@@ -19,13 +19,13 @@ import {
   parseBrazilianMoneyInput,
   prepareDriverAssignmentSharePayload,
   sendDriverAssignment,
-  shareDriverAssignmentViaWhatsApp,
   type DriverAssignmentPayDetails,
   type DriverAssignmentSharePayload,
 } from "@/lib/service-order-driver-assignment";
 import {
   copyTextToClipboardSync,
-  openMailtoLink,
+  launchPreparedEmailShare,
+  openWhatsAppShareHref,
 } from "@/lib/service-order-proposal";
 import { createClient } from "@/lib/supabase/client";
 import { cn, formatCurrency } from "@/lib/utils";
@@ -375,36 +375,6 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
     );
   };
 
-  const confirmAndRegisterShare = async (
-    driver: DriverListRow
-  ): Promise<DriverAssignmentSharePayload | null> => {
-    if (sharePayload && selectedId === driver.id) {
-      return sharePayload;
-    }
-
-    const payDetails = resolvePayDetails();
-    if (!payDetails) return null;
-
-    const refused = isDriverRefusedForThisOrder(driver);
-    const confirmed = window.confirm(
-      refused
-        ? `Reenviar designação da ${orderDetails.code} para ${driver.name}?\n\nValor motorista: ${formatCurrency(payDetails.driverPayAmount)}${payDetails.assistantPayAmount ? `\nValor ajudante: ${formatCurrency(payDetails.assistantPayAmount)}` : ""}\n\nO link ficará ativo para o motorista aceitar ou recusar. Se fechar o WhatsApp sem enviar, use «Cancelar designação» na lista da OS.`
-        : `Registrar envio da designação da ${orderDetails.code} para ${driver.name}?\n\nValor motorista: ${formatCurrency(payDetails.driverPayAmount)}${payDetails.assistantPayAmount ? `\nValor ajudante: ${formatCurrency(payDetails.assistantPayAmount)}` : ""}\n\nO link ficará ativo para o motorista aceitar ou recusar. Se fechar o WhatsApp sem enviar, use «Cancelar designação» na lista da OS.`
-    );
-    if (!confirmed) return null;
-
-    return registerAssignmentShareForDriver(driver, payDetails, { notifySent: false });
-  };
-
-  const resolveSharePayloadForDriver = async (
-    driver: DriverListRow
-  ): Promise<DriverAssignmentSharePayload | null> => {
-    if (sharePayload && selectedId === driver.id) {
-      return sharePayload;
-    }
-    return confirmAndRegisterShare(driver);
-  };
-
   const handleDirectAssign = async () => {
     if (!selectedDriver || !isDriverAvailableForContact(selectedDriver)) {
       window.alert("Selecione um motorista disponível.");
@@ -439,15 +409,44 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
     void registerAssignmentShare();
   };
 
-  const launchDriverWhatsAppShare = async (
+  const buildShareConfirmMessage = (driver: DriverListRow, payDetails: DriverAssignmentPayDetails) => {
+    const refused = isDriverRefusedForThisOrder(driver);
+    const payLines = `Valor motorista: ${formatCurrency(payDetails.driverPayAmount)}${
+      payDetails.assistantPayAmount
+        ? `\nValor ajudante: ${formatCurrency(payDetails.assistantPayAmount)}`
+        : ""
+    }`;
+    return refused
+      ? `Reenviar designação da ${orderDetails.code} para ${driver.name}?\n\n${payLines}\n\nO link ficará ativo para o motorista aceitar ou recusar. Se fechar o WhatsApp sem enviar, use «Cancelar designação» na lista da OS.`
+      : `Registrar envio da designação da ${orderDetails.code} para ${driver.name}?\n\n${payLines}\n\nO link ficará ativo para o motorista aceitar ou recusar. Se fechar o WhatsApp sem enviar, use «Cancelar designação» na lista da OS.`;
+  };
+
+  const preOpenShareWindow = (): Window | null => {
+    try {
+      return window.open("about:blank", "_blank");
+    } catch {
+      return null;
+    }
+  };
+
+  const launchDriverWhatsAppShare = (
     payload: DriverAssignmentSharePayload,
-    phone: string | null | undefined,
     preOpened?: Window | null
   ) => {
-    await shareDriverAssignmentViaWhatsApp(payload.whatsappMessage, phone, {
-      preOpenedWindow: preOpened ?? null,
-      urlText: payload.whatsappLinks.message,
+    copyTextToClipboardSync(payload.whatsappMessage);
+    openWhatsAppShareHref(payload.whatsappLinks.primaryHref, preOpened ?? null);
+  };
+
+  const launchDriverEmailShare = (payload: DriverAssignmentSharePayload) => {
+    if (!payload.emailBundle) {
+      window.alert("E-mail do motorista não cadastrado.");
+      return false;
+    }
+    launchPreparedEmailShare(payload.emailBundle, {
+      copiedAlertMessage:
+        "Designação copiada.\n\nO e-mail abrirá com assunto e texto. Use Ctrl+V no corpo se o conteúdo não aparecer.",
     });
+    return true;
   };
 
   const handleDriverWhatsAppMouseDown = (
@@ -467,23 +466,17 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
 
     void (async () => {
       if (sharePayload && selectedId === driver.id) {
-        const popup = window.open("about:blank", "_blank", "noopener,noreferrer");
-        await launchDriverWhatsAppShare(sharePayload, driver.phone, popup);
+        launchDriverWhatsAppShare(sharePayload);
         return;
       }
 
       const payDetails = resolvePayDetails();
       if (!payDetails) return;
 
-      const refused = isDriverRefusedForThisOrder(driver);
-      const confirmed = window.confirm(
-        refused
-          ? `Reenviar designação da ${orderDetails.code} para ${driver.name}?\n\nValor motorista: ${formatCurrency(payDetails.driverPayAmount)}${payDetails.assistantPayAmount ? `\nValor ajudante: ${formatCurrency(payDetails.assistantPayAmount)}` : ""}\n\nO link ficará ativo para o motorista aceitar ou recusar. Se fechar o WhatsApp sem enviar, use «Cancelar designação» na lista da OS.`
-          : `Registrar envio da designação da ${orderDetails.code} para ${driver.name}?\n\nValor motorista: ${formatCurrency(payDetails.driverPayAmount)}${payDetails.assistantPayAmount ? `\nValor ajudante: ${formatCurrency(payDetails.assistantPayAmount)}` : ""}\n\nO link ficará ativo para o motorista aceitar ou recusar. Se fechar o WhatsApp sem enviar, use «Cancelar designação» na lista da OS.`
-      );
+      const confirmed = window.confirm(buildShareConfirmMessage(driver, payDetails));
       if (!confirmed) return;
 
-      const popup = window.open("about:blank", "_blank", "noopener,noreferrer");
+      const popup = preOpenShareWindow();
       const payload = await registerAssignmentShareForDriver(driver, payDetails, {
         notifySent: false,
       });
@@ -492,9 +485,19 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
         return;
       }
 
-      await launchDriverWhatsAppShare(payload, driver.phone, popup);
+      launchDriverWhatsAppShare(payload, popup);
       onAssignmentSent?.(driver.id, driver.name);
     })();
+  };
+
+  const handleDriverEmailMouseDown = (
+    event: React.MouseEvent,
+    payload: DriverAssignmentSharePayload | null
+  ) => {
+    event.stopPropagation();
+    if (payload?.emailBundle) {
+      copyTextToClipboardSync(payload.emailBundle.plainBody);
+    }
   };
 
   const handleDriverEmailClick = (event: React.MouseEvent, driver: DriverListRow) => {
@@ -503,13 +506,24 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
     if (!driver.email?.trim() || saving) return;
 
     void (async () => {
-      const payload = await resolveSharePayloadForDriver(driver);
-      if (!payload?.emailBundle) {
-        window.alert("E-mail do motorista não cadastrado.");
-        return;
+      if (sharePayload && selectedId === driver.id) {
+        if (launchDriverEmailShare(sharePayload)) return;
       }
-      openMailtoLink(payload.emailBundle.mailtoHref);
-      onAssignmentSent?.(driver.id, driver.name);
+
+      const payDetails = resolvePayDetails();
+      if (!payDetails) return;
+
+      const confirmed = window.confirm(buildShareConfirmMessage(driver, payDetails));
+      if (!confirmed) return;
+
+      const payload = await registerAssignmentShareForDriver(driver, payDetails, {
+        notifySent: false,
+      });
+      if (!payload) return;
+
+      if (launchDriverEmailShare(payload)) {
+        onAssignmentSent?.(driver.id, driver.name);
+      }
     })();
   };
 
@@ -520,18 +534,15 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
 
   const handleWhatsAppShareClick = () => {
     if (!sharePayload || !selectedDriver?.phone?.trim()) return;
-    void (async () => {
-      const popup = window.open("about:blank", "_blank", "noopener,noreferrer");
-      await launchDriverWhatsAppShare(sharePayload, selectedDriver.phone, popup);
-    })();
+    launchDriverWhatsAppShare(sharePayload);
   };
 
   const handleEmailShareClick = () => {
-    if (!sharePayload?.emailBundle) {
+    if (!sharePayload) {
       window.alert("E-mail do motorista não cadastrado ou conteúdo ainda não preparado.");
       return;
     }
-    openMailtoLink(sharePayload.emailBundle.mailtoHref);
+    launchDriverEmailShare(sharePayload);
   };
   if (!open) return null;
 
@@ -682,9 +693,9 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
 
                 return (
                   <li key={driver.id}>
-                    <label
+                    <div
                       className={cn(
-                        "flex cursor-pointer items-start gap-3 rounded-lg border px-3 py-3 transition-colors",
+                        "flex items-start gap-3 rounded-lg border px-3 py-3 transition-colors",
                         refused
                           ? selected
                             ? "border-red-500 bg-red-100 ring-1 ring-red-300"
@@ -695,60 +706,62 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
                         !available && !refused && "opacity-70"
                       )}
                     >
-                      <span className="mt-0.5 flex shrink-0 items-center gap-1.5">
-                        {refused ? <DriverRefusedMark orderCode={orderDetails.code} /> : null}
-                        <input
-                          type="radio"
-                          name="assign-driver"
-                          value={driver.id}
-                          checked={selected}
-                          onChange={() => setSelectedId(driver.id)}
-                        />
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="flex flex-wrap items-center gap-2">
+                      <label className="flex min-w-0 flex-1 cursor-pointer items-start gap-3">
+                        <span className="mt-0.5 flex shrink-0 items-center gap-1.5">
+                          {refused ? <DriverRefusedMark orderCode={orderDetails.code} /> : null}
+                          <input
+                            type="radio"
+                            name="assign-driver"
+                            value={driver.id}
+                            checked={selected}
+                            onChange={() => setSelectedId(driver.id)}
+                          />
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="flex flex-wrap items-center gap-2">
+                            <span
+                              className={cn(
+                                "font-medium",
+                                refused ? "text-red-900" : "text-slate-900"
+                              )}
+                            >
+                              {driver.code} — {driver.name}
+                            </span>
+                            {refused ? (
+                              <span className="rounded-full bg-red-200 px-2 py-0.5 text-xs font-semibold text-red-900">
+                                Recusou
+                              </span>
+                            ) : null}
+                          </span>
                           <span
                             className={cn(
-                              "font-medium",
-                              refused ? "text-red-900" : "text-slate-900"
+                              "text-xs",
+                              refused
+                                ? "text-red-800"
+                                : available
+                                  ? "text-green-700"
+                                  : "text-slate-500"
                             )}
                           >
-                            {driver.code} — {driver.name}
+                            {refused ? `Recusou a ${orderDetails.code}` : label}
+                            {refused && orderDetails.driver_assignment_rejected_at
+                              ? ` · ${new Date(orderDetails.driver_assignment_rejected_at).toLocaleString("pt-BR")}`
+                              : ""}
+                            {driver.phone ? ` · ${driver.phone}` : " · sem telefone"}
+                            {driver.email ? ` · ${driver.email}` : ""}
                           </span>
-                          {refused ? (
-                            <span className="rounded-full bg-red-200 px-2 py-0.5 text-xs font-semibold text-red-900">
-                              Recusou
+                          {driver.address ? (
+                            <span
+                              className={cn(
+                                "mt-0.5 block text-xs",
+                                refused ? "text-red-800/70" : "text-slate-500"
+                              )}
+                            >
+                              {driver.address}
                             </span>
                           ) : null}
                         </span>
-                        <span
-                          className={cn(
-                            "text-xs",
-                            refused
-                              ? "text-red-800"
-                              : available
-                                ? "text-green-700"
-                                : "text-slate-500"
-                          )}
-                        >
-                          {refused ? `Recusou a ${orderDetails.code}` : label}
-                          {refused && orderDetails.driver_assignment_rejected_at
-                            ? ` · ${new Date(orderDetails.driver_assignment_rejected_at).toLocaleString("pt-BR")}`
-                            : ""}
-                          {driver.phone ? ` · ${driver.phone}` : " · sem telefone"}
-                          {driver.email ? ` · ${driver.email}` : ""}
-                        </span>
-                        {driver.address ? (
-                          <span
-                            className={cn(
-                              "mt-0.5 block text-xs",
-                              refused ? "text-red-800/70" : "text-slate-500"
-                            )}
-                          >
-                            {driver.address}
-                          </span>
-                        ) : null}
-                      </span>
+                      </label>
                       <span className="flex shrink-0 items-center gap-1">
                         {driver.phone ? (
                           <button
@@ -793,13 +806,19 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
                                 ? "border-red-300 bg-white text-red-800 hover:bg-red-50"
                                 : "border-sky-300 bg-sky-50 text-sky-800 hover:bg-sky-100"
                             )}
+                            onMouseDown={(event) =>
+                              handleDriverEmailMouseDown(
+                                event,
+                                sharePayload && selectedId === driver.id ? sharePayload : null
+                              )
+                            }
                             onClick={(event) => handleDriverEmailClick(event, driver)}
                           >
                             <MailIcon className="h-4 w-4" />
                           </button>
                         ) : null}
                       </span>
-                    </label>
+                    </div>
                   </li>
                 );
               })}
