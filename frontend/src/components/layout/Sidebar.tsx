@@ -15,6 +15,10 @@ const NAV = [
     ],
   },
   {
+    label: "DRE",
+    children: [{ href: "/dre/despesas-motorista", label: "Despesas motorista / ajudante" }],
+  },
+  {
     label: "Cadastros",
     children: [
       { href: "/cadastros/socios", label: "Sócios" },
@@ -44,7 +48,7 @@ function SidebarNavLink({
   child?: boolean;
 }) {
   const pathname = usePathname();
-  const active = pathname === href;
+  const active = pathname === href || pathname.startsWith(`${href}/`);
 
   return (
     <Link

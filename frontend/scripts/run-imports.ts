@@ -47,7 +47,7 @@ async function getCompanyId(userId: string): Promise<string> {
 
 async function importDre(companyId: string) {
   const { data: existing, error: existingError } = await supabase
-    .from("dre_accounts")
+    .from("chart_of_accounts")
     .select("name")
     .eq("company_id", companyId)
     .is("deleted_at", null);
@@ -62,7 +62,7 @@ async function importDre(companyId: string) {
     return;
   }
 
-  const { error } = await supabase.from("dre_accounts").upsert(
+  const { error } = await supabase.from("chart_of_accounts").upsert(
     pending.map((row) => ({
       company_id: companyId,
       name: row.name,

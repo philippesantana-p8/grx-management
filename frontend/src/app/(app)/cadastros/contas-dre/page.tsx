@@ -27,7 +27,7 @@ function ImportDreButton({ onDone }: { onDone: () => void }) {
     setMsg(null);
 
     const { data: existing, error: existingError } = await supabase
-      .from("dre_accounts")
+      .from("chart_of_accounts")
       .select("name")
       .eq("company_id", companyId)
       .is("deleted_at", null);
@@ -55,7 +55,7 @@ function ImportDreButton({ onDone }: { onDone: () => void }) {
       transaction_type: r.transaction_type,
       status: "Ativo",
     }));
-    const { error } = await supabase.from("dre_accounts").upsert(rows, {
+    const { error } = await supabase.from("chart_of_accounts").upsert(rows, {
       onConflict: "company_id,name",
       ignoreDuplicates: true,
     });
@@ -91,7 +91,7 @@ export default function ContasDrePage() {
         key={refreshKey}
       title="Contas DRE"
       description="Plano de contas gerencial — classificação e tipo derivados automaticamente nos lançamentos"
-      table="dre_accounts"
+      table="chart_of_accounts"
       softDelete={false}
       orderBy="name"
       columns={[

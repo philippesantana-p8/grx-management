@@ -69,6 +69,10 @@ export type Driver = {
   cnh_categories: string[];
   active_for_operations: boolean;
   notes: string | null;
+  pix_key: string | null;
+  bank_code: string | null;
+  bank_agency: string | null;
+  bank_account: string | null;
 };
 
 export type ServiceOrder = {
@@ -150,6 +154,9 @@ export type ServiceOrder = {
   driver_assignment_rejected_driver_ids: string[];
   driver_assignment_pay_amount: number | null;
   driver_assignment_assistant_pay_amount: number | null;
+  driver_payment_paid_at: string | null;
+  driver_payment_driver_transaction_id: string | null;
+  driver_payment_assistant_transaction_id: string | null;
   service_follow_up_count: number;
   service_last_follow_up_at: string | null;
   service_completed_at: string | null;

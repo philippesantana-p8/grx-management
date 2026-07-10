@@ -89,6 +89,10 @@ export function DriverFormPanel({ item, companyId, saving, onSave, onCancel }: P
           cnh_categories: item?.cnh_categories ?? [],
           active_for_operations: item?.active_for_operations ?? true,
           notes: item?.notes ?? "",
+          pix_key: item?.pix_key ?? "",
+          bank_code: item?.bank_code ?? "",
+          bank_agency: item?.bank_agency ?? "",
+          bank_account: item?.bank_account ?? "",
         }}
         onSubmit={async (data) => {
           const cnhValidation = validateCnh(String(data.cnh_number ?? ""));
@@ -108,6 +112,10 @@ export function DriverFormPanel({ item, companyId, saving, onSave, onCancel }: P
           if (data.email === "") data.email = null;
           if (data.address === "") data.address = null;
           if (data.phone === "") data.phone = null;
+          if (data.pix_key === "") data.pix_key = null;
+          if (data.bank_code === "") data.bank_code = null;
+          if (data.bank_agency === "") data.bank_agency = null;
+          if (data.bank_account === "") data.bank_account = null;
           data.cnh_categories = sortCnhCategories(
             Array.isArray(data.cnh_categories) ? (data.cnh_categories as string[]) : []
           );
@@ -230,6 +238,35 @@ export function DriverFormPanel({ item, companyId, saving, onSave, onCancel }: P
                 set={set}
                 fields={[{ name: "document", label: "CPF/CNPJ" }]}
               />
+
+              <fieldset className="space-y-4 rounded-lg border border-slate-200 p-4">
+                <legend className="px-1 text-sm font-medium text-slate-700">
+                  Dados bancários / Pix
+                </legend>
+                <p className="text-xs text-slate-500">
+                  Usados no acompanhamento de pagamentos aos motoristas após a designação da OS.
+                </p>
+                <FormFields
+                  form={form}
+                  set={set}
+                  fields={[
+                    {
+                      name: "pix_key",
+                      label: "Chave Pix",
+                      colSpan: 2,
+                      placeholder: "CPF, e-mail, telefone ou aleatória",
+                    },
+                    { name: "bank_code", label: "Código do banco", placeholder: "Ex.: 341" },
+                    { name: "bank_agency", label: "Agência", placeholder: "Ex.: 1234" },
+                    {
+                      name: "bank_account",
+                      label: "Conta corrente",
+                      colSpan: 2,
+                      placeholder: "Ex.: 12345-6",
+                    },
+                  ]}
+                />
+              </fieldset>
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="block space-y-1">

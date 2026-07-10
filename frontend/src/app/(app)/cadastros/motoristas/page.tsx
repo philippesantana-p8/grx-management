@@ -172,6 +172,10 @@ function MotoristasPageContent() {
       },
       { key: "phone", label: "Telefone" },
       { key: "email", label: "E-mail" },
+      { key: "pix_key", label: "Chave Pix", render: (r: DriverListRow) => r.pix_key ?? "—" },
+      { key: "bank_code", label: "Cód. banco", render: (r: DriverListRow) => r.bank_code ?? "—" },
+      { key: "bank_agency", label: "Agência", render: (r: DriverListRow) => r.bank_agency ?? "—" },
+      { key: "bank_account", label: "Conta corrente", render: (r: DriverListRow) => r.bank_account ?? "—" },
       { key: "address", label: "Endereço" },
       {
         key: "cnh_number",
