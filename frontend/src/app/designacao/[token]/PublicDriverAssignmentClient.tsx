@@ -28,6 +28,7 @@ export function PublicDriverAssignmentClient({ token }: Props) {
   const [driverName, setDriverName] = useState<string | null>(null);
   const [assignmentResponse, setAssignmentResponse] =
     useState<DriverAssignmentResponse>("pending");
+  const [assignmentSentAt, setAssignmentSentAt] = useState<string | null>(null);
   const [canRespond, setCanRespond] = useState(false);
   const [responding, setResponding] = useState(false);
 
@@ -52,6 +53,7 @@ export function PublicDriverAssignmentClient({ token }: Props) {
     setCompanyName(data.company_name ?? "GRX Transportes e Logística");
     setDriverName(data.driver_name ?? null);
     setAssignmentResponse(data.driver_assignment_response ?? "pending");
+    setAssignmentSentAt(data.driver_assignment_sent_at ?? null);
     setCanRespond(Boolean(data.can_respond));
     setLoading(false);
   }, [supabase, token]);
@@ -82,6 +84,8 @@ export function PublicDriverAssignmentClient({ token }: Props) {
   if (error || !order) return <Alert variant="error">{error ?? "Designação indisponível."}</Alert>;
 
   const amount = resolveProposalAmount(order as ServiceOrder);
+  const linkNotActivated = !assignmentSentAt && assignmentResponse === "pending";
+  const previouslyRejected = assignmentResponse === "rejected";
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -163,7 +167,29 @@ export function PublicDriverAssignmentClient({ token }: Props) {
             </div>
           )}
 
-          {assignmentResponse !== "pending" && (
+          {!canRespond && linkNotActivated && (
+            <div className="mt-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+              <p className="font-medium">Link ainda não ativado</p>
+              <p className="mt-1">
+                Este endereço é apenas uma prévia. O operador GRX precisa confirmar o envio em
+                «Gerar link e enviar» (ou ao compartilhar por WhatsApp/e-mail com confirmação) para
+                você poder aceitar ou recusar aqui.
+              </p>
+            </div>
+          )}
+
+          {!canRespond && previouslyRejected && (
+            <div className="mt-6 rounded-lg border border-slate-200 bg-slate-100 px-4 py-3 text-sm text-slate-800">
+              <p className="font-medium">{DRIVER_ASSIGNMENT_RESPONSE_LABELS.rejected}</p>
+              <p className="mt-1">
+                Sua recusa anterior já foi registrada. Se a GRX reenviar a designação, aguarde a
+                nova mensagem e use o link após o operador confirmar o envio — os botões de aceitar
+                e recusar voltarão a aparecer.
+              </p>
+            </div>
+          )}
+
+          {assignmentResponse !== "pending" && !previouslyRejected && (
             <div
               className={`mt-6 rounded-lg px-4 py-3 text-sm ${
                 assignmentResponse === "accepted"

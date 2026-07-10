@@ -14,7 +14,6 @@ import { fetchActiveServiceOrdersByDriver } from "@/lib/driver-service-orders";
 import { assignServiceOrderDriver } from "@/lib/service-order-driver-api";
 import {
   buildPublicDriverAssignmentUrl,
-  ensureDriverAssignmentToken,
   prepareDriverAssignmentSharePayload,
   sendDriverAssignment,
   type DriverAssignmentSharePayload,
@@ -314,22 +313,22 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
     );
   };
 
-  const buildPreviewSharePayload = async (
+  const confirmAndRegisterShare = async (
     driver: DriverListRow
   ): Promise<DriverAssignmentSharePayload | null> => {
-    if (!driver.phone?.trim() && !driver.email?.trim()) {
-      window.alert("Cadastre telefone ou e-mail do motorista.");
-      return null;
+    if (sharePayload && selectedId === driver.id) {
+      return sharePayload;
     }
 
-    setSelectedId(driver.id);
-    const { token, error: tokenError } = await ensureDriverAssignmentToken(supabase, order.id);
-    if (tokenError || !token) {
-      window.alert(tokenError ?? "Não foi possível preparar o link da designação.");
-      return null;
-    }
+    const refused = isDriverRefusedForThisOrder(driver);
+    const confirmed = window.confirm(
+      refused
+        ? `Reenviar designação da ${orderDetails.code} para ${driver.name}?\n\nO link ficará ativo para o motorista aceitar ou recusar. Se fechar o WhatsApp sem enviar, use «Cancelar designação» na lista da OS.`
+        : `Registrar envio da designação da ${orderDetails.code} para ${driver.name}?\n\nO link ficará ativo para o motorista aceitar ou recusar. Se fechar o WhatsApp sem enviar, use «Cancelar designação» na lista da OS.`
+    );
+    if (!confirmed) return null;
 
-    return buildSharePayloadForDriver(driver, token);
+    return registerAssignmentShareForDriver(driver);
   };
 
   const resolveSharePayloadForDriver = async (
@@ -338,7 +337,7 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
     if (sharePayload && selectedId === driver.id) {
       return sharePayload;
     }
-    return buildPreviewSharePayload(driver);
+    return confirmAndRegisterShare(driver);
   };
 
   const handleDirectAssign = async () => {
@@ -486,9 +485,10 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
             <p className="mt-1 text-sm font-medium text-brand-700">{formatCurrency(amount)}</p>
           ) : null}
           <p className="mt-2 text-xs text-slate-500">
-            Os ícones de WhatsApp e e-mail apenas abrem a mensagem — o status só muda ao clicar em
-            «Gerar link e enviar». Quem já recusou aparece em vermelho, mas pode ser selecionado de
-            novo.
+            Ao clicar em WhatsApp, e-mail ou «Gerar link e enviar», confirme o registro do envio —
+            só então o link fica ativo para o motorista aceitar ou recusar. Quem já recusou aparece
+            em vermelho e pode ser reenviado. Se fechar o WhatsApp sem enviar, use «Cancelar
+            designação» na lista.
           </p>
         </div>
 
