@@ -270,6 +270,27 @@ function OrdensServicoPageContent() {
     []
   );
 
+  const handleDriverAssignmentReset = useCallback((orderId: string) => {
+    setListRows((rows) =>
+      rows.map((row) =>
+        row.id === orderId
+          ? {
+              ...row,
+              proposed_driver_id: null,
+              driver_assignment_sent_at: null,
+              driver_assignment_response: "pending" as const,
+              driver_assignment_accepted_at: null,
+              driver_assignment_rejected_at: null,
+              driver_id: null,
+              driver_name: undefined,
+              driver_assignment_rejected_driver_ids: [],
+            }
+          : row
+      )
+    );
+    setListRefreshKey((key) => key + 1);
+  }, []);
+
   const visibleCount = useMemo(
     () => listRows.filter(filterItem).length,
     [listRows, filterItem]
@@ -340,6 +361,7 @@ function OrdensServicoPageContent() {
           onProposalResponseChanged={handleProposalResponseChanged}
           onDriverAssigned={handleDriverAssigned}
           onAssignmentSent={handleAssignmentSent}
+          onDriverAssignmentReset={handleDriverAssignmentReset}
           onDriverAssignmentResponded={handleDriverAssignmentResponded}
         />
       )}

@@ -10,7 +10,10 @@ import {
   isPendingClientProposal,
   isPendingDriverAssignment,
 } from "@/lib/service-order-display-status";
-import { respondToDriverAssignment } from "@/lib/service-order-driver-assignment";
+import {
+  resetDriverAssignment,
+  respondToDriverAssignment,
+} from "@/lib/service-order-driver-assignment";
 import {
   registerProposalFollowUp,
   resetProposalClientResponse,
@@ -33,6 +36,7 @@ type Props = {
   onProposalResponseChanged?: (orderId: string, patch: ProposalResponsePatch) => void;
   onDriverAssigned?: (orderId: string, driverId: string, driverName: string) => void;
   onAssignmentSent?: (orderId: string, driverId: string, driverName: string) => void;
+  onDriverAssignmentReset?: (orderId: string) => void;
   onDriverAssignmentResponded?: (
     orderId: string,
     patch: {
@@ -121,6 +125,7 @@ export function ServiceOrderRowActions({
   onProposalResponseChanged,
   onDriverAssigned,
   onAssignmentSent,
+  onDriverAssignmentReset,
   onDriverAssignmentResponded,
 }: Props) {
   const [loading, setLoading] = useState(false);
@@ -128,6 +133,7 @@ export function ServiceOrderRowActions({
   const [rejecting, setRejecting] = useState(false);
   const [driverAccepting, setDriverAccepting] = useState(false);
   const [driverRejecting, setDriverRejecting] = useState(false);
+  const [cancellingAssignment, setCancellingAssignment] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [assignOpen, setAssignOpen] = useState(false);
 
@@ -269,6 +275,29 @@ export function ServiceOrderRowActions({
     );
   };
 
+  const handleCancelDriverAssignment = async () => {
+    if (
+      !window.confirm(
+        `Cancelar a designação pendente da OS ${row.code}? O status voltará para «Aceita pelo cliente» e você poderá escolher o motorista novamente.`
+      )
+    ) {
+      return;
+    }
+
+    setCancellingAssignment(true);
+    const supabase = createClient();
+    const { error } = await resetDriverAssignment(supabase, row.id);
+    setCancellingAssignment(false);
+
+    if (error) {
+      window.alert(error);
+      return;
+    }
+
+    onDriverAssignmentReset?.(row.id);
+    window.alert("Designação cancelada. Você pode designar o motorista novamente.");
+  };
+
   const handleResetProposal = async () => {
     if (
       !window.confirm(
@@ -294,8 +323,11 @@ export function ServiceOrderRowActions({
       proposal_accepted_at: null,
       proposal_rejected_at: null,
     });
+    onDriverAssignmentReset?.(row.id);
 
-    window.alert("Proposta reaberta. Use os botões de telefone ou envie o link ao cliente.");
+    window.alert(
+      "Proposta reaberta. A designação do motorista também foi cancelada. Use os botões de telefone ou envie o link ao cliente."
+    );
   };
 
   return (
@@ -332,6 +364,17 @@ export function ServiceOrderRowActions({
       )}
       {canDriverPhoneResponse && (
         <>
+          <button
+            type="button"
+            disabled={cancellingAssignment || driverAccepting || driverRejecting || accepting || rejecting}
+            title="Cancelar designação pendente (ex.: fechou o WhatsApp sem enviar)"
+            onClick={() => void handleCancelDriverAssignment()}
+            className={cn(
+              "inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-50"
+            )}
+          >
+            {cancellingAssignment ? "Cancelando…" : "Cancelar designação"}
+          </button>
           <button
             type="button"
             disabled={driverAccepting || driverRejecting || accepting || rejecting}
@@ -424,7 +467,7 @@ export function ServiceOrderRowActions({
         onAssignmentSent={(driverId, driverName) => {
           onAssignmentSent?.(row.id, driverId, driverName);
           window.alert(
-            `Designação enviada a ${driverName}. Aguardando confirmação pelo link (WhatsApp ou e-mail).`
+            `Designação registrada para ${driverName}. Aguardando confirmação pelo link (WhatsApp ou e-mail).`
           );
         }}
       />

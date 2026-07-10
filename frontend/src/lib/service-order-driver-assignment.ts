@@ -265,6 +265,58 @@ export async function prepareDriverAssignmentSharePayload(
   };
 }
 
+export async function ensureDriverAssignmentToken(
+  supabase: SupabaseClient,
+  orderId: string
+): Promise<{ token: string | null; error: string | null }> {
+  const { data, error } = await supabase.rpc("ensure_driver_assignment_token", {
+    p_order_id: orderId,
+  });
+
+  if (error) return { token: null, error: error.message };
+  return { token: (data as string | null) ?? null, error: null };
+}
+
+export async function resetDriverAssignment(
+  supabase: SupabaseClient,
+  orderId: string
+): Promise<{
+  driverAssignmentResponse: DriverAssignmentResponse | null;
+  proposedDriverId: string | null;
+  sentAt: string | null;
+  driverId: string | null;
+  error: string | null;
+}> {
+  const { data, error } = await supabase.rpc("reset_driver_assignment", {
+    p_order_id: orderId,
+  });
+
+  if (error) {
+    return {
+      driverAssignmentResponse: null,
+      proposedDriverId: null,
+      sentAt: null,
+      driverId: null,
+      error: error.message,
+    };
+  }
+
+  const payload = data as {
+    driver_assignment_response?: DriverAssignmentResponse;
+    proposed_driver_id?: string | null;
+    driver_assignment_sent_at?: string | null;
+    driver_id?: string | null;
+  } | null;
+
+  return {
+    driverAssignmentResponse: payload?.driver_assignment_response ?? "pending",
+    proposedDriverId: payload?.proposed_driver_id ?? null,
+    sentAt: payload?.driver_assignment_sent_at ?? null,
+    driverId: payload?.driver_id ?? null,
+    error: null,
+  };
+}
+
 export async function sendDriverAssignment(
   supabase: SupabaseClient,
   orderId: string,

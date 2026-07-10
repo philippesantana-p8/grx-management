@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { ProposalResponse, ServiceOrder } from "@/types/database";
+import type { DriverAssignmentResponse, ProposalResponse, ServiceOrder } from "@/types/database";
 
 export type PublicProposalPayload = {
   found: boolean;
@@ -160,17 +160,34 @@ export async function rejectProposalOnBehalfOfClient(
 export async function resetProposalClientResponse(
   supabase: SupabaseClient,
   orderId: string
-): Promise<{ proposalResponse: ProposalResponse | null; status: string | null; error: string | null }> {
+): Promise<{
+  proposalResponse: ProposalResponse | null;
+  status: string | null;
+  driverAssignmentResponse: DriverAssignmentResponse | null;
+  error: string | null;
+}> {
   const { data, error } = await supabase.rpc("reset_proposal_client_response", {
     p_order_id: orderId,
   });
 
-  if (error) return { proposalResponse: null, status: null, error: error.message };
+  if (error) {
+    return {
+      proposalResponse: null,
+      status: null,
+      driverAssignmentResponse: null,
+      error: error.message,
+    };
+  }
 
-  const payload = data as { proposal_response?: ProposalResponse; status?: string } | null;
+  const payload = data as {
+    proposal_response?: ProposalResponse;
+    status?: string;
+    driver_assignment_response?: DriverAssignmentResponse;
+  } | null;
   return {
     proposalResponse: payload?.proposal_response ?? "pending",
     status: payload?.status ?? null,
+    driverAssignmentResponse: payload?.driver_assignment_response ?? "pending",
     error: null,
   };
 }

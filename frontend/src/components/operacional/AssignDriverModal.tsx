@@ -14,6 +14,7 @@ import { fetchActiveServiceOrdersByDriver } from "@/lib/driver-service-orders";
 import { assignServiceOrderDriver } from "@/lib/service-order-driver-api";
 import {
   buildPublicDriverAssignmentUrl,
+  ensureDriverAssignmentToken,
   prepareDriverAssignmentSharePayload,
   sendDriverAssignment,
   type DriverAssignmentSharePayload,
@@ -288,8 +289,22 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
       return null;
     }
 
+    const payload = await buildSharePayloadForDriver(driver, token);
+    setSaving(false);
+    if (!payload) return null;
+
+    setSharePayload(payload);
+    setShareDriverName(driver.name);
+    onAssignmentSent?.(driver.id, driver.name);
+    return payload;
+  };
+
+  const buildSharePayloadForDriver = async (
+    driver: DriverListRow,
+    token: string
+  ): Promise<DriverAssignmentSharePayload | null> => {
     const assignmentUrl = buildPublicDriverAssignmentUrl(token);
-    const payload = await prepareDriverAssignmentSharePayload(
+    return prepareDriverAssignmentSharePayload(
       driver.email,
       orderDetails,
       companyName,
@@ -297,12 +312,24 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
       assignmentUrl,
       driver.phone
     );
-    setSaving(false);
+  };
 
-    setSharePayload(payload);
-    setShareDriverName(driver.name);
-    onAssignmentSent?.(driver.id, driver.name);
-    return payload;
+  const buildPreviewSharePayload = async (
+    driver: DriverListRow
+  ): Promise<DriverAssignmentSharePayload | null> => {
+    if (!driver.phone?.trim() && !driver.email?.trim()) {
+      window.alert("Cadastre telefone ou e-mail do motorista.");
+      return null;
+    }
+
+    setSelectedId(driver.id);
+    const { token, error: tokenError } = await ensureDriverAssignmentToken(supabase, order.id);
+    if (tokenError || !token) {
+      window.alert(tokenError ?? "Não foi possível preparar o link da designação.");
+      return null;
+    }
+
+    return buildSharePayloadForDriver(driver, token);
   };
 
   const resolveSharePayloadForDriver = async (
@@ -311,7 +338,7 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
     if (sharePayload && selectedId === driver.id) {
       return sharePayload;
     }
-    return registerAssignmentShareForDriver(driver);
+    return buildPreviewSharePayload(driver);
   };
 
   const handleDirectAssign = async () => {
@@ -459,9 +486,9 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
             <p className="mt-1 text-sm font-medium text-brand-700">{formatCurrency(amount)}</p>
           ) : null}
           <p className="mt-2 text-xs text-slate-500">
-            Envie por WhatsApp ou e-mail para o motorista aceitar ou recusar pelo link público. Quem
-            já recusou aparece em vermelho — você pode selecionar e reenviar se o motorista mudar de
-            ideia.
+            Os ícones de WhatsApp e e-mail apenas abrem a mensagem — o status só muda ao clicar em
+            «Gerar link e enviar». Quem já recusou aparece em vermelho, mas pode ser selecionado de
+            novo.
           </p>
         </div>
 
@@ -677,7 +704,7 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
                 !selectedId ||
                 (!selectedDriver?.phone?.trim() && !selectedDriver?.email?.trim())
               }
-              title="Registra o link e abre opções de envio com cópia no clique"
+              title="Registra o envio da designação e abre opções de compartilhamento"
               onClick={handlePrepareShare}
             >
               {saving ? "Preparando…" : "Gerar link e enviar"}
