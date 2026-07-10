@@ -101,8 +101,24 @@ export function PublicDriverAssignmentClient({ token }: Props) {
           <p className="text-xs font-semibold uppercase tracking-wider text-brand-600">
             Designação de ordem de serviço
           </p>
-          <h1 className="mt-1 text-2xl font-bold text-slate-900">OS {order.code}</h1>
-          <p className="text-sm text-slate-500">{companyName}</p>
+          <div
+            className={`mt-2 rounded-lg border px-4 py-3 ${
+              assignmentResponse === "accepted"
+                ? "border-green-300 bg-green-50"
+                : "border-brand-200 bg-brand-50"
+            }`}
+          >
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-600">
+              Número da ordem de serviço
+            </p>
+            <h1 className="text-3xl font-bold text-slate-900">{order.code}</h1>
+            {assignmentResponse === "accepted" ? (
+              <p className="mt-1 text-sm text-green-900">
+                Guarde este número ({order.code}) para referência durante a execução do frete.
+              </p>
+            ) : null}
+          </div>
+          <p className="mt-3 text-sm text-slate-500">{companyName}</p>
           {driverName ? (
             <p className="mt-2 text-sm text-slate-700">
               Motorista: <strong>{driverName}</strong>
@@ -157,6 +173,11 @@ export function PublicDriverAssignmentClient({ token }: Props) {
                   </>
                 ) : null}
               </div>
+            )}
+            {order.freight_distance_km != null && order.freight_distance_km > 0 && (
+              <p>
+                <span className="text-slate-500">Distância:</span> {order.freight_distance_km} km
+              </p>
             )}
             {order.freight_toll_amount != null && order.freight_toll_amount > 0 && (
               <p>
@@ -222,7 +243,7 @@ export function PublicDriverAssignmentClient({ token }: Props) {
               </p>
               <p className="mt-1">
                 {assignmentResponse === "accepted"
-                  ? "Sua confirmação foi registrada. A equipe GRX dará continuidade à operação."
+                  ? `Sua confirmação foi registrada para a ordem ${order.code}. Os dados acima permanecem disponíveis neste link. A equipe GRX dará continuidade à operação.`
                   : "Sua resposta foi registrada. A equipe GRX poderá convidar outro motorista."}
               </p>
             </div>

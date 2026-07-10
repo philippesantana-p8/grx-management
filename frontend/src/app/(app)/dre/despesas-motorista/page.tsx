@@ -117,7 +117,16 @@ export default function DreDespesasMotoristaPage() {
         {loading ? (
           <Loading />
         ) : error ? (
-          <p className="text-sm text-red-600">{error}</p>
+          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">
+            <p>{error}</p>
+            {error.includes("relationship") || error.includes("service_order") ? (
+              <p className="mt-2">
+                Execute{" "}
+                <code className="rounded bg-red-100 px-1">scripts/apply-all-driver-designation-flow.sql</code>{" "}
+                no SQL Editor do Supabase para criar a ligação entre lançamentos DRE e ordens de serviço.
+              </p>
+            ) : null}
+          </div>
         ) : rows.length === 0 ? (
           <p className="text-sm text-slate-500">
             Nenhum lançamento neste período. Marque um pagamento como pago em{" "}

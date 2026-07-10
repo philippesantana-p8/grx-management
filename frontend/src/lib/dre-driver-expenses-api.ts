@@ -19,37 +19,63 @@ export type DreDriverExpenseSummary = {
 
 const DRE_DRIVER_EXPENSE_ACCOUNTS = ["Motorista", "Ajudante"] as const;
 
+function parseOrderCodeFromDescription(description: string | null): string | null {
+  if (!description) return null;
+  const match = description.match(/OS\s+(\S+)/i);
+  return match?.[1] ?? null;
+}
+
+function applyMonthFilter<T extends { gte: (c: string, v: string) => T; lt: (c: string, v: string) => T }>(
+  query: T,
+  options?: { year?: number; month?: number }
+): T {
+  if (!options?.year || !options?.month) return query;
+  const start = `${options.year}-${String(options.month).padStart(2, "0")}-01`;
+  const endMonth = options.month === 12 ? 1 : options.month + 1;
+  const endYear = options.month === 12 ? options.year + 1 : options.year;
+  const end = `${endYear}-${String(endMonth).padStart(2, "0")}-01`;
+  return query.gte("transaction_date", start).lt("transaction_date", end);
+}
+
 export async function fetchDreDriverExpenses(
   supabase: SupabaseClient,
   companyId: string,
   options?: { year?: number; month?: number }
 ): Promise<{ rows: DreDriverExpenseRow[]; summary: DreDriverExpenseSummary; error: string | null }> {
-  let query = supabase
-    .from("financial_transactions")
-    .select(
-      `
+  const baseSelect = `
       id,
       transaction_date,
       amount,
       description,
-      driver:drivers!financial_transactions_driver_id_fkey (code, name),
-      service_order:service_orders!financial_transactions_service_order_id_fkey (code),
+      driver_id,
       chart_of_account:chart_of_accounts!financial_transactions_chart_of_account_id_fkey (name)
-    `
-    )
-    .eq("company_id", companyId)
-    .eq("transaction_type", "Despesa")
-    .order("transaction_date", { ascending: false });
+    `;
 
-  if (options?.year && options?.month) {
-    const start = `${options.year}-${String(options.month).padStart(2, "0")}-01`;
-    const endMonth = options.month === 12 ? 1 : options.month + 1;
-    const endYear = options.month === 12 ? options.year + 1 : options.year;
-    const end = `${endYear}-${String(endMonth).padStart(2, "0")}-01`;
-    query = query.gte("transaction_date", start).lt("transaction_date", end);
+  let query = applyMonthFilter(
+    supabase
+      .from("financial_transactions")
+      .select(`${baseSelect}, service_order_id`)
+      .eq("company_id", companyId)
+      .eq("transaction_type", "Despesa")
+      .order("transaction_date", { ascending: false }),
+    options
+  );
+
+  let { data, error } = await query;
+
+  if (error?.message.includes("service_order_id")) {
+    const fallbackRes = await applyMonthFilter(
+      supabase
+        .from("financial_transactions")
+        .select(baseSelect)
+        .eq("company_id", companyId)
+        .eq("transaction_type", "Despesa")
+        .order("transaction_date", { ascending: false }),
+      options
+    );
+    data = fallbackRes.data as typeof data;
+    error = fallbackRes.error;
   }
-
-  const { data, error } = await query;
 
   if (error) {
     return {
@@ -57,6 +83,41 @@ export async function fetchDreDriverExpenses(
       summary: { motoristaTotal: 0, ajudanteTotal: 0, combinedTotal: 0 },
       error: error.message,
     };
+  }
+
+  const orderIds = [
+    ...new Set(
+      (data ?? [])
+        .map((item) => item.service_order_id as string | null)
+        .filter(Boolean) as string[]
+    ),
+  ];
+  const driverIds = [
+    ...new Set(
+      (data ?? []).map((item) => item.driver_id as string | null).filter(Boolean) as string[]
+    ),
+  ];
+
+  const orderCodeById = new Map<string, string>();
+  if (orderIds.length) {
+    const { data: orders } = await supabase.from("service_orders").select("id, code").in("id", orderIds);
+    for (const order of orders ?? []) {
+      orderCodeById.set(order.id as string, order.code as string);
+    }
+  }
+
+  const driverById = new Map<string, { code: string; name: string }>();
+  if (driverIds.length) {
+    const { data: drivers } = await supabase
+      .from("drivers")
+      .select("id, code, name")
+      .in("id", driverIds);
+    for (const driver of drivers ?? []) {
+      driverById.set(driver.id as string, {
+        code: driver.code as string,
+        name: driver.name as string,
+      });
+    }
   }
 
   const rows: DreDriverExpenseRow[] = [];
@@ -75,8 +136,10 @@ export async function fetchDreDriverExpenses(
     if (accountName === "Motorista") motoristaTotal += amount;
     if (accountName === "Ajudante") ajudanteTotal += amount;
 
-    const driver = item.driver as { code?: string; name?: string } | null;
-    const serviceOrder = item.service_order as { code?: string } | null;
+    const driverId = item.driver_id as string | null;
+    const driver = driverId ? driverById.get(driverId) : null;
+    const orderId = item.service_order_id as string | null;
+    const description = (item.description as string | null) ?? null;
 
     rows.push({
       id: item.id as string,
@@ -85,8 +148,9 @@ export async function fetchDreDriverExpenses(
       dre_account_name: accountName,
       driver_name: driver?.name ?? null,
       driver_code: driver?.code ?? null,
-      service_order_code: serviceOrder?.code ?? null,
-      description: (item.description as string | null) ?? null,
+      service_order_code:
+        (orderId && orderCodeById.get(orderId)) ?? parseOrderCodeFromDescription(description),
+      description,
     });
   }
 
