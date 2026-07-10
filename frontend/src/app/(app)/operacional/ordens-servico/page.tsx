@@ -247,6 +247,7 @@ function OrdensServicoPageContent() {
         driver_assignment_response: DriverAssignmentResponse;
         driver_id: string | null;
         proposed_driver_id: string | null;
+        driver_assignment_rejected_driver_ids?: string[];
       }
     ) => {
       setListRows((rows) =>
@@ -257,6 +258,9 @@ function OrdensServicoPageContent() {
                 driver_assignment_response: patch.driver_assignment_response,
                 driver_id: patch.driver_id,
                 proposed_driver_id: patch.proposed_driver_id,
+                driver_assignment_rejected_driver_ids:
+                  patch.driver_assignment_rejected_driver_ids ??
+                  row.driver_assignment_rejected_driver_ids,
               }
             : row
         )
@@ -392,31 +396,7 @@ function OrdensServicoPageContent() {
           label: "Status",
           render: (r) => {
             const label = resolveServiceOrderDisplayStatus(r);
-            const rejected = isDriverAssignmentRejected(r);
-            return (
-              <div className="flex items-center gap-1.5">
-                {rejected ? (
-                  <span
-                    className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 border-red-500 bg-red-50 text-red-700"
-                    title="Motorista recusou a designação"
-                    aria-label="Motorista recusou"
-                  >
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2.5"
-                      strokeLinecap="round"
-                      className="h-3 w-3"
-                      aria-hidden
-                    >
-                      <path d="M18 6 6 18M6 6l12 12" />
-                    </svg>
-                  </span>
-                ) : null}
-                <Badge variant={serviceOrderStatusVariant(r)}>{label}</Badge>
-              </div>
-            );
+            return <Badge variant={serviceOrderStatusVariant(r)}>{label}</Badge>;
           },
         },
         {

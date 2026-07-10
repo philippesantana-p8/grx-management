@@ -52,6 +52,9 @@ type OrderSummary = Pick<
 const ORDER_ASSIGNMENT_FIELDS =
   "id, code, plate, client_name, service_type, service_date, freight_origin_address, freight_destination_address, freight_distance_km, freight_agreed_amount, freight_toll_amount, service_amount, driver_assignment_response, proposed_driver_id, driver_assignment_rejected_at, driver_assignment_rejected_driver_ids";
 
+const ORDER_ASSIGNMENT_FIELDS_LEGACY =
+  "id, code, plate, client_name, service_type, service_date, freight_origin_address, freight_destination_address, freight_distance_km, freight_agreed_amount, freight_toll_amount, service_amount, driver_assignment_response, proposed_driver_id, driver_assignment_rejected_at";
+
 type Props = {
   open: boolean;
   order: OrderSummary;
@@ -177,17 +180,38 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
   }, [order]);
 
   const refetchOrderAssignment = useCallback(async () => {
-    const { data, error: fetchError } = await supabase
+    let data: Record<string, unknown> | null = null;
+
+    const fullRes = await supabase
       .from("service_orders")
       .select(ORDER_ASSIGNMENT_FIELDS)
       .eq("id", order.id)
       .single();
 
-    if (fetchError || !data) return;
+    if (fullRes.error) {
+      const legacyRes = await supabase
+        .from("service_orders")
+        .select(ORDER_ASSIGNMENT_FIELDS_LEGACY)
+        .eq("id", order.id)
+        .single();
+      if (legacyRes.error || !legacyRes.data) return;
+      data = legacyRes.data as Record<string, unknown>;
+    } else {
+      data = fullRes.data as Record<string, unknown>;
+    }
 
-    const rejectedIds = (data.driver_assignment_rejected_driver_ids as string[] | null) ?? [];
+    const rejectedIds = [
+      ...new Set([
+        ...((data.driver_assignment_rejected_driver_ids as string[] | null) ?? []),
+        ...(order.driver_assignment_rejected_driver_ids ?? []),
+      ]),
+    ];
+    const proposedDriverId = (data.proposed_driver_id as string | null) ?? null;
+    const assignmentResponse =
+      (data.driver_assignment_response as OrderSummary["driver_assignment_response"]) ?? "pending";
+
     const driverLookupIds = [
-      ...new Set([data.proposed_driver_id, ...rejectedIds].filter(Boolean)),
+      ...new Set([proposedDriverId, ...rejectedIds].filter(Boolean)),
     ] as string[];
 
     let driverName = order.driver_name ?? null;
@@ -200,11 +224,11 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
         .in("id", driverLookupIds);
       const byId = new Map((driversData ?? []).map((d) => [d.id, d]));
 
-      if (data.proposed_driver_id) {
-        const proposed = byId.get(data.proposed_driver_id);
+      if (proposedDriverId) {
+        const proposed = byId.get(proposedDriverId);
         driverName = proposed?.name ?? driverName;
         proposedDriverCode = proposed?.code ?? proposedDriverCode;
-      } else if (data.driver_assignment_response === "rejected" && rejectedIds.length) {
+      } else if (assignmentResponse === "rejected" && rejectedIds.length) {
         const lastRejectedId = rejectedIds[rejectedIds.length - 1]!;
         const rejected = byId.get(lastRejectedId);
         driverName = rejected?.name ?? driverName;
@@ -214,7 +238,9 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
 
     setOrderDetails({
       ...order,
-      ...data,
+      ...(data as OrderSummary),
+      driver_assignment_response: assignmentResponse,
+      proposed_driver_id: proposedDriverId,
       driver_assignment_rejected_driver_ids: rejectedIds,
       driver_name: driverName,
       proposed_driver_code: proposedDriverCode,
@@ -241,13 +267,6 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
   const registerAssignmentShareForDriver = async (
     driver: DriverListRow
   ): Promise<DriverAssignmentSharePayload | null> => {
-    if (isDriverRefusedForThisOrder(driver)) {
-      window.alert(
-        `Este motorista recusou a ${orderDetails.code}. Selecione outro motorista da lista.`
-      );
-      return null;
-    }
-
     if (!isDriverAvailableForContact(driver)) {
       window.alert("Motorista indisponível para esta designação.");
       return null;
@@ -296,13 +315,6 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
   };
 
   const handleDirectAssign = async () => {
-    if (selectedDriver && isDriverRefusedForThisOrder(selectedDriver)) {
-      window.alert(
-        `Este motorista recusou a ${orderDetails.code}. Selecione outro motorista da lista.`
-      );
-      return;
-    }
-
     if (!selectedDriver || !isDriverAvailableForContact(selectedDriver)) {
       window.alert("Selecione um motorista disponível.");
       return;
@@ -447,10 +459,11 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
             <p className="mt-1 text-sm font-medium text-brand-700">{formatCurrency(amount)}</p>
           ) : null}
           <p className="mt-2 text-xs text-slate-500">
-            Envie por WhatsApp ou e-mail para o motorista aceitar ou recusar pelo link público (como
-            a proposta ao cliente). Se recusar, você poderá designar outro motorista. No WhatsApp, o
-            link da designação exibe o logo GRX na prévia (conversas novas).
-          </p>        </div>
+            Envie por WhatsApp ou e-mail para o motorista aceitar ou recusar pelo link público. Quem
+            já recusou aparece em vermelho — você pode selecionar e reenviar se o motorista mudar de
+            ideia.
+          </p>
+        </div>
 
         <div className="max-h-[50vh] overflow-y-auto px-5 py-4">
           {sharePayload ? (
@@ -499,89 +512,84 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
             <p className="text-sm text-slate-500">Nenhum motorista ativo cadastrado.</p>
           ) : (
             <ul className="space-y-2">
+              {rejectedDriverIds.length > 0 ? (
+                <li className="rounded-lg border border-red-200 bg-red-50/80 px-3 py-2 text-xs text-red-900">
+                  {rejectedDriverIds.length === 1
+                    ? "1 motorista recusou esta OS (destacado em vermelho). Você pode reenviar se conversar com ele novamente."
+                    : `${rejectedDriverIds.length} motoristas recusaram esta OS (destacados em vermelho). Você pode reenviar a qualquer um deles se necessário.`}
+                </li>
+              ) : null}
               {sortedDrivers.map((driver) => {
                 const refused = isDriverRefusedForThisOrder(driver);
                 const available = isDriverAvailableForContact(driver);
                 const label = driverAvailabilityLabel(driver);
                 const selected = selectedId === driver.id;
 
-                if (refused) {
-                  return (
-                    <li key={driver.id}>
-                      <div
-                        className="flex items-start gap-3 rounded-lg border-2 border-red-300 bg-red-50 px-3 py-3"
-                        role="note"
-                        aria-label={`${driver.name} recusou a ${orderDetails.code}`}
-                      >
-                        <DriverRefusedMark orderCode={orderDetails.code} />
-                        <span className="min-w-0 flex-1">
-                          <span className="flex flex-wrap items-center gap-2">
-                            <span className="font-medium text-red-900">
-                              {driver.code} — {driver.name}
-                            </span>
-                            <span className="rounded-full bg-red-200 px-2 py-0.5 text-xs font-semibold text-red-900">
-                              Recusou
-                            </span>
-                          </span>
-                          <span className="mt-1 block text-xs font-medium text-red-800">
-                            Observação: recusou a {orderDetails.code}
-                            {orderDetails.driver_assignment_rejected_at
-                              ? ` · ${new Date(orderDetails.driver_assignment_rejected_at).toLocaleString("pt-BR")}`
-                              : ""}
-                            . Não selecione novamente — escolha outro motorista abaixo.
-                          </span>
-                          {driver.phone ? (
-                            <span className="mt-0.5 block text-xs text-red-800/80">
-                              {driver.phone}
-                              {driver.email ? ` · ${driver.email}` : ""}
-                            </span>
-                          ) : null}
-                          {driver.address ? (
-                            <span className="mt-0.5 block text-xs text-red-800/70">
-                              {driver.address}
-                            </span>
-                          ) : null}
-                        </span>
-                      </div>
-                    </li>
-                  );
-                }
-
                 return (
                   <li key={driver.id}>
                     <label
                       className={cn(
                         "flex cursor-pointer items-start gap-3 rounded-lg border px-3 py-3 transition-colors",
-                        selected
-                          ? "border-brand-500 bg-brand-50"
-                          : "border-slate-200 hover:border-slate-300 hover:bg-slate-50",
-                        !available && "opacity-70"
+                        refused
+                          ? selected
+                            ? "border-red-500 bg-red-100 ring-1 ring-red-300"
+                            : "border-red-300 bg-red-50 hover:border-red-400 hover:bg-red-100/80"
+                          : selected
+                            ? "border-brand-500 bg-brand-50"
+                            : "border-slate-200 hover:border-slate-300 hover:bg-slate-50",
+                        !available && !refused && "opacity-70"
                       )}
                     >
-                      <input
-                        type="radio"
-                        name="assign-driver"
-                        value={driver.id}
-                        checked={selected}
-                        onChange={() => setSelectedId(driver.id)}
-                        className="mt-1"
-                      />
+                      <span className="mt-0.5 flex shrink-0 items-center gap-1.5">
+                        {refused ? <DriverRefusedMark orderCode={orderDetails.code} /> : null}
+                        <input
+                          type="radio"
+                          name="assign-driver"
+                          value={driver.id}
+                          checked={selected}
+                          onChange={() => setSelectedId(driver.id)}
+                        />
+                      </span>
                       <span className="min-w-0 flex-1">
-                        <span className="block font-medium text-slate-900">
-                          {driver.code} — {driver.name}
+                        <span className="flex flex-wrap items-center gap-2">
+                          <span
+                            className={cn(
+                              "font-medium",
+                              refused ? "text-red-900" : "text-slate-900"
+                            )}
+                          >
+                            {driver.code} — {driver.name}
+                          </span>
+                          {refused ? (
+                            <span className="rounded-full bg-red-200 px-2 py-0.5 text-xs font-semibold text-red-900">
+                              Recusou
+                            </span>
+                          ) : null}
                         </span>
                         <span
                           className={cn(
                             "text-xs",
-                            available ? "text-green-700" : "text-slate-500"
+                            refused
+                              ? "text-red-800"
+                              : available
+                                ? "text-green-700"
+                                : "text-slate-500"
                           )}
                         >
-                          {label}
+                          {refused ? `Recusou a ${orderDetails.code}` : label}
+                          {refused && orderDetails.driver_assignment_rejected_at
+                            ? ` · ${new Date(orderDetails.driver_assignment_rejected_at).toLocaleString("pt-BR")}`
+                            : ""}
                           {driver.phone ? ` · ${driver.phone}` : " · sem telefone"}
                           {driver.email ? ` · ${driver.email}` : ""}
                         </span>
                         {driver.address ? (
-                          <span className="mt-0.5 block text-xs text-slate-500">
+                          <span
+                            className={cn(
+                              "mt-0.5 block text-xs",
+                              refused ? "text-red-800/70" : "text-slate-500"
+                            )}
+                          >
                             {driver.address}
                           </span>
                         ) : null}
@@ -590,10 +598,19 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
                         {driver.phone ? (
                           <button
                             type="button"
-                            title="Enviar designação por WhatsApp"
+                            title={
+                              refused
+                                ? "Reenviar designação por WhatsApp"
+                                : "Enviar designação por WhatsApp"
+                            }
                             aria-label={`WhatsApp — ${driver.name}`}
-                            disabled={saving || !available}
-                            className="rounded-lg border border-green-300 bg-green-50 p-2 text-green-800 hover:bg-green-100 disabled:opacity-50"
+                            disabled={saving || (!available && !refused)}
+                            className={cn(
+                              "rounded-lg border p-2 disabled:opacity-50",
+                              refused
+                                ? "border-red-300 bg-white text-red-800 hover:bg-red-50"
+                                : "border-green-300 bg-green-50 text-green-800 hover:bg-green-100"
+                            )}
                             onMouseDown={(event) =>
                               handleDriverWhatsAppMouseDown(
                                 event,
@@ -608,10 +625,19 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
                         {driver.email ? (
                           <button
                             type="button"
-                            title="Enviar designação por e-mail"
+                            title={
+                              refused
+                                ? "Reenviar designação por e-mail"
+                                : "Enviar designação por e-mail"
+                            }
                             aria-label={`E-mail — ${driver.name}`}
-                            disabled={saving || !available}
-                            className="rounded-lg border border-sky-300 bg-sky-50 p-2 text-sky-800 hover:bg-sky-100 disabled:opacity-50"
+                            disabled={saving || (!available && !refused)}
+                            className={cn(
+                              "rounded-lg border p-2 disabled:opacity-50",
+                              refused
+                                ? "border-red-300 bg-white text-red-800 hover:bg-red-50"
+                                : "border-sky-300 bg-sky-50 text-sky-800 hover:bg-sky-100"
+                            )}
                             onClick={(event) => handleDriverEmailClick(event, driver)}
                           >
                             <MailIcon className="h-4 w-4" />

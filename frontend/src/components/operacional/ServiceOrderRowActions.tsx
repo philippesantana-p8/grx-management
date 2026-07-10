@@ -39,6 +39,7 @@ type Props = {
       driver_assignment_response: DriverAssignmentResponse;
       driver_id: string | null;
       proposed_driver_id: string | null;
+      driver_assignment_rejected_driver_ids?: string[];
     }
   ) => void;
 };
@@ -232,7 +233,7 @@ export function ServiceOrderRowActions({
     else setDriverRejecting(true);
 
     const supabase = createClient();
-    const { driverAssignmentResponse, driverId, proposedDriverId, error } =
+    const { driverAssignmentResponse, driverId, proposedDriverId, rejectedDriverIds, error } =
       await respondToDriverAssignment(supabase, token, action);
 
     if (isAccept) setDriverAccepting(false);
@@ -244,12 +245,21 @@ export function ServiceOrderRowActions({
     }
 
     const next = driverAssignmentResponse ?? (isAccept ? "accepted" : "rejected");
+    const refusedId = row.proposed_driver_id ?? driverId;
+    const mergedRejectedIds =
+      rejectedDriverIds.length > 0
+        ? rejectedDriverIds
+        : !isAccept && refusedId
+          ? [...new Set([...(row.driver_assignment_rejected_driver_ids ?? []), refusedId])]
+          : row.driver_assignment_rejected_driver_ids;
+
     onDriverAssignmentResponded?.(row.id, {
       driver_assignment_response: next,
       driver_id: isAccept ? driverId : null,
       proposed_driver_id: isAccept
         ? proposedDriverId ?? row.proposed_driver_id ?? driverId
         : proposedDriverId ?? row.proposed_driver_id,
+      driver_assignment_rejected_driver_ids: mergedRejectedIds,
     });
 
     window.alert(
