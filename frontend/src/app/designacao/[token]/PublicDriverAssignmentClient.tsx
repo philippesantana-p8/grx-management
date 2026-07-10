@@ -10,7 +10,7 @@ import {
   respondToDriverAssignment,
   type DriverAssignmentResponse,
 } from "@/lib/service-order-driver-assignment";
-import { formatServiceDate, resolveProposalAmount } from "@/lib/service-order-proposal";
+import { formatServiceDate } from "@/lib/service-order-proposal";
 import { createClient } from "@/lib/supabase/client";
 import { formatCurrency } from "@/lib/utils";
 import { SERVICE_ORDER_TYPE_LABELS, type ServiceOrder } from "@/types/database";
@@ -29,6 +29,8 @@ export function PublicDriverAssignmentClient({ token }: Props) {
   const [assignmentResponse, setAssignmentResponse] =
     useState<DriverAssignmentResponse>("pending");
   const [assignmentSentAt, setAssignmentSentAt] = useState<string | null>(null);
+  const [driverPayAmount, setDriverPayAmount] = useState<number | null>(null);
+  const [assistantPayAmount, setAssistantPayAmount] = useState<number | null>(null);
   const [canRespond, setCanRespond] = useState(false);
   const [responding, setResponding] = useState(false);
 
@@ -54,6 +56,8 @@ export function PublicDriverAssignmentClient({ token }: Props) {
     setDriverName(data.driver_name ?? null);
     setAssignmentResponse(data.driver_assignment_response ?? "pending");
     setAssignmentSentAt(data.driver_assignment_sent_at ?? null);
+    setDriverPayAmount(data.driver_assignment_pay_amount ?? null);
+    setAssistantPayAmount(data.driver_assignment_assistant_pay_amount ?? null);
     setCanRespond(Boolean(data.can_respond));
     setLoading(false);
   }, [supabase, token]);
@@ -83,7 +87,6 @@ export function PublicDriverAssignmentClient({ token }: Props) {
   if (loading) return <Loading />;
   if (error || !order) return <Alert variant="error">{error ?? "Designação indisponível."}</Alert>;
 
-  const amount = resolveProposalAmount(order as ServiceOrder);
   const linkNotActivated = !assignmentSentAt && assignmentResponse === "pending";
   const previouslyRejected = assignmentResponse === "rejected";
 
@@ -133,10 +136,27 @@ export function PublicDriverAssignmentClient({ token }: Props) {
                 </p>
               </div>
             )}
-            {amount != null && (
-              <p className="text-base font-semibold text-brand-700">
-                Valor: {formatCurrency(amount)}
-              </p>
+            {driverPayAmount != null && driverPayAmount > 0 && (
+              <div className="space-y-1 rounded-md border border-brand-100 bg-brand-50/60 p-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-brand-700">
+                  Pagamento
+                </p>
+                <p>
+                  <span className="text-slate-500">Valor do serviço (motorista):</span>{" "}
+                  <strong>{formatCurrency(driverPayAmount)}</strong>
+                </p>
+                {assistantPayAmount != null && assistantPayAmount > 0 ? (
+                  <>
+                    <p>
+                      <span className="text-slate-500">Valor do ajudante:</span>{" "}
+                      {formatCurrency(assistantPayAmount)}
+                    </p>
+                    <p className="font-semibold text-brand-700">
+                      Total: {formatCurrency(driverPayAmount + assistantPayAmount)}
+                    </p>
+                  </>
+                ) : null}
+              </div>
             )}
             {order.freight_toll_amount != null && order.freight_toll_amount > 0 && (
               <p>

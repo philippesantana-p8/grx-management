@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { MailIcon, WhatsAppIcon } from "@/components/icons/ShareIcons";
 import { Button } from "@/components/ui/Button";
 import { Loading } from "@/components/ui/Badge";
+import { Input } from "@/components/ui/Input";
 import { useCompany } from "@/lib/company-context";
 import {
   enrichDriversWithServiceOrders,
@@ -14,8 +15,11 @@ import { fetchActiveServiceOrdersByDriver } from "@/lib/driver-service-orders";
 import { assignServiceOrderDriver } from "@/lib/service-order-driver-api";
 import {
   buildPublicDriverAssignmentUrl,
+  formatMoneyInputValue,
+  parseBrazilianMoneyInput,
   prepareDriverAssignmentSharePayload,
   sendDriverAssignment,
+  type DriverAssignmentPayDetails,
   type DriverAssignmentSharePayload,
 } from "@/lib/service-order-driver-assignment";
 import {
@@ -44,13 +48,15 @@ type OrderSummary = Pick<
   | "proposed_driver_id"
   | "driver_assignment_rejected_at"
   | "driver_assignment_rejected_driver_ids"
+  | "driver_assignment_pay_amount"
+  | "driver_assignment_assistant_pay_amount"
 > & {
   driver_name?: string | null;
   proposed_driver_code?: string | null;
 };
 
 const ORDER_ASSIGNMENT_FIELDS =
-  "id, code, plate, client_name, service_type, service_date, freight_origin_address, freight_destination_address, freight_distance_km, freight_agreed_amount, freight_toll_amount, service_amount, driver_assignment_response, proposed_driver_id, driver_assignment_rejected_at, driver_assignment_rejected_driver_ids";
+  "id, code, plate, client_name, service_type, service_date, freight_origin_address, freight_destination_address, freight_distance_km, freight_agreed_amount, freight_toll_amount, service_amount, driver_assignment_response, proposed_driver_id, driver_assignment_rejected_at, driver_assignment_rejected_driver_ids, driver_assignment_pay_amount, driver_assignment_assistant_pay_amount";
 
 const ORDER_ASSIGNMENT_FIELDS_LEGACY =
   "id, code, plate, client_name, service_type, service_date, freight_origin_address, freight_destination_address, freight_distance_km, freight_agreed_amount, freight_toll_amount, service_amount, driver_assignment_response, proposed_driver_id, driver_assignment_rejected_at";
@@ -108,11 +114,12 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
 
   const [sharePayload, setSharePayload] = useState<DriverAssignmentSharePayload | null>(null);
   const [shareDriverName, setShareDriverName] = useState("");
+  const [driverPayInput, setDriverPayInput] = useState("");
+  const [assistantPayInput, setAssistantPayInput] = useState("");
 
   const secondaryActionClass =
     "inline-flex items-center justify-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50";
   const companyName = company?.trade_name || company?.name || "GRX Transportes e Logística";
-  const amount = orderDetails.freight_agreed_amount ?? orderDetails.service_amount;
   const selectedDriver = drivers.find((d) => d.id === selectedId);
   const rejectedDriverIds = orderDetails.driver_assignment_rejected_driver_ids ?? [];
 
@@ -134,6 +141,29 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
   const resetShareStep = () => {
     setSharePayload(null);
     setShareDriverName("");
+  };
+
+  const resolvePayDetails = (): DriverAssignmentPayDetails | null => {
+    const driverPay = parseBrazilianMoneyInput(driverPayInput);
+    if (driverPay == null || driverPay <= 0) {
+      window.alert("Informe o valor a pagar ao motorista (ex.: 120 ou 120,50).");
+      return null;
+    }
+
+    const assistantRaw = assistantPayInput.trim();
+    let assistantPay: number | null = null;
+    if (assistantRaw) {
+      assistantPay = parseBrazilianMoneyInput(assistantRaw);
+      if (assistantPay == null || assistantPay < 0) {
+        window.alert("Valor do ajudante inválido.");
+        return null;
+      }
+    }
+
+    return {
+      driverPayAmount: driverPay,
+      assistantPayAmount: assistantPay && assistantPay > 0 ? assistantPay : null,
+    };
   };
 
   const loadDrivers = useCallback(async () => {
@@ -251,9 +281,26 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
     if (!open) return;
     setSelectedId("");
     resetShareStep();
+    setDriverPayInput(formatMoneyInputValue(order.driver_assignment_pay_amount));
+    setAssistantPayInput(formatMoneyInputValue(order.driver_assignment_assistant_pay_amount));
     void refetchOrderAssignment();
     void loadDrivers();
-  }, [open, loadDrivers, refetchOrderAssignment]);
+  }, [open, loadDrivers, order.driver_assignment_assistant_pay_amount, order.driver_assignment_pay_amount, refetchOrderAssignment]);
+
+  useEffect(() => {
+    if (!open || sharePayload) return;
+    if (orderDetails.driver_assignment_pay_amount != null) {
+      setDriverPayInput(formatMoneyInputValue(orderDetails.driver_assignment_pay_amount));
+    }
+    if (orderDetails.driver_assignment_assistant_pay_amount != null) {
+      setAssistantPayInput(formatMoneyInputValue(orderDetails.driver_assignment_assistant_pay_amount));
+    }
+  }, [
+    open,
+    sharePayload,
+    orderDetails.driver_assignment_assistant_pay_amount,
+    orderDetails.driver_assignment_pay_amount,
+  ]);
 
   useEffect(() => {
     if (!open) return;
@@ -265,7 +312,8 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
   }, [open, onClose]);
 
   const registerAssignmentShareForDriver = async (
-    driver: DriverListRow
+    driver: DriverListRow,
+    payDetails?: DriverAssignmentPayDetails | null
   ): Promise<DriverAssignmentSharePayload | null> => {
     if (!isDriverAvailableForContact(driver)) {
       window.alert("Motorista indisponível para esta designação.");
@@ -279,16 +327,25 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
       return null;
     }
 
+    const resolvedPay = payDetails ?? resolvePayDetails();
+    if (!resolvedPay) return null;
+
     setSelectedId(driver.id);
     setSaving(true);
-    const { token, error: sendError } = await sendDriverAssignment(supabase, order.id, driver.id);
+
+    const { token, error: sendError } = await sendDriverAssignment(
+      supabase,
+      order.id,
+      driver.id,
+      resolvedPay
+    );
     if (sendError || !token) {
       setSaving(false);
       window.alert(sendError ?? "Não foi possível registrar a designação.");
       return null;
     }
 
-    const payload = await buildSharePayloadForDriver(driver, token);
+    const payload = await buildSharePayloadForDriver(driver, token, resolvedPay);
     setSaving(false);
     if (!payload) return null;
 
@@ -300,7 +357,8 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
 
   const buildSharePayloadForDriver = async (
     driver: DriverListRow,
-    token: string
+    token: string,
+    payDetails: DriverAssignmentPayDetails
   ): Promise<DriverAssignmentSharePayload | null> => {
     const assignmentUrl = buildPublicDriverAssignmentUrl(token);
     return prepareDriverAssignmentSharePayload(
@@ -309,6 +367,7 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
       companyName,
       driver.name,
       assignmentUrl,
+      payDetails,
       driver.phone
     );
   };
@@ -320,15 +379,18 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
       return sharePayload;
     }
 
+    const payDetails = resolvePayDetails();
+    if (!payDetails) return null;
+
     const refused = isDriverRefusedForThisOrder(driver);
     const confirmed = window.confirm(
       refused
-        ? `Reenviar designação da ${orderDetails.code} para ${driver.name}?\n\nO link ficará ativo para o motorista aceitar ou recusar. Se fechar o WhatsApp sem enviar, use «Cancelar designação» na lista da OS.`
-        : `Registrar envio da designação da ${orderDetails.code} para ${driver.name}?\n\nO link ficará ativo para o motorista aceitar ou recusar. Se fechar o WhatsApp sem enviar, use «Cancelar designação» na lista da OS.`
+        ? `Reenviar designação da ${orderDetails.code} para ${driver.name}?\n\nValor motorista: ${formatCurrency(payDetails.driverPayAmount)}${payDetails.assistantPayAmount ? `\nValor ajudante: ${formatCurrency(payDetails.assistantPayAmount)}` : ""}\n\nO link ficará ativo para o motorista aceitar ou recusar. Se fechar o WhatsApp sem enviar, use «Cancelar designação» na lista da OS.`
+        : `Registrar envio da designação da ${orderDetails.code} para ${driver.name}?\n\nValor motorista: ${formatCurrency(payDetails.driverPayAmount)}${payDetails.assistantPayAmount ? `\nValor ajudante: ${formatCurrency(payDetails.assistantPayAmount)}` : ""}\n\nO link ficará ativo para o motorista aceitar ou recusar. Se fechar o WhatsApp sem enviar, use «Cancelar designação» na lista da OS.`
     );
     if (!confirmed) return null;
 
-    return registerAssignmentShareForDriver(driver);
+    return registerAssignmentShareForDriver(driver, payDetails);
   };
 
   const resolveSharePayloadForDriver = async (
@@ -364,7 +426,9 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
       window.alert("Selecione um motorista.");
       return false;
     }
-    const payload = await registerAssignmentShareForDriver(selectedDriver);
+    const payDetails = resolvePayDetails();
+    if (!payDetails) return false;
+    const payload = await registerAssignmentShareForDriver(selectedDriver, payDetails);
     return Boolean(payload);
   };
 
@@ -481,16 +545,39 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
               ) : null}
             </div>
           )}
-          {amount != null ? (
-            <p className="mt-1 text-sm font-medium text-brand-700">{formatCurrency(amount)}</p>
-          ) : null}
           <p className="mt-2 text-xs text-slate-500">
+            Informe os valores a pagar ao motorista (e ao ajudante, se houver) antes de enviar.
             Ao clicar em WhatsApp, e-mail ou «Gerar link e enviar», confirme o registro do envio —
             só então o link fica ativo para o motorista aceitar ou recusar. Quem já recusou aparece
             em vermelho e pode ser reenviado. Se fechar o WhatsApp sem enviar, use «Cancelar
             designação» na lista.
           </p>
         </div>
+
+        {!sharePayload ? (
+          <div className="border-b border-slate-100 px-5 py-4">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Input
+                label="Valor a pagar ao motorista *"
+                type="text"
+                inputMode="decimal"
+                placeholder="Ex.: 120 ou 120,50"
+                value={driverPayInput}
+                onChange={(event) => setDriverPayInput(event.target.value)}
+                disabled={saving}
+              />
+              <Input
+                label="Valor do ajudante (opcional)"
+                type="text"
+                inputMode="decimal"
+                placeholder="Ex.: 50"
+                value={assistantPayInput}
+                onChange={(event) => setAssistantPayInput(event.target.value)}
+                disabled={saving}
+              />
+            </div>
+          </div>
+        ) : null}
 
         <div className="max-h-[50vh] overflow-y-auto px-5 py-4">
           {sharePayload ? (
@@ -702,6 +789,7 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
                 saving ||
                 loading ||
                 !selectedId ||
+                !driverPayInput.trim() ||
                 (!selectedDriver?.phone?.trim() && !selectedDriver?.email?.trim())
               }
               title="Registra o envio da designação e abre opções de compartilhamento"

@@ -4,7 +4,6 @@ import {
   getPublicAppOrigin,
   isWindowsWhatsAppDesktop,
   prepareEmailShareBundle,
-  resolveProposalAmount,
   buildWhatsAppShareLinks,
   type EmailShareBundle,
   type WhatsAppShareLinks,
@@ -20,6 +19,8 @@ export type PublicDriverAssignmentPayload = {
   driver_name?: string | null;
   driver_assignment_response?: DriverAssignmentResponse;
   driver_assignment_sent_at?: string | null;
+  driver_assignment_pay_amount?: number | null;
+  driver_assignment_assistant_pay_amount?: number | null;
   can_respond?: boolean;
   order?: Pick<
     ServiceOrder,
@@ -37,6 +38,24 @@ export type PublicDriverAssignmentPayload = {
   >;
 };
 
+export type DriverAssignmentPayDetails = {
+  driverPayAmount: number;
+  assistantPayAmount?: number | null;
+};
+
+export function parseBrazilianMoneyInput(value: string): number | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const normalized = trimmed.replace(/\./g, "").replace(",", ".");
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+export function formatMoneyInputValue(value: number | null | undefined): string {
+  if (value == null || !Number.isFinite(value)) return "";
+  return String(value).replace(".", ",");
+}
+
 export function buildPublicDriverAssignmentUrl(token: string): string {
   const origin = getPublicAppOrigin();
   return `${origin}/designacao/${token}`;
@@ -52,9 +71,7 @@ export type DriverAssignmentOrderSummary = Pick<
   | "freight_origin_address"
   | "freight_destination_address"
   | "freight_distance_km"
-  | "freight_agreed_amount"
   | "freight_toll_amount"
-  | "service_amount"
 >;
 
 const DRIVER_ASSIGNMENT_INTRO =
@@ -78,12 +95,35 @@ function buildDriverAssignmentGreeting(driverName: string, compact = false): str
   return `Olá, ${firstName},${breakLine}Tudo bem?${breakLine}${DRIVER_ASSIGNMENT_INTRO}`;
 }
 
+function appendDriverAssignmentPayDetails(
+  lines: string[],
+  payDetails: DriverAssignmentPayDetails,
+  options?: { bold?: boolean }
+): void {
+  const bold = options?.bold ?? false;
+  const driverLine = bold
+    ? `*Valor do serviço (motorista): ${formatCurrency(payDetails.driverPayAmount)}*`
+    : `Valor do serviço (motorista): ${formatCurrency(payDetails.driverPayAmount)}`;
+
+  lines.push("", bold ? "*Pagamento*" : "Pagamento", driverLine);
+
+  const assistant = payDetails.assistantPayAmount;
+  if (assistant != null && assistant > 0) {
+    lines.push(`Valor do ajudante: ${formatCurrency(assistant)}`);
+    lines.push(
+      bold
+        ? `*Total: ${formatCurrency(payDetails.driverPayAmount + assistant)}*`
+        : `Total: ${formatCurrency(payDetails.driverPayAmount + assistant)}`
+    );
+  }
+}
+
 function appendDriverAssignmentOrderDetails(
   lines: string[],
   order: DriverAssignmentOrderSummary,
+  payDetails: DriverAssignmentPayDetails,
   options?: { boldRoute?: boolean }
 ): void {
-  const amount = resolveProposalAmount(order as ServiceOrder);
   const routeLabel = options?.boldRoute ? "*Rota*" : "Rota";
 
   lines.push(
@@ -110,12 +150,9 @@ function appendDriverAssignmentOrderDetails(
     }
   }
 
-  if (amount != null) {
-    lines.push(
-      "",
-      options?.boldRoute ? `*Valor: ${formatCurrency(amount)}*` : `Valor: ${formatCurrency(amount)}`
-    );
-  }
+  appendDriverAssignmentPayDetails(lines, payDetails, {
+    bold: options?.boldRoute,
+  });
 }
 
 function appendDriverAssignmentClosingWithLink(lines: string[], assignmentUrl: string): void {
@@ -129,6 +166,7 @@ export function buildDriverAssignmentWhatsAppText(
   companyName: string,
   driverName: string,
   assignmentUrl: string,
+  payDetails: DriverAssignmentPayDetails,
   options?: { compact?: boolean }
 ): string {
   const compact = options?.compact ?? false;
@@ -138,7 +176,7 @@ export function buildDriverAssignmentWhatsAppText(
     `*Designação OS ${order.code}* — ${companyName}`,
   ];
 
-  appendDriverAssignmentOrderDetails(lines, order, { boldRoute: true });
+  appendDriverAssignmentOrderDetails(lines, order, payDetails, { boldRoute: true });
   appendDriverAssignmentClosingWithLink(lines, assignmentUrl);
   lines.push("", "GRX Transportes e Logística");
 
@@ -149,13 +187,15 @@ export function buildDriverAssignmentWhatsAppUrlText(
   order: DriverAssignmentOrderSummary,
   companyName: string,
   driverName: string,
-  assignmentUrl: string
+  assignmentUrl: string,
+  payDetails: DriverAssignmentPayDetails
 ): string {
   return buildDriverAssignmentWhatsAppText(
     order,
     companyName,
     driverName,
     assignmentUrl,
+    payDetails,
     { compact: true }
   );
 }
@@ -164,7 +204,8 @@ export function buildDriverAssignmentEmailBody(
   order: DriverAssignmentOrderSummary,
   companyName: string,
   driverName: string,
-  assignmentUrl: string
+  assignmentUrl: string,
+  payDetails: DriverAssignmentPayDetails
 ): string {
   const lines = [
     buildDriverAssignmentGreeting(driverName),
@@ -172,7 +213,7 @@ export function buildDriverAssignmentEmailBody(
     `Designação OS ${order.code} — ${companyName}`,
   ];
 
-  appendDriverAssignmentOrderDetails(lines, order);
+  appendDriverAssignmentOrderDetails(lines, order, payDetails);
   appendDriverAssignmentClosingWithLink(lines, assignmentUrl);
   lines.push("", ...DRIVER_ASSIGNMENT_EMAIL_SIGNOFF, "", "GRX Transportes e Logística");
 
@@ -184,9 +225,16 @@ export async function prepareDriverAssignmentEmailBundle(
   order: DriverAssignmentOrderSummary,
   companyName: string,
   driverName: string,
-  assignmentUrl: string
+  assignmentUrl: string,
+  payDetails: DriverAssignmentPayDetails
 ): Promise<EmailShareBundle> {
-  const body = buildDriverAssignmentEmailBody(order, companyName, driverName, assignmentUrl);
+  const body = buildDriverAssignmentEmailBody(
+    order,
+    companyName,
+    driverName,
+    assignmentUrl,
+    payDetails
+  );
   const subject = `Designação OS ${order.code} — ${companyName}`;
 
   return prepareEmailShareBundle(subject, body, assignmentUrl, {
@@ -201,14 +249,16 @@ export async function openDriverAssignmentEmailShare(
   order: DriverAssignmentOrderSummary,
   companyName: string,
   driverName: string,
-  assignmentUrl: string
+  assignmentUrl: string,
+  payDetails: DriverAssignmentPayDetails
 ) {
   const bundle = await prepareDriverAssignmentEmailBundle(
     driverEmail,
     order,
     companyName,
     driverName,
-    assignmentUrl
+    assignmentUrl,
+    payDetails
   );
   const { launchPreparedEmailShare } = await import("@/lib/service-order-proposal");
   return launchPreparedEmailShare(bundle, {
@@ -230,19 +280,22 @@ export async function prepareDriverAssignmentSharePayload(
   companyName: string,
   driverName: string,
   assignmentUrl: string,
+  payDetails: DriverAssignmentPayDetails,
   driverPhone?: string | null
 ): Promise<DriverAssignmentSharePayload> {
   const whatsappMessage = buildDriverAssignmentWhatsAppText(
     order,
     companyName,
     driverName,
-    assignmentUrl
+    assignmentUrl,
+    payDetails
   );
   const urlMessage = buildDriverAssignmentWhatsAppUrlText(
     order,
     companyName,
     driverName,
-    assignmentUrl
+    assignmentUrl,
+    payDetails
   );
   const whatsappLinks = buildWhatsAppShareLinks(urlMessage, driverPhone);
 
@@ -253,7 +306,8 @@ export async function prepareDriverAssignmentSharePayload(
       order,
       companyName,
       driverName,
-      assignmentUrl
+      assignmentUrl,
+      payDetails
     );
   }
 
@@ -320,7 +374,8 @@ export async function resetDriverAssignment(
 export async function sendDriverAssignment(
   supabase: SupabaseClient,
   orderId: string,
-  driverId: string
+  driverId: string,
+  payDetails: DriverAssignmentPayDetails
 ): Promise<{
   token: string | null;
   sentAt: string | null;
@@ -330,6 +385,8 @@ export async function sendDriverAssignment(
   const { data, error } = await supabase.rpc("send_driver_assignment", {
     p_order_id: orderId,
     p_driver_id: driverId,
+    p_driver_pay_amount: payDetails.driverPayAmount,
+    p_assistant_pay_amount: payDetails.assistantPayAmount ?? null,
   });
 
   if (error) {

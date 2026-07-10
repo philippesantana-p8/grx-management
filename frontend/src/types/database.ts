@@ -148,6 +148,8 @@ export type ServiceOrder = {
   driver_assignment_accepted_at: string | null;
   driver_assignment_rejected_at: string | null;
   driver_assignment_rejected_driver_ids: string[];
+  driver_assignment_pay_amount: number | null;
+  driver_assignment_assistant_pay_amount: number | null;
   service_follow_up_count: number;
   service_last_follow_up_at: string | null;
   service_completed_at: string | null;
