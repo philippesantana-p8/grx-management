@@ -1,4 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { uploadEntityAttachment } from "@/lib/attachments";
+
+export const DRIVER_PAYMENT_PROOF_DESCRIPTION = "Comprovante pagamento motorista";
 
 export type DriverPaymentRow = {
   id: string;
@@ -15,6 +18,7 @@ export type DriverPaymentRow = {
   driver_assignment_pay_amount: number;
   driver_assignment_assistant_pay_amount: number | null;
   driver_payment_paid_at: string | null;
+  payment_proof_count: number;
 };
 
 export type DriverPaymentFilter = "all" | "pending" | "paid";
@@ -72,6 +76,48 @@ async function fetchDriversWithBanking(
   return byId;
 }
 
+async function fetchPaymentProofCountsByOrderId(
+  supabase: SupabaseClient,
+  companyId: string,
+  orderIds: string[]
+): Promise<Map<string, number>> {
+  const counts = new Map<string, number>();
+  if (!orderIds.length) return counts;
+
+  const { data, error } = await supabase
+    .from("attachments")
+    .select("entity_id")
+    .eq("company_id", companyId)
+    .eq("entity_type", "service_order")
+    .eq("description", DRIVER_PAYMENT_PROOF_DESCRIPTION)
+    .in("entity_id", orderIds);
+
+  if (error) return counts;
+
+  for (const item of data ?? []) {
+    const orderId = item.entity_id as string;
+    counts.set(orderId, (counts.get(orderId) ?? 0) + 1);
+  }
+
+  return counts;
+}
+
+export async function uploadDriverPaymentProof(params: {
+  companyId: string;
+  orderId: string;
+  file: File;
+}): Promise<{ error: string | null }> {
+  const { error } = await uploadEntityAttachment({
+    companyId: params.companyId,
+    entityType: "service_order",
+    entityId: params.orderId,
+    file: params.file,
+    description: DRIVER_PAYMENT_PROOF_DESCRIPTION,
+  });
+
+  return { error };
+}
+
 export async function fetchDriverPaymentRows(
   supabase: SupabaseClient,
   companyId: string
@@ -105,6 +151,8 @@ export async function fetchDriverPaymentRows(
     ...new Set((data ?? []).map((row) => row.driver_id as string).filter(Boolean)),
   ];
   const driversById = await fetchDriversWithBanking(supabase, driverIds);
+  const orderIds = (data ?? []).map((row) => row.id as string);
+  const proofCounts = await fetchPaymentProofCountsByOrderId(supabase, companyId, orderIds);
 
   let schemaWarning: string | null = null;
   if (driverIds.length && driversById.size === 0) {
@@ -137,6 +185,7 @@ export async function fetchDriverPaymentRows(
             ? Number(row.driver_assignment_assistant_pay_amount)
             : null,
         driver_payment_paid_at: (row.driver_payment_paid_at as string | null) ?? null,
+        payment_proof_count: proofCounts.get(row.id as string) ?? 0,
       };
     })
     .filter(Boolean) as DriverPaymentRow[];

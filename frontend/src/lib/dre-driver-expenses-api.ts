@@ -8,6 +8,9 @@ export type DreDriverExpenseRow = {
   driver_name: string | null;
   driver_code: string | null;
   service_order_code: string | null;
+  pix_key: string | null;
+  bank_code: string | null;
+  bank_account: string | null;
   description: string | null;
 };
 
@@ -106,16 +109,29 @@ export async function fetchDreDriverExpenses(
     }
   }
 
-  const driverById = new Map<string, { code: string; name: string }>();
+  const driverById = new Map<
+    string,
+    { code: string; name: string; pix_key: string | null; bank_code: string | null; bank_account: string | null }
+  >();
   if (driverIds.length) {
-    const { data: drivers } = await supabase
+    const full = await supabase
       .from("drivers")
-      .select("id, code, name")
+      .select("id, code, name, pix_key, bank_code, bank_account")
       .in("id", driverIds);
+
+    let drivers = full.data;
+    if (full.error?.message.includes("pix_key")) {
+      const basic = await supabase.from("drivers").select("id, code, name").in("id", driverIds);
+      drivers = (basic.data ?? []).map((d) => ({ ...d, pix_key: null, bank_code: null, bank_account: null }));
+    }
+
     for (const driver of drivers ?? []) {
       driverById.set(driver.id as string, {
         code: driver.code as string,
         name: driver.name as string,
+        pix_key: (driver.pix_key as string | null) ?? null,
+        bank_code: (driver.bank_code as string | null) ?? null,
+        bank_account: (driver.bank_account as string | null) ?? null,
       });
     }
   }
@@ -150,6 +166,9 @@ export async function fetchDreDriverExpenses(
       driver_code: driver?.code ?? null,
       service_order_code:
         (orderId && orderCodeById.get(orderId)) ?? parseOrderCodeFromDescription(description),
+      pix_key: driver?.pix_key ?? null,
+      bank_code: driver?.bank_code ?? null,
+      bank_account: driver?.bank_account ?? null,
       description,
     });
   }
