@@ -75,6 +75,12 @@ export type Driver = {
   bank_account: string | null;
 };
 
+export type ServiceOrderPassenger = {
+  name: string;
+  document_number: string;
+  document_issuer?: string;
+};
+
 export type ServiceOrder = {
   id: string;
   company_id: string;
@@ -160,6 +166,10 @@ export type ServiceOrder = {
   service_follow_up_count: number;
   service_last_follow_up_at: string | null;
   service_completed_at: string | null;
+  passengers: ServiceOrderPassenger[];
+  flight_data: string | null;
+  monitoring_contact: string | null;
+  driver_voucher_generated_at: string | null;
 };
 
 export type DriverAssignmentResponse = "pending" | "accepted" | "rejected";

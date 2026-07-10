@@ -2,6 +2,7 @@
 
 import { CNH_CATEGORIES } from "@/lib/cnh";
 import type { DriverAvailabilityFilter } from "@/lib/driver-filters";
+import { glassField, glassFilterPanel } from "@/lib/liquid-glass-styles";
 
 type Props = {
   category: string;
@@ -21,11 +22,11 @@ export function DriverListFilters({
   onAvailabilityChange,
 }: Props) {
   return (
-    <div className="flex flex-wrap items-end gap-4 rounded-lg border border-slate-200 bg-white p-4">
+    <div className={`flex flex-wrap items-end gap-4 ${glassFilterPanel()}`}>
       <label className="block min-w-[160px] space-y-1">
         <span className="text-sm font-medium text-slate-700">Categoria CNH</span>
         <select
-          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+          className={glassField()}
           value={category}
           onChange={(e) => onCategoryChange(e.target.value)}
         >
@@ -41,7 +42,7 @@ export function DriverListFilters({
       <label className="block min-w-[220px] space-y-1">
         <span className="text-sm font-medium text-slate-700">Disponibilidade</span>
         <select
-          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+          className={glassField()}
           value={availability}
           onChange={(e) => onAvailabilityChange(e.target.value as DriverAvailabilityFilter)}
         >

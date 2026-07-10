@@ -8,6 +8,8 @@ import { FreightCalculatorPanel } from "@/components/operacional/FreightCalculat
 import { FreightPerDiemPanel } from "@/components/operacional/FreightPerDiemPanel";
 import { ServiceCategoryPicker } from "@/components/operacional/ServiceCategoryPicker";
 import { ServiceOrderListFilters } from "@/components/operacional/ServiceOrderListFilters";
+import { ServiceOrderOperationalPanel } from "@/components/operacional/ServiceOrderOperationalPanel";
+import { ServiceOrderPassengersPanel } from "@/components/operacional/ServiceOrderPassengersPanel";
 import { ServiceOrderRowActions } from "@/components/operacional/ServiceOrderRowActions";
 import { Badge, Alert } from "@/components/ui/Badge";
 import { nextCode } from "@/lib/codes";
@@ -44,6 +46,7 @@ import {
   type ServiceOrderListRow,
 } from "@/lib/service-order-filters";
 import { formatCurrency, normalizePlate } from "@/lib/utils";
+import { normalizePassengers } from "@/lib/service-order-passengers";
 import type { DreAccount, Driver, DriverAssignmentResponse, Vehicle } from "@/types/database";
 import {
   SERVICE_ORDER_STATUS,
@@ -505,7 +508,13 @@ function OrdensServicoPageContent() {
             service_amount: item?.service_amount ?? "",
             status: item?.status ?? "Aberto",
             entry_date: item?.entry_date ?? "",
+            entry_time: item?.entry_time ?? "",
             exit_date: item?.exit_date ?? "",
+            exit_time: item?.exit_time ?? "",
+            attendant: item?.attendant ?? "",
+            flight_data: item?.flight_data ?? "",
+            monitoring_contact: item?.monitoring_contact ?? "",
+            passengers: item?.passengers ?? [],
             notes: item?.notes ?? "",
             freight_origin_address: item?.freight_origin_address ?? "",
             freight_destination_address: item?.freight_destination_address ?? "",
@@ -608,11 +617,18 @@ function OrdensServicoPageContent() {
               "client_name",
               "phone",
               "entry_date",
+              "entry_time",
               "exit_date",
+              "exit_time",
+              "attendant",
+              "flight_data",
+              "monitoring_contact",
               "notes",
             ]) {
               if (data[key] === "") data[key] = null;
             }
+
+            data.passengers = normalizePassengers(data.passengers);
 
             await onSave(data);
           }}
@@ -728,8 +744,14 @@ function OrdensServicoPageContent() {
                     { name: "service_amount", label: "Valor (R$)", type: "number" },
                     { name: "client_name", label: "Cliente" },
                     { name: "phone", label: "Telefone" },
-                    { name: "notes", label: "Observações", type: "textarea", colSpan: 2 },
                   ]}
+                />
+
+                <ServiceOrderOperationalPanel form={form} set={set} />
+
+                <ServiceOrderPassengersPanel
+                  passengers={form.passengers}
+                  onChange={(next) => set("passengers", next)}
                 />
 
                 {vehicleOptions.length === 0 && (

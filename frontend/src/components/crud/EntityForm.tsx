@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent, type ReactNode } from "react";
 import { Button } from "@/components/ui/Button";
+import { glassField } from "@/lib/liquid-glass-styles";
 
 type EntityFormRenderProps = {
   form: Record<string, unknown>;
@@ -71,7 +72,7 @@ export function FormFields({
             <label className="block space-y-1">
               <span className="text-sm font-medium text-slate-700">{field.label}</span>
               <select
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                className={glassField()}
                 value={String(form[field.name] ?? "")}
                 onChange={(e) => set(field.name, e.target.value)}
                 required={field.required}
@@ -94,7 +95,7 @@ export function FormFields({
             <label className="block space-y-1">
               <span className="text-sm font-medium text-slate-700">{field.label}</span>
               <textarea
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                className={glassField()}
                 rows={3}
                 value={String(form[field.name] ?? "")}
                 onChange={(e) => set(field.name, e.target.value)}
@@ -105,7 +106,7 @@ export function FormFields({
               <span className="text-sm font-medium text-slate-700">{field.label}</span>
               <input
                 type="date"
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                className={glassField()}
                 value={String(form[field.name] ?? "")}
                 onChange={(e) => set(field.name, e.target.value)}
                 required={field.required}
@@ -118,11 +119,7 @@ export function FormFields({
                 type={field.type ?? "text"}
                 readOnly={field.readOnly}
                 placeholder={field.placeholder}
-                className={`w-full rounded-lg border px-3 py-2 text-sm ${
-                  field.readOnly
-                    ? "border-slate-200 bg-slate-50 text-slate-700"
-                    : "border-slate-300"
-                }`}
+                className={`${glassField()} ${field.readOnly ? "opacity-80" : ""}`}
                 value={String(form[field.name] ?? "")}
                 onChange={(e) =>
                   set(field.name, field.type === "number" ? Number(e.target.value) : e.target.value)

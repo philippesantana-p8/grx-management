@@ -7,6 +7,7 @@ import { MailIcon, WhatsAppIcon } from "@/components/icons/ShareIcons";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { cn } from "@/lib/utils";
+import { glassAction } from "@/lib/liquid-glass-styles";
 import { formatServiceCategories } from "@/lib/service-order-categories";
 import {
   billablePerDiemTotal,
@@ -121,11 +122,7 @@ export function ServiceOrderProposalView({
   const whatsappHref = whatsappShare?.primaryHref ?? null;
   const whatsappAppHref = whatsappShare?.desktopHref ?? null;
 
-  const secondaryActionClass =
-    "inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-50";
-
-  const shareIconButtonClass =
-    "inline-flex items-center justify-center rounded-lg border p-2.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed";
+  const shareIconBase = "h-10 w-10 shrink-0 p-0";
 
   const handleWhatsAppAnchorMouseDown = () => {
     if (!whatsappShare) return;
@@ -287,8 +284,8 @@ export function ServiceOrderProposalView({
                 title="Enviar no WhatsApp"
                 aria-label="Enviar proposta no WhatsApp"
                 className={cn(
-                  shareIconButtonClass,
-                  "border-green-300 bg-green-50 text-green-800 hover:bg-green-100",
+                  glassAction("green", true),
+                  shareIconBase,
                   markingSent && "pointer-events-none opacity-50"
                 )}
                 onMouseDown={handleWhatsAppAnchorMouseDown}
@@ -302,10 +299,7 @@ export function ServiceOrderProposalView({
                 title="Enviar no WhatsApp"
                 aria-label="Enviar proposta no WhatsApp"
                 disabled={markingSent}
-                className={cn(
-                  shareIconButtonClass,
-                  "border-green-300 bg-green-50 text-green-800 hover:bg-green-100"
-                )}
+                className={cn(glassAction("green", true), shareIconBase)}
                 onClick={registerThenWhatsApp}
               >
                 <WhatsAppIcon className="h-5 w-5" />
@@ -315,10 +309,7 @@ export function ServiceOrderProposalView({
               type="button"
               title="Enviar por e-mail"
               aria-label="Enviar proposta por e-mail"
-              className={cn(
-                shareIconButtonClass,
-                "border-sky-300 bg-sky-50 text-sky-800 hover:bg-sky-100"
-              )}
+              className={cn(glassAction("sky", true), shareIconBase)}
               onClick={shareEmail}
             >
               <MailIcon className="h-5 w-5" />

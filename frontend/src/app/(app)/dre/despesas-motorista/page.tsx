@@ -10,6 +10,7 @@ import { fetchDriverPaymentRows, summarizeDriverPayments } from "@/lib/driver-pa
 import { useCompany } from "@/lib/company-context";
 import { createClient } from "@/lib/supabase/client";
 import { formatCurrency } from "@/lib/utils";
+import { glassField, glassFilterPanel, glassStatCard } from "@/lib/liquid-glass-styles";
 
 function formatDate(value: string): string {
   if (!value) return "—";
@@ -90,7 +91,7 @@ export default function DreDespesasMotoristaPage() {
             <span className="font-medium text-slate-700">Mês (lançamentos pagos)</span>
             <input
               type="month"
-              className="block rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              className={glassField()}
               value={`${year}-${String(month).padStart(2, "0")}`}
               onChange={(event) => {
                 const [y, m] = event.target.value.split("-");
@@ -126,19 +127,19 @@ export default function DreDespesasMotoristaPage() {
             </p>
           </div>
           <div className="grid gap-3 sm:grid-cols-3">
-            <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+            <div className={glassStatCard("amber")}>
               <p className="text-xs font-semibold uppercase tracking-wide text-amber-800">Motorista (a pagar)</p>
               <p className="mt-1 text-2xl font-semibold text-amber-950">
                 {formatCurrency(pendingSummary.motoristaTotal)}
               </p>
             </div>
-            <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+            <div className={glassStatCard("amber")}>
               <p className="text-xs font-semibold uppercase tracking-wide text-amber-800">Ajudante (a pagar)</p>
               <p className="mt-1 text-2xl font-semibold text-amber-950">
                 {formatCurrency(pendingSummary.ajudanteTotal)}
               </p>
             </div>
-            <div className="rounded-lg border border-brand-300 bg-brand-50 p-4">
+            <div className={glassStatCard("brand")}>
               <p className="text-xs font-semibold uppercase tracking-wide text-brand-800">Total (a pagar)</p>
               <p className="mt-1 text-2xl font-semibold text-brand-950">
                 {formatCurrency(pendingSummary.combinedTotal)}
@@ -147,7 +148,7 @@ export default function DreDespesasMotoristaPage() {
           </div>
         </section>
 
-        <section className="space-y-3 rounded-xl border border-brand-200 bg-brand-50/40 p-4">
+        <section className={`space-y-3 p-4 ${glassFilterPanel()}`}>
           <div>
             <h2 className="text-sm font-semibold text-slate-900">Pagamentos pendentes — OS e dados bancários</h2>
             <p className="text-xs text-slate-600">
@@ -184,19 +185,19 @@ export default function DreDespesasMotoristaPage() {
             <p className="text-xs text-slate-600">Despesas já registradas nas contas «Motorista» e «Ajudante».</p>
           </div>
           <div className="grid gap-3 sm:grid-cols-3">
-            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <div className={glassStatCard("slate")}>
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Motorista</p>
               <p className="mt-1 text-2xl font-semibold text-slate-900">
                 {formatCurrency(summary.motoristaTotal)}
               </p>
             </div>
-            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <div className={glassStatCard("slate")}>
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Ajudante</p>
               <p className="mt-1 text-2xl font-semibold text-slate-900">
                 {formatCurrency(summary.ajudanteTotal)}
               </p>
             </div>
-            <div className="rounded-lg border border-green-200 bg-green-50 p-4">
+            <div className={glassStatCard("green")}>
               <p className="text-xs font-semibold uppercase tracking-wide text-green-800">Total pago</p>
               <p className="mt-1 text-2xl font-semibold text-green-950">
                 {formatCurrency(summary.combinedTotal)}

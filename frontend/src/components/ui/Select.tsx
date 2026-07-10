@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { glassField } from "@/lib/liquid-glass-styles";
 import type { SelectHTMLAttributes } from "react";
 
 type Props = SelectHTMLAttributes<HTMLSelectElement> & {
@@ -17,10 +18,7 @@ export function Select({ className, label, options, id, ...props }: Props) {
       )}
       <select
         id={selectId}
-        className={cn(
-          "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-600 focus:ring-2 focus:ring-brand-100",
-          className
-        )}
+        className={cn(glassField(), className)}
         {...props}
       >
         {options.map((o) => (

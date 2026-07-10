@@ -3,9 +3,11 @@
 import Link from "next/link";
 import { useState } from "react";
 import { AssignDriverModal } from "@/components/operacional/AssignDriverModal";
+import { glassAction } from "@/lib/liquid-glass-styles";
 import { cn } from "@/lib/utils";
 import {
   canAssignDriverToServiceOrder,
+  canViewDriverVoucher,
   isDriverAssignmentRejected,
   isFreightInExecution,
   isPendingClientProposal,
@@ -158,6 +160,7 @@ export function ServiceOrderRowActions({
   const canOperationalFollowUp = isFreightInExecution(row);
   const canCompleteFreight = isFreightInExecution(row);
   const completed = isServiceOrderCompleted(row);
+  const showDriverVoucher = canViewDriverVoucher(row);
 
   const requireProposalToken = (): string | null => {
     const token = row.proposal_token?.trim();
@@ -394,18 +397,24 @@ export function ServiceOrderRowActions({
         href={`/operacional/ordens-servico/${row.id}/proposta`}
         target="_blank"
         rel="noreferrer"
-        className={cn(
-          "inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
-        )}
+        className={glassAction("neutral")}
       >
         PDF / {completed ? "OS concluída" : "Proposta"}
       </Link>
+      {showDriverVoucher && (
+        <Link
+          href={`/operacional/ordens-servico/${row.id}/voucher-motorista`}
+          target="_blank"
+          rel="noreferrer"
+          className={glassAction("brand")}
+        >
+          Voucher motorista
+        </Link>
+      )}
       {completed && (
         <Link
           href="/dre/despesas-motorista"
-          className={cn(
-            "inline-flex items-center justify-center rounded-lg border border-brand-400 bg-brand-50 px-3 py-1.5 text-sm font-medium text-brand-900 transition-colors hover:bg-brand-100"
-          )}
+          className={glassAction("brand")}
         >
           Pagamento DRE
         </Link>
@@ -419,12 +428,7 @@ export function ServiceOrderRowActions({
               : "Designar motorista disponível"
           }
           onClick={() => setAssignOpen(true)}
-          className={cn(
-            "inline-flex items-center justify-center rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors",
-            driverRejected
-              ? "border-red-400 bg-red-50 text-red-900 hover:bg-red-100"
-              : "border-brand-400 bg-brand-50 text-brand-900 hover:bg-brand-100"
-          )}
+          className={glassAction(driverRejected ? "red" : "brand")}
         >
           {driverRejected ? "Designar outro motorista" : "Designar motorista"}
         </button>
@@ -436,9 +440,7 @@ export function ServiceOrderRowActions({
             disabled={cancellingAssignment || driverAccepting || driverRejecting || accepting || rejecting}
             title="Cancelar designação pendente (ex.: fechou o WhatsApp sem enviar)"
             onClick={() => void handleCancelDriverAssignment()}
-            className={cn(
-              "inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-50"
-            )}
+            className={glassAction("neutral")}
           >
             {cancellingAssignment ? "Cancelando…" : "Cancelar designação"}
           </button>
@@ -448,9 +450,7 @@ export function ServiceOrderRowActions({
             title="Registrar aceite do motorista (telefone)"
             aria-label={`Motorista aceitou por telefone — OS ${row.code}`}
             onClick={() => void handleDriverPhoneResponse("accept")}
-            className={cn(
-              "inline-flex items-center justify-center rounded-lg border border-emerald-400 bg-emerald-50 px-2.5 py-1.5 text-emerald-900 transition-colors hover:bg-emerald-100 disabled:opacity-50"
-            )}
+            className={glassAction("emerald", true)}
           >
             <PhoneAcceptIcon />
           </button>
@@ -460,9 +460,7 @@ export function ServiceOrderRowActions({
             title="Registrar recusa do motorista (telefone)"
             aria-label={`Motorista recusou por telefone — OS ${row.code}`}
             onClick={() => void handleDriverPhoneResponse("reject")}
-            className={cn(
-              "inline-flex items-center justify-center rounded-lg border border-orange-300 bg-orange-50 px-2.5 py-1.5 text-orange-900 transition-colors hover:bg-orange-100 disabled:opacity-50"
-            )}
+            className={glassAction("orange", true)}
           >
             <PhoneRejectIcon />
           </button>
@@ -475,9 +473,7 @@ export function ServiceOrderRowActions({
             disabled={operationalLoading || completing}
             title="Registrar acompanhamento do frete em execução"
             onClick={() => void handleOperationalFollowUp()}
-            className={cn(
-              "inline-flex items-center justify-center rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-sm font-medium text-amber-900 transition-colors hover:bg-amber-100 disabled:opacity-50"
-            )}
+            className={glassAction("amber")}
           >
             {operationalLoading ? "Registrando…" : "Registrar acompanhamento"}
           </button>
@@ -486,9 +482,7 @@ export function ServiceOrderRowActions({
             disabled={completing || operationalLoading}
             title="Concluir frete e liberar PDF da OS"
             onClick={() => void handleCompleteFreight()}
-            className={cn(
-              "inline-flex items-center justify-center rounded-lg border border-emerald-400 bg-emerald-50 px-3 py-1.5 text-sm font-medium text-emerald-900 transition-colors hover:bg-emerald-100 disabled:opacity-50"
-            )}
+            className={glassAction("emerald")}
           >
             {completing ? "Concluindo…" : "Concluir frete"}
           </button>
@@ -502,9 +496,7 @@ export function ServiceOrderRowActions({
             title="Registrar aceite (telefone)"
             aria-label={`Registrar aceite por telefone — OS ${row.code}`}
             onClick={() => void handlePhoneResponse("accept")}
-            className={cn(
-              "inline-flex items-center justify-center rounded-lg border border-green-300 bg-green-50 px-2.5 py-1.5 text-green-900 transition-colors hover:bg-green-100 disabled:opacity-50"
-            )}
+            className={glassAction("green", true)}
           >
             <PhoneAcceptIcon />
           </button>
@@ -514,9 +506,7 @@ export function ServiceOrderRowActions({
             title="Registrar recusa (telefone)"
             aria-label={`Registrar recusa por telefone — OS ${row.code}`}
             onClick={() => void handlePhoneResponse("reject")}
-            className={cn(
-              "inline-flex items-center justify-center rounded-lg border border-red-300 bg-red-50 px-2.5 py-1.5 text-red-800 transition-colors hover:bg-red-100 disabled:opacity-50"
-            )}
+            className={glassAction("red-soft", true)}
           >
             <PhoneRejectIcon />
           </button>
@@ -527,9 +517,7 @@ export function ServiceOrderRowActions({
           type="button"
           disabled={loading || resetting}
           onClick={() => void handleFollowUp()}
-          className={cn(
-            "inline-flex items-center justify-center rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-sm font-medium text-amber-900 transition-colors hover:bg-amber-100 disabled:opacity-50"
-          )}
+          className={glassAction("amber")}
         >
           Registrar follow-up
         </button>
@@ -540,9 +528,7 @@ export function ServiceOrderRowActions({
           disabled={resetting || accepting || rejecting}
           title="Reabrir proposta para novo aceite ou recusa"
           onClick={() => void handleResetProposal()}
-          className={cn(
-            "inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-50"
-          )}
+          className={glassAction("neutral")}
         >
           Reabrir proposta
         </button>

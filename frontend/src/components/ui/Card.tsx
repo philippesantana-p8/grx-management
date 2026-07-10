@@ -1,9 +1,10 @@
 import { cn } from "@/lib/utils";
+import { glassCard } from "@/lib/liquid-glass-styles";
 import type { ReactNode } from "react";
 
 export function Card({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <div className={cn("rounded-xl border border-slate-200 bg-white shadow-sm", className)}>
+    <div className={cn(glassCard(), "shadow-sm", className)}>
       {children}
     </div>
   );

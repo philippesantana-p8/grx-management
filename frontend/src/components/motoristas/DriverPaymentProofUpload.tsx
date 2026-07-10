@@ -5,6 +5,7 @@ import {
   DRIVER_PAYMENT_PROOF_DESCRIPTION,
   uploadDriverPaymentProof,
 } from "@/lib/driver-payments-api";
+import { glassIconBtn } from "@/lib/liquid-glass-styles";
 import { getAttachmentSignedUrl, listEntityAttachments } from "@/lib/attachments";
 import { createClient } from "@/lib/supabase/client";
 
@@ -110,7 +111,7 @@ export function DriverPaymentProofUpload({
         title="Anexar comprovante de pagamento"
         disabled={uploading}
         onClick={() => inputRef.current?.click()}
-        className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+        className={glassIconBtn()}
       >
         <PaperclipIcon className="h-4 w-4" />
       </button>

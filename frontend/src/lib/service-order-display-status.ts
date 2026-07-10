@@ -46,9 +46,14 @@ export function needsDriverAssignment(row: ServiceOrderStatusRow): boolean {
   return isProposalAcceptedByClient(row) && !isDriverConfirmedOnServiceOrder(row);
 }
 
-/** Motorista confirmou — frete em execução ou conclusão pendente. */
+/** Frete em execução ou conclusão pendente. */
 export function isFreightInExecution(row: ServiceOrderStatusRow): boolean {
   return isDriverConfirmedOnServiceOrder(row) && !isServiceOrderCompleted(row);
+}
+
+/** Voucher operacional disponível após motorista aceitar a designação. */
+export function canViewDriverVoucher(row: ServiceOrderStatusRow): boolean {
+  return isDriverConfirmedOnServiceOrder(row);
 }
 
 export function canAssignDriverToServiceOrder(

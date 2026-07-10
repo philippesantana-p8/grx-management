@@ -12,6 +12,7 @@ import {
   type DriverPaymentFilter,
   type DriverPaymentRow,
 } from "@/lib/driver-payments-api";
+import { glassCard, glassFilterPanel, glassTabLink, glassTabsNav } from "@/lib/liquid-glass-styles";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { formatCurrency } from "@/lib/utils";
 
@@ -111,7 +112,7 @@ export function DriverPaymentsTable({
             return (
               <article
                 key={row.id}
-                className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+                className={`p-4 shadow-sm ${glassCard()}`}
               >
                 <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 pb-3">
                   <div>
@@ -150,7 +151,7 @@ export function DriverPaymentsTable({
                   </div>
                 </div>
 
-                <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50/80 p-3">
+                <div className={`mt-3 p-3 ${glassFilterPanel()}`}>
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">
                     Dados bancários para pagamento
                   </p>
@@ -338,7 +339,7 @@ function FilterTabs({
   onFilterChange: (filter: DriverPaymentFilter) => void;
 }) {
   return (
-    <div className="flex flex-wrap gap-2">
+    <nav className={glassTabsNav()}>
       {(
         [
           ["pending", "Pendentes"],
@@ -350,15 +351,11 @@ function FilterTabs({
           key={value}
           type="button"
           onClick={() => onFilterChange(value)}
-          className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
-            filter === value
-              ? "bg-brand-600 text-white"
-              : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-          }`}
+          className={glassTabLink(filter === value)}
         >
           {label}
         </button>
       ))}
-    </div>
+    </nav>
   );
 }
