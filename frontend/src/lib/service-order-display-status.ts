@@ -51,9 +51,12 @@ export function isFreightInExecution(row: ServiceOrderStatusRow): boolean {
   return isDriverConfirmedOnServiceOrder(row) && !isServiceOrderCompleted(row);
 }
 
-/** Voucher operacional disponível após motorista aceitar a designação. */
+/** Voucher operacional — após aceite do motorista ou frete concluído com motorista designado. */
 export function canViewDriverVoucher(row: ServiceOrderStatusRow): boolean {
-  return isDriverConfirmedOnServiceOrder(row);
+  if (!row.driver_id) return false;
+  if (isDriverConfirmedOnServiceOrder(row)) return true;
+  if (isServiceOrderCompleted(row)) return true;
+  return false;
 }
 
 export function canAssignDriverToServiceOrder(
