@@ -673,21 +673,18 @@ body {
   color: #ffffff;
 }
 
-.sidebar-section-label {
-  display: inline-block;
-  margin: 0.75rem 0 0.5rem 0.125rem;
-  padding: 0.25rem 0.625rem;
-  border-radius: 0.5rem;
-  font-size: 0.625rem;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.72);
-  background: rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14);
+.sidebar-nav-group {
+  margin-top: 1.125rem;
+  padding-top: 0.875rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.sidebar-nav-group:first-of-type {
+  margin-top: 0.875rem;
+}
+
+.sidebar-nav-group .sidebar-nav-btn:first-child {
+  margin-top: 0.125rem;
 }
 
 /* ── Brand logo 3D plaque ── */

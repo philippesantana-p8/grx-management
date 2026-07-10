@@ -83,8 +83,7 @@ export function Sidebar() {
               icon={item.icon}
             />
           ) : (
-            <div key={item.label}>
-              <p className="sidebar-section-label">{item.label}</p>
+            <div key={item.label} className="sidebar-nav-group" aria-label={item.label}>
               {item.children?.map((child) => (
                 <SidebarNavLink
                   key={child.href}
