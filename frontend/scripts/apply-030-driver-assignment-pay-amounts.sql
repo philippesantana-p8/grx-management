@@ -9,6 +9,8 @@ COMMENT ON COLUMN public.service_orders.driver_assignment_pay_amount IS
 COMMENT ON COLUMN public.service_orders.driver_assignment_assistant_pay_amount IS
   'Valor do ajudante, quando houver, nesta designação.';
 
+DROP FUNCTION IF EXISTS public.send_driver_assignment(UUID, UUID);
+
 CREATE OR REPLACE FUNCTION public.send_driver_assignment(
   p_order_id UUID,
   p_driver_id UUID,
@@ -185,3 +187,7 @@ BEGIN
   );
 END;
 $$;
+
+GRANT EXECUTE ON FUNCTION public.send_driver_assignment(UUID, UUID, NUMERIC, NUMERIC) TO authenticated;
+
+NOTIFY pgrst, 'reload schema';

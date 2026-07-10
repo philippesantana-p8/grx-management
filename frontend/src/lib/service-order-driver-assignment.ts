@@ -390,7 +390,10 @@ export async function sendDriverAssignment(
   });
 
   if (error) {
-    return { token: null, sentAt: null, proposedDriverId: null, error: error.message };
+    const message = error.message.includes("send_driver_assignment")
+      ? "Função send_driver_assignment desatualizada no Supabase. Rode o script fix-send-driver-assignment-030.sql no SQL Editor."
+      : error.message;
+    return { token: null, sentAt: null, proposedDriverId: null, error: message };
   }
 
   const payload = data as {
