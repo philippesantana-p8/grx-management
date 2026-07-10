@@ -23,10 +23,18 @@ const sizes = {
   proposal: { width: 240, height: 96 },
 };
 
+/** Proporção real do grx-logo-mark.png (570×491). */
+const markSizes = {
+  sm: { width: 168, height: 145 },
+  md: { width: 220, height: 190 },
+  lg: { width: 280, height: 241 },
+  proposal: { width: 240, height: 207 },
+};
+
 /** Logo com placa branca (voucher, proposta, login). */
 const BRAND_LOGO_SRC = "/grx-logo.png?v=3";
 /** Marca GRX + tagline, fundo transparente (menu cinza do sistema). */
-const BRAND_LOGO_MARK_SRC = "/grx-logo-mark.png?v=1";
+const BRAND_LOGO_MARK_SRC = "/grx-logo-mark.png?v=2";
 
 function LogoImage({
   dim,
@@ -73,13 +81,15 @@ export function BrandLogo({
   const dim = sizes[size];
 
   if (variant === "mark") {
+    const markDim = markSizes[size];
     return (
       <div className={cn("brand-logo-mark", className)}>
+        {/* unoptimized: Next/Image com otimização achata transparência em fundo branco */}
         <LogoImage
-          dim={dim}
+          dim={markDim}
           src={BRAND_LOGO_MARK_SRC}
           priority
-          unoptimized={unoptimized}
+          unoptimized
           alt="GRX Transportes e Logística"
           ariaHidden={false}
           className={cn("brand-logo-mark-image", imageClassName)}
