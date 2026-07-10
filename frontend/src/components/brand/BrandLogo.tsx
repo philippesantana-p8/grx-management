@@ -1,6 +1,6 @@
+import type { CSSProperties } from "react";
 import Image from "next/image";
-import { cn } from "@/lib/utils";
-type BrandLogoProps = {
+import { cn } from "@/lib/utils";type BrandLogoProps = {
   className?: string;
   imageClassName?: string;
   showTagline?: boolean;
@@ -36,9 +36,15 @@ const BRAND_LOGO_SRC = "/grx-logo.png?v=3";
 /** Marca GRX + tagline, fundo transparente (menu cinza do sistema). */
 const BRAND_LOGO_MARK_SRC = "/grx-logo-mark.png?v=3";
 
+/** Marca GRX + tagline, fundo transparente (menu cinza do sistema). */
+const BRAND_LOGO_MARK_SRC = "/grx-logo-mark.png?v=4";
+
+const MARK_DEPTH_LAYERS = [3, 2, 1] as const;
+
 function LogoImage({
   dim,
   className,
+  depth,
   priority = false,
   alt = "",
   ariaHidden = true,
@@ -47,6 +53,7 @@ function LogoImage({
 }: {
   dim: { width: number; height: number };
   className?: string;
+  depth?: number;
   priority?: boolean;
   alt?: string;
   ariaHidden?: boolean;
@@ -62,6 +69,9 @@ function LogoImage({
       height={dim.height}
       priority={priority}
       unoptimized={unoptimized}
+      style={
+        depth !== undefined ? ({ ["--depth"]: depth } as CSSProperties) : undefined
+      }
       className={className}
     />
   );
@@ -84,16 +94,29 @@ export function BrandLogo({
     const markDim = markSizes[size];
     return (
       <div className={cn("brand-logo-mark", className)}>
-        {/* unoptimized: Next/Image com otimização achata transparência em fundo branco */}
-        <LogoImage
-          dim={markDim}
-          src={BRAND_LOGO_MARK_SRC}
-          priority
-          unoptimized
-          alt="GRX Transportes e Logística"
-          ariaHidden={false}
-          className={cn("brand-logo-mark-image", imageClassName)}
-        />
+        <div className="brand-logo-mark-3d-stage">
+          <div className="brand-logo-mark-stack">
+            {MARK_DEPTH_LAYERS.map((depth) => (
+              <LogoImage
+                key={depth}
+                dim={markDim}
+                depth={depth}
+                src={BRAND_LOGO_MARK_SRC}
+                unoptimized
+                className="brand-logo-mark-depth"
+              />
+            ))}
+            <LogoImage
+              dim={markDim}
+              src={BRAND_LOGO_MARK_SRC}
+              priority
+              unoptimized
+              alt="GRX Transportes e Logística"
+              ariaHidden={false}
+              className={cn("brand-logo-mark-image", imageClassName)}
+            />
+          </div>
+        </div>
         {caption ? (
           <p
             className={cn(
