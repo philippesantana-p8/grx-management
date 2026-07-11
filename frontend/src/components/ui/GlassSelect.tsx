@@ -1,6 +1,14 @@
 "use client";
 
-import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 import { glassField } from "@/lib/liquid-glass-styles";
@@ -29,16 +37,16 @@ type MenuPosition = {
 
 function computeMenuPosition(trigger: HTMLButtonElement): MenuPosition {
   const rect = trigger.getBoundingClientRect();
-  const gap = 4;
-  const spaceBelow = window.innerHeight - rect.bottom - gap - 12;
-  const spaceAbove = rect.top - gap - 12;
-  const preferBelow = spaceBelow >= 160 || spaceBelow >= spaceAbove;
-  const maxHeight = Math.min(224, Math.max(120, preferBelow ? spaceBelow : spaceAbove));
+  const gap = 6;
+  const spaceBelow = window.innerHeight - rect.bottom - gap - 8;
+  const spaceAbove = rect.top - gap - 8;
+  const preferBelow = spaceBelow >= 140 || spaceBelow >= spaceAbove;
+  const maxHeight = Math.min(280, Math.max(140, preferBelow ? spaceBelow : spaceAbove));
 
   return {
-    left: rect.left,
-    width: rect.width,
-    top: preferBelow ? rect.bottom + gap : rect.top - gap - maxHeight,
+    left: Math.max(8, rect.left),
+    width: Math.min(rect.width, window.innerWidth - 16),
+    top: preferBelow ? rect.bottom + gap : Math.max(8, rect.top - gap - maxHeight),
     maxHeight,
   };
 }
@@ -58,6 +66,8 @@ export function GlassSelect({
   const autoId = useId();
   const selectId = id ?? autoId;
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const ignoreCloseRef = useRef(false);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [menu, setMenu] = useState<MenuPosition | null>(null);
@@ -74,17 +84,26 @@ export function GlassSelect({
 
   useEffect(() => setMounted(true), []);
 
-  const close = () => {
+  const close = useCallback(() => {
     setOpen(false);
     setQuery("");
     setMenu(null);
-  };
+  }, []);
 
-  const openMenu = () => {
+  const openMenu = useCallback(() => {
     if (disabled || !triggerRef.current) return;
+    ignoreCloseRef.current = true;
     setMenu(computeMenuPosition(triggerRef.current));
     setOpen(true);
-  };
+    window.setTimeout(() => {
+      ignoreCloseRef.current = false;
+    }, 0);
+  }, [disabled]);
+
+  const toggleMenu = useCallback(() => {
+    if (open) close();
+    else openMenu();
+  }, [close, open, openMenu]);
 
   useLayoutEffect(() => {
     if (!open || !triggerRef.current) return;
@@ -103,36 +122,46 @@ export function GlassSelect({
 
   useEffect(() => {
     if (!open) return;
-    const onDoc = (event: MouseEvent) => {
+
+    const onPointerDown = (event: PointerEvent) => {
+      if (ignoreCloseRef.current) return;
       const target = event.target as Node;
       if (triggerRef.current?.contains(target)) return;
-      if (target instanceof Element && target.closest("[data-glass-select-menu]")) return;
+      if (menuRef.current?.contains(target)) return;
       close();
     };
+
+    const timer = window.setTimeout(() => {
+      document.addEventListener("pointerdown", onPointerDown, true);
+    }, 0);
+
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") close();
     };
-    document.addEventListener("mousedown", onDoc);
     document.addEventListener("keydown", onKey);
+
     return () => {
-      document.removeEventListener("mousedown", onDoc);
+      window.clearTimeout(timer);
+      document.removeEventListener("pointerdown", onPointerDown, true);
       document.removeEventListener("keydown", onKey);
     };
-  }, [open]);
+  }, [close, open]);
 
   const menuNode =
     open && menu && mounted
       ? createPortal(
           <div
+            ref={menuRef}
             data-glass-select-menu
-            className="overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-2xl ring-1 ring-slate-900/5"
+            className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl ring-1 ring-slate-900/10"
             style={{
               position: "fixed",
               top: menu.top,
               left: menu.left,
               width: menu.width,
-              zIndex: 9999,
+              zIndex: 10000,
             }}
+            onPointerDown={(event) => event.stopPropagation()}
           >
             {showSearch ? (
               <div className="border-b border-slate-100 p-2">
@@ -141,15 +170,15 @@ export function GlassSelect({
                   autoFocus
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Filtrar…"
+                  placeholder="Filtrar opções…"
                   className="w-full rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm outline-none focus:border-brand-600 focus:ring-1 focus:ring-brand-600/30"
                 />
               </div>
             ) : null}
             <ul
               role="listbox"
-              className="overflow-y-auto py-1"
-              style={{ maxHeight: menu.maxHeight - (showSearch ? 52 : 0) }}
+              className="overflow-y-auto overscroll-contain py-1"
+              style={{ maxHeight: Math.max(120, menu.maxHeight - (showSearch ? 56 : 0)) }}
               aria-labelledby={selectId}
             >
               {filtered.length === 0 ? (
@@ -162,7 +191,7 @@ export function GlassSelect({
                       role="option"
                       aria-selected={option.value === value}
                       className={cn(
-                        "w-full px-3 py-2 text-left text-sm transition-colors hover:bg-slate-50",
+                        "w-full cursor-pointer px-3 py-2.5 text-left text-sm transition-colors hover:bg-slate-50",
                         option.value === value && "bg-brand-50 font-medium text-brand-800"
                       )}
                       onClick={() => {
@@ -182,7 +211,7 @@ export function GlassSelect({
       : null;
 
   return (
-    <div className={cn("relative space-y-1", className)}>
+    <div className={cn("relative space-y-1", className)} data-glass-select>
       {label ? (
         <span className="block text-sm font-medium text-slate-700">{label}</span>
       ) : null}
@@ -193,23 +222,43 @@ export function GlassSelect({
         disabled={disabled}
         aria-haspopup="listbox"
         aria-expanded={open}
+        data-glass-select-trigger
         className={cn(
           glassField(),
-          "flex w-full items-center justify-between gap-2 text-left",
+          "flex w-full cursor-pointer select-none items-center justify-between gap-2 text-left",
           disabled && "cursor-not-allowed opacity-60",
           open && "border-brand-600/45 ring-2 ring-brand-600/15"
         )}
-        onClick={() => (open ? close() : openMenu())}
+        onClick={toggleMenu}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            toggleMenu();
+          }
+        }}
       >
         <span className={cn("truncate", !selected?.label && "text-slate-500")}>
           {selected?.label ?? placeholder}
         </span>
-        <span className={cn("shrink-0 text-slate-400 transition-transform", open && "rotate-180")} aria-hidden>
+        <span
+          className={cn("shrink-0 text-base leading-none text-slate-400 transition-transform", open && "rotate-180")}
+          aria-hidden
+        >
           ▾
         </span>
       </button>
 
-      {required ? <input type="text" tabIndex={-1} className="sr-only" value={value} required readOnly aria-hidden /> : null}
+      {required ? (
+        <input
+          type="text"
+          tabIndex={-1}
+          className="sr-only"
+          value={value}
+          required
+          readOnly
+          aria-hidden
+        />
+      ) : null}
 
       {menuNode}
     </div>
