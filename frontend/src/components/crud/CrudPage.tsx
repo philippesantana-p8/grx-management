@@ -177,8 +177,8 @@ export function CrudPage<T extends { id: string }>({
       {toolbar}
 
       {(isNew || editing) && (
-        <div ref={formPanelRef} id="crud-form-panel">
-          <Card key={formPanelKey}>
+        <div ref={formPanelRef} id="crud-form-panel" className="relative z-20">
+          <Card key={formPanelKey} className="overflow-visible">
             <CardHeader title={editing?.id ? "Editar" : "Novo registro"} />
             <CardBody>
               {renderForm({

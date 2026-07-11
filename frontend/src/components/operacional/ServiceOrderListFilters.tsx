@@ -1,7 +1,8 @@
 "use client";
 
 import { Input } from "@/components/ui/Input";
-import { glassField, glassFilterPanel } from "@/lib/liquid-glass-styles";
+import { GlassSelect } from "@/components/ui/GlassSelect";
+import { glassFilterPanel } from "@/lib/liquid-glass-styles";
 import {
   PROPOSAL_RESPONSE_LABELS,
   SERVICE_ORDER_STATUS,
@@ -56,38 +57,30 @@ export function ServiceOrderListFilters({
         />
       </div>
 
-      <label className="block min-w-[180px] space-y-1">
-        <span className="text-sm font-medium text-slate-700">Status</span>
-        <select
-          className={glassField()}
-          value={status}
-          onChange={(e) => onStatusChange(e.target.value)}
-        >
-          <option value="">Todos</option>
-          {SERVICE_ORDER_STATUS_FILTER.map((item) => (
-            <option key={item} value={item}>
-              {item}
-            </option>
-          ))}
-        </select>
-      </label>
+      <GlassSelect
+        label="Status"
+        className="min-w-[180px]"
+        value={status}
+        onChange={onStatusChange}
+        options={[
+          { value: "", label: "Todos" },
+          ...SERVICE_ORDER_STATUS_FILTER.map((item) => ({ value: item, label: item })),
+        ]}
+      />
 
-      <label className="block min-w-[180px] space-y-1">
-        <span className="text-sm font-medium text-slate-700">Tipo</span>
-        <select
-          className={glassField()}
-          value={serviceType}
-          onChange={(e) => onServiceTypeChange(e.target.value)}
-        >
-          <option value="">Todos</option>
-          {SERVICE_ORDER_TYPES.map((item) => (
-            <option key={item} value={item}>
-              {SERVICE_ORDER_TYPE_LABELS[item] ?? item}
-            </option>
-          ))}
-        </select>
-      </label>
-
+      <GlassSelect
+        label="Tipo"
+        className="min-w-[180px]"
+        value={serviceType}
+        onChange={onServiceTypeChange}
+        options={[
+          { value: "", label: "Todos" },
+          ...SERVICE_ORDER_TYPES.map((item) => ({
+            value: item,
+            label: SERVICE_ORDER_TYPE_LABELS[item] ?? item,
+          })),
+        ]}
+      />
       <label className="flex items-center gap-2 pb-2">
         <input
           type="checkbox"
