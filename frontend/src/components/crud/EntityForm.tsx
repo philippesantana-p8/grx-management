@@ -31,11 +31,11 @@ export function EntityForm({ children, onSubmit, onCancel, saving, initial = {} 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {typeof children === "function" ? children({ form, set }) : children}
-      <div className="flex gap-3 pt-2">
-        <Button type="submit" disabled={saving}>
+      <div className="entity-form-actions sticky bottom-0 z-10 -mx-1 mt-2 flex flex-col-reverse gap-2 border-t border-slate-200/80 bg-white/95 px-1 py-3 backdrop-blur-md sm:static sm:flex-row sm:gap-3 sm:border-0 sm:bg-transparent sm:p-0 sm:pt-2 sm:backdrop-blur-none">
+        <Button type="submit" className="w-full sm:w-auto" disabled={saving}>
           {saving ? "Salvando..." : "Salvar"}
         </Button>
-        <Button type="button" variant="secondary" onClick={onCancel}>
+        <Button type="button" variant="secondary" className="w-full sm:w-auto" onClick={onCancel}>
           Cancelar
         </Button>
       </div>

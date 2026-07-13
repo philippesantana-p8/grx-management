@@ -6,7 +6,8 @@ export default function DreLayout({ children }: { children: React.ReactNode }) {
       <div>
         <h1 className="text-xl font-semibold text-slate-900">DRE</h1>
         <p className="mt-1 text-sm text-slate-600">
-          Acompanhe despesas operacionais vinculadas ao plano de contas.
+          Acompanhe despesas operacionais vinculadas ao plano de contas. No celular, use o menu ☰
+          no topo para navegar e editar.
         </p>
       </div>
       <DreSubNav />

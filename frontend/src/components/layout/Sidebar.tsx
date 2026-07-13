@@ -55,11 +55,13 @@ function SidebarNavLink({
   label,
   icon,
   child,
+  onNavigate,
 }: {
   href: string;
   label: string;
   icon?: string;
   child?: boolean;
+  onNavigate?: () => void;
 }) {
   const pathname = usePathname();
   const active = pathname === href || pathname.startsWith(`${href}/`);
@@ -67,6 +69,7 @@ function SidebarNavLink({
   return (
     <Link
       href={href}
+      onClick={onNavigate}
       className={cn(
         "sidebar-nav-btn",
         child && "sidebar-nav-btn--child",
@@ -79,7 +82,12 @@ function SidebarNavLink({
   );
 }
 
-export function Sidebar() {
+type SidebarProps = {
+  mobileOpen?: boolean;
+  onClose?: () => void;
+};
+
+export function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
   const { canViewScreen, loading } = useAccess();
 
   const visibleNav = NAV.map((item) => {
@@ -98,38 +106,65 @@ export function Sidebar() {
   }).filter(Boolean) as NavItem[];
 
   return (
-    <aside className="sidebar-shell flex w-64 flex-col border-r border-white/10 text-white">
-      <div className="sidebar-brand-zone">
-        <Link href="/dashboard" className="brand-logo-link">
-          <BrandLogo variant="mark" size="sm" className="brand-logo-mark--sidebar" />
-        </Link>
-      </div>
-      <nav className="flex-1 overflow-y-auto px-3 py-4">
-        {visibleNav.map((item) =>
-          item.href ? (
-            <SidebarNavLink
-              key={item.href}
-              href={item.href}
-              label={item.label}
-              icon={item.icon}
-            />
-          ) : (
-            <div key={item.label} className="sidebar-nav-group" aria-label={item.label}>
-              {item.children?.map((child) => (
-                <SidebarNavLink
-                  key={child.href}
-                  href={child.href}
-                  label={child.label}
-                  child
-                />
-              ))}
-            </div>
-          )
+    <>
+      <div
+        className={cn(
+          "fixed inset-0 z-40 bg-slate-950/50 backdrop-blur-[2px] transition-opacity lg:hidden",
+          mobileOpen ? "opacity-100" : "pointer-events-none opacity-0"
         )}
-      </nav>
-      <footer className="sidebar-footer">
-        <p className="sidebar-footer-note">PSCS Informática</p>
-      </footer>
-    </aside>
+        aria-hidden={!mobileOpen}
+        onClick={onClose}
+      />
+
+      <aside
+        className={cn(
+          "sidebar-shell fixed inset-y-0 left-0 z-50 flex w-[min(18rem,88vw)] flex-col border-r border-white/10 text-white transition-transform duration-200 ease-out lg:static lg:z-auto lg:w-64 lg:translate-x-0 lg:shrink-0",
+          mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+        )}
+        aria-label="Menu principal"
+      >
+        <div className="sidebar-brand-zone flex items-center justify-between gap-2">
+          <Link href="/dashboard" className="brand-logo-link" onClick={onClose}>
+            <BrandLogo variant="mark" size="sm" className="brand-logo-mark--sidebar" />
+          </Link>
+          <button
+            type="button"
+            className="sidebar-close-btn lg:hidden"
+            aria-label="Fechar menu"
+            onClick={onClose}
+          >
+            ✕
+          </button>
+        </div>
+        <nav className="flex-1 overflow-y-auto overscroll-contain px-3 py-4 [-webkit-overflow-scrolling:touch]">
+          {visibleNav.map((item) =>
+            item.href ? (
+              <SidebarNavLink
+                key={item.href}
+                href={item.href}
+                label={item.label}
+                icon={item.icon}
+                onNavigate={onClose}
+              />
+            ) : (
+              <div key={item.label} className="sidebar-nav-group" aria-label={item.label}>
+                {item.children?.map((child) => (
+                  <SidebarNavLink
+                    key={child.href}
+                    href={child.href}
+                    label={child.label}
+                    child
+                    onNavigate={onClose}
+                  />
+                ))}
+              </div>
+            )
+          )}
+        </nav>
+        <footer className="sidebar-footer">
+          <p className="sidebar-footer-note">PSCS Informática</p>
+        </footer>
+      </aside>
+    </>
   );
 }

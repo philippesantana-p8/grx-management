@@ -160,13 +160,13 @@ export function CrudPage<T extends { id: string }>({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">{title}</h1>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-xl font-bold text-slate-900 sm:text-2xl">{title}</h1>
           {description && <p className="mt-1 text-sm text-slate-500">{description}</p>}
         </div>
         {!isNew && !editing && (
-          <Button onClick={() => { setIsNew(true); setEditing({}); }}>
+          <Button className="w-full sm:w-auto" onClick={() => { setIsNew(true); setEditing({}); }}>
             + Novo
           </Button>
         )}
@@ -177,7 +177,7 @@ export function CrudPage<T extends { id: string }>({
       {toolbar}
 
       {(isNew || editing) && (
-        <div ref={formPanelRef} id="crud-form-panel" className="relative z-20">
+        <div ref={formPanelRef} id="crud-form-panel" className="relative z-20 scroll-mt-20">
           <Card key={formPanelKey} className="overflow-visible">
             <CardHeader title={editing?.id ? "Editar" : "Novo registro"} />
             <CardBody>
@@ -193,7 +193,7 @@ export function CrudPage<T extends { id: string }>({
       )}
 
       <Card>
-        <CardBody className="overflow-x-auto p-0">
+        <CardBody className="overflow-x-auto p-0 [-webkit-overflow-scrolling:touch]">
           {loading ? (
             <Loading />
           ) : visibleItems.length === 0 ? (
@@ -201,15 +201,17 @@ export function CrudPage<T extends { id: string }>({
               Nenhum registro encontrado.
             </p>
           ) : (
-            <table className="w-full text-sm">
+            <table className="w-full min-w-[36rem] text-sm">
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50 text-left">
                   {columns.map((col) => (
-                    <th key={String(col.key)} className="px-4 py-3 font-medium text-slate-600">
+                    <th key={String(col.key)} className="whitespace-nowrap px-3 py-3 font-medium text-slate-600 sm:px-4">
                       {col.label}
                     </th>
                   ))}
-                  <th className="px-4 py-3 font-medium text-slate-600">Ações</th>
+                  <th className="sticky right-0 bg-slate-50 px-3 py-3 font-medium text-slate-600 sm:static sm:px-4">
+                    Ações
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -226,13 +228,13 @@ export function CrudPage<T extends { id: string }>({
                   return (
                   <tr key={row.id} className="border-b border-slate-50 hover:bg-slate-50/50">
                     {columns.map((col) => (
-                      <td key={String(col.key)} className="px-4 py-3 text-slate-700">
+                      <td key={String(col.key)} className="px-3 py-3 text-slate-700 sm:px-4">
                         {col.render
                           ? col.render(row)
                           : String((row as Record<string, unknown>)[col.key as string] ?? "—")}
                       </td>
                     ))}
-                    <td className="px-4 py-3">
+                    <td className="sticky right-0 bg-white/95 px-3 py-3 backdrop-blur-sm sm:static sm:bg-transparent sm:px-4 sm:backdrop-blur-none">
                       <div className="flex flex-wrap gap-2">
                         {renderRowActions?.(row)}
                         <Button
