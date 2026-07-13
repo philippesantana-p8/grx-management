@@ -71,6 +71,7 @@ Regra Cursor espelhada: `.cursor/rules/deploy-prod-and-dev.mdc`.
 | DRE motorista | Pagamentos + lançamento automático Motorista/Ajudante. |
 | DRE veículo | Aba **Despesas do veículo** por placa (pedágio, combustível, pneu, oficina, outros). Anti-duplicata: mesma **data + OS + conta DRE**. SQL: `apply-038-vehicle-expenses.sql`. |
 | Mobile web | Shell responsivo: menu ☰ (drawer), formulários com Salvar sticky, tabelas com scroll horizontal + ações fixas. Abrir/editar no celular pelo mesmo URL. |
+| Agenda frota | Aba **Agenda da frota** (semana por placa, horários livres, baseada em OS entrada/saída). |
 | Multiempresa | `companies` + `company_members` + RLS desde o schema V1. |
 
 ---

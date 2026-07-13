@@ -22,6 +22,12 @@ export const APP_SCREENS: AppScreen[] = [
     href: "/operacional/ordens-servico",
   },
   {
+    key: "operacional.agenda-veiculos",
+    label: "Agenda da frota",
+    group: "Operacional",
+    href: "/operacional/agenda-veiculos",
+  },
+  {
     key: "operacional.infracoes",
     label: "Infrações de Trânsito",
     group: "Operacional",

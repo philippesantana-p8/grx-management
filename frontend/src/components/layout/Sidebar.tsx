@@ -18,6 +18,7 @@ const NAV: NavItem[] = [
     label: "Operacional",
     children: [
       { href: "/operacional/ordens-servico", label: "Ordens de Serviço" },
+      { href: "/operacional/agenda-veiculos", label: "Agenda da frota" },
       { href: "/operacional/infracoes", label: "Infrações de Trânsito" },
     ],
   },
