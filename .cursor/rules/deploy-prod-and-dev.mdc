@@ -1,0 +1,14 @@
+---
+description: Sempre publicar ajustes em produção e desenvolvimento
+alwaysApply: true
+---
+
+# Deploy — produção e desenvolvimento
+
+Sempre que houver ajuste pronto para o cliente (GRX / Rafael):
+
+1. **Publicar em desenvolvimento e em produção** (não só em um ambiente).
+2. Fazer commit, push para a branch que dispara o deploy (normalmente `main`) e confirmar o deploy na Vercel (prod + preview/dev, conforme o projeto).
+3. Não esperar o usuário pedir de novo “publicar” se ele já pediu ajuste e o fluxo deste workspace é publicar nos dois ambientes — salvo se ele pedir explicitamente para **não** publicar ainda.
+
+Preferência confirmada pelo usuário (Filipe / PSCS): ajustes podem e devem ir para **produção e desenvolvimento**.

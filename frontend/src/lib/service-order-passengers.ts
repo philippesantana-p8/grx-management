@@ -1,25 +1,38 @@
 import type { ServiceOrderPassenger } from "@/types/database";
 
-export function normalizePassengers(value: unknown): ServiceOrderPassenger[] {
+function coercePassengerRow(row: unknown): ServiceOrderPassenger | null {
+  if (!row || typeof row !== "object") return null;
+  const item = row as Record<string, unknown>;
+  const name = String(item.name ?? "");
+  const document_number = String(item.document_number ?? "");
+  const document_issuer = String(item.document_issuer ?? "").trim();
+  return {
+    name,
+    document_number,
+    ...(document_issuer ? { document_issuer } : {}),
+  };
+}
+
+/** Mantém linhas em branco para edição no formulário. */
+export function coercePassengersForForm(value: unknown): ServiceOrderPassenger[] {
   if (!Array.isArray(value)) return [];
-
   const result: ServiceOrderPassenger[] = [];
-
   for (const row of value) {
-    if (!row || typeof row !== "object") continue;
-    const item = row as Record<string, unknown>;
-    const name = String(item.name ?? "").trim();
-    const document_number = String(item.document_number ?? "").trim();
-    const document_issuer = String(item.document_issuer ?? "").trim();
-    if (!name && !document_number) continue;
-    result.push({
-      name,
-      document_number,
-      ...(document_issuer ? { document_issuer } : {}),
-    });
+    const item = coercePassengerRow(row);
+    if (item) result.push(item);
   }
-
   return result;
+}
+
+/** Remove linhas vazias — usar ao salvar / exibir voucher. */
+export function normalizePassengers(value: unknown): ServiceOrderPassenger[] {
+  return coercePassengersForForm(value)
+    .map((row) => ({
+      name: row.name.trim(),
+      document_number: row.document_number.trim(),
+      ...(row.document_issuer?.trim() ? { document_issuer: row.document_issuer.trim() } : {}),
+    }))
+    .filter((row) => row.name || row.document_number);
 }
 
 export function emptyPassengerRow(): ServiceOrderPassenger {

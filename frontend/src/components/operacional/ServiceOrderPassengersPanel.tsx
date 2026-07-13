@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/Button";
 import { glassField, glassFilterPanel } from "@/lib/liquid-glass-styles";
-import { emptyPassengerRow, normalizePassengers } from "@/lib/service-order-passengers";
+import { coercePassengersForForm, emptyPassengerRow } from "@/lib/service-order-passengers";
 import type { ServiceOrderPassenger } from "@/types/database";
 
 type Props = {
@@ -11,22 +11,22 @@ type Props = {
 };
 
 export function ServiceOrderPassengersPanel({ passengers, onChange }: Props) {
-  const rows = normalizePassengers(passengers);
+  const rows = coercePassengersForForm(passengers);
   const displayRows = rows.length > 0 ? rows : [emptyPassengerRow()];
 
   const updateRow = (index: number, patch: Partial<ServiceOrderPassenger>) => {
     const next = [...displayRows];
     next[index] = { ...next[index], ...patch };
-    onChange(normalizePassengers(next.length === 1 && !next[0].name && !next[0].document_number ? [] : next));
+    onChange(next);
   };
 
   const addRow = () => {
-    onChange([...rows, emptyPassengerRow()]);
+    onChange([...displayRows, emptyPassengerRow()]);
   };
 
   const removeRow = (index: number) => {
-    const next = rows.filter((_, i) => i !== index);
-    onChange(next);
+    const next = displayRows.filter((_, i) => i !== index);
+    onChange(next.length > 0 ? next : []);
   };
 
   return (
@@ -72,7 +72,7 @@ export function ServiceOrderPassengersPanel({ passengers, onChange }: Props) {
               />
             </label>
             <div className="flex items-end pb-0.5">
-              {rows.length > 0 && (
+              {displayRows.length > 1 && (
                 <Button type="button" variant="ghost" onClick={() => removeRow(index)}>
                   Remover
                 </Button>
