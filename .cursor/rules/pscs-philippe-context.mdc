@@ -1,0 +1,22 @@
+---
+description: Contexto PSCS Philippe — ler MASTER e padrões do produto
+alwaysApply: true
+---
+
+# PSCS / Philippe — contexto contínuo
+
+Documento principal (prioridade máxima):
+
+`prompts/Master/MASTER_PROMPT_PSCS.md`
+
+Sempre consultar esse arquivo no início de tarefas relevantes. Em conflito, o MASTER vence.
+
+## Resumo operacional
+
+- **Philippe/Filipe (PSCS):** conta Cursor, produto multiempresa, cobrança.
+- **Rafael (GRX):** cliente operacional do sistema atual.
+- Produto = ERP reutilizável (`company_id`), não projeto one-off.
+- Ajustes prontos → **produção + desenvolvimento** (push `main`).
+- Cobrança Asaas: **pausada** até Felipe decidir conta sandbox.
+- DRE veículo e anti-duplicata data+OS já existem — evoluir, não duplicar conceito.
+- Comunicação: português direto; não inventar escopo comercial sem alinhamento.

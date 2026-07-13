@@ -1,0 +1,105 @@
+# MASTER PROMPT — PSCS (Philippe / Filipe)
+
+**Prioridade máxima neste Workspace.** Em conflito com outros documentos, este arquivo prevalece.
+
+Última atualização: 2026-07-13
+
+---
+
+## 1. Quem é quem
+
+| Pessoa | Papel |
+|--------|--------|
+| **Philippe / Filipe (PSCS)** | Dono da conta Cursor / operação técnica e comercial da PSCS. Decide arquitetura, cobrança, reuso do produto para outros clientes. |
+| **Rafael** | Dono da **GRX Transportes** — cliente principal do sistema atual. Valida telas e operação. |
+| **Cursor / agente** | Implementa no padrão PSCS; publica prod+dev quando houver ajuste pronto; não inventa escopo comercial sem alinhamento. |
+
+Comunicação preferencial com o time: **português (Brasil)**, direto e objetivo.
+
+---
+
+## 2. Produto (visão PSCS)
+
+O sistema nascido como **GRX Management** deve ser tratado como **ERP / framework multiempresa** da PSCS, **não** como software descartável de um único cliente.
+
+- Mesmo **repositório**, **schema** (`company_id`) e **stack** para novos clientes (ex.: Comfort).
+- **Não** refazer do zero: onboarding + white-label + módulos.
+- Stack típica: **Next.js (frontend)** + **Supabase (Postgres/Auth/RLS)** + **Vercel**.
+- Repo de referência: `grx-management` (GitHub: philippesantana-p8/grx-management).
+- Produção: https://grx-management.vercel.app — branch principal: `main`.
+
+### Modelos de entrega para outro cliente
+
+1. **Preferido:** nova `company` no mesmo produto (multi-tenant).
+2. **Alternativo:** mesmo código, ambiente separado (Vercel/Supabase) se o contrato exigir isolamento.
+3. **Evitar:** fork permanente do código.
+
+---
+
+## 3. Deploy e operação (obrigatório)
+
+- Ajustes prontos para o cliente → **publicar em produção e desenvolvimento**.
+- Neste repo, só existe `main` → push em `main` dispara produção Vercel; Preview cobre o lado de desenvolvimento quando houver.
+- Commit/push quando o ajuste estiver validado no build; não deixar só local se o usuário pediu implementação.
+- Lembretes de SQL: scripts `frontend/scripts/apply-NNN-*.sql` devem ser aplicados no Supabase quando houver migration nova.
+
+Regra Cursor espelhada: `.cursor/rules/deploy-prod-and-dev.mdc`.
+
+---
+
+## 4. Cobrança (PSCS → Rafael / clientes)
+
+- Mensalidade sugerida de referência: **mínimo ~R$ 800/mês** (proposta comercial mais ampla já citada ~R$ 2.500 conforme escopo de suporte).
+- Módulo de **mensalidade com cartão** via **Asaas** (não guardar número/CVV no banco).
+- Telas: **Parâmetros** (valor teste vs produção) + **Configurações → Mensalidade** (cartão).
+- **Pausado:** criação da conta Asaas sandbox — aguardar decisão do Felipe (ele cria ou o operador cria). Retomar depois.
+- Env necessários (quando retomar): `ASAAS_API_KEY`, `ASAAS_ENV`, `ASAAS_WEBHOOK_TOKEN`, `SUPABASE_SERVICE_ROLE_KEY`.
+- SQL billing: `apply-037-company-billing.sql`.
+
+---
+
+## 5. GRX — módulos e decisões recentes (2026-07)
+
+| Área | Decisão / estado |
+|------|------------------|
+| Campos formulário | Bordas rosa sempre visíveis (liquid glass). |
+| Passageiros na OS | Botão **+ Passageiro** corrigido; linhas vazias só limpas no save. |
+| Voucher motorista | Valores motorista/ajudante **em branco** no voucher; sistema/designação guardam os valores. |
+| Sócios | RG / CPF / CNPJ + validações BR. |
+| Parâmetros | Senha master + frase de recuperação + permissões por tela/sócio. |
+| Auth | Cadastro/login e-mail + reset de senha. |
+| DRE motorista | Pagamentos + lançamento automático Motorista/Ajudante. |
+| DRE veículo | Aba **Despesas do veículo** por placa (pedágio, combustível, pneu, oficina, outros). Anti-duplicata: mesma **data + OS + conta DRE**. SQL: `apply-038-vehicle-expenses.sql`. |
+| Multiempresa | `companies` + `company_members` + RLS desde o schema V1. |
+
+---
+
+## 6. Padrões de implementação PSCS
+
+- Seguir UI/glass existente; não reinventar design system.
+- Preferir `company_id` em tudo; RLS já existente.
+- Contas DRE pelo `chart_of_accounts` (seed da planilha do Rafael).
+- Evitar duplicar lançamentos financeiros (OS vs manual — checar data/OS/conta).
+- Não criar markdown/docs extras sem pedido; **exceto** este MASTER e regras Cursor.
+- Não commitar segredos (`.env`, service role, API keys).
+- Commit só quando pedido **ou** quando o fluxo do workspace for “implementar + publicar” (já confirmado pelo usuário).
+
+---
+
+## 7. Backlog consciente (não iniciar sem pedir)
+
+- Retomar Asaas / teste cartão Felipe → depois valor produção Rafael.
+- Onboarding white-label para segundo cliente (Comfort etc.).
+- Importação financeira / lançamentos DRE em massa (planilha do Rafael).
+- Vincular `company_members.partner_id` para permissões finas de não-admin.
+- Proposta comercial formal PSCS (texto já rascunhado; coberta sob demanda).
+
+---
+
+## 8. Como o agente deve responder
+
+1. Ler este MASTER primeiro.
+2. Ser conciso; português quando o usuário falar PT ou o contexto for GRX/PSCS.
+3. Em features novas: alinhar ao multi-tenant e ao DRE por placa/OS.
+4. Ao terminar ajuste de produto: build + publicar prod/dev + lembrar SQL se houver.
+5. Guardar decisões novas neste arquivo quando forem de longo prazo (Philippe / produto / cobrança / deploy).
