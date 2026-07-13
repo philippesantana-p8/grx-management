@@ -4,7 +4,6 @@ import { BrandLogo } from "@/components/brand/BrandLogo";
 import { Button } from "@/components/ui/Button";
 import { normalizePassengers } from "@/lib/service-order-passengers";
 import { formatServiceDate } from "@/lib/service-order-proposal";
-import { formatCurrency } from "@/lib/utils";
 import {
   SERVICE_ORDER_TYPE_LABELS,
   type ServiceOrder,
@@ -97,8 +96,6 @@ export function ServiceOrderDriverVoucherView({
   const destinationAddress = order.freight_destination_address?.trim() || "—";
   const responsible = [order.attendant, order.client_name].filter(Boolean).join(" · ") || "—";
   const contactPhone = order.phone?.trim() || "—";
-  const motoristaPay = order.driver_assignment_pay_amount;
-  const ajudantePay = order.driver_assignment_assistant_pay_amount ?? 0;
 
   return (
     <div className="driver-voucher-root mx-auto max-w-4xl space-y-4 print:max-w-none">
@@ -123,8 +120,9 @@ export function ServiceOrderDriverVoucherView({
 
       {pendingDriverAcceptance ? (
         <p className="driver-voucher-toolbar rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950 print:hidden">
-          Aguardando aceite do motorista — envie este voucher junto com a designação. Os valores
-          abaixo serão confirmados após o aceite.
+          Aguardando aceite do motorista — envie este voucher junto com a designação. Os valores de
+          motorista e ajudante ficam registrados na designação; neste voucher os campos permanecem em
+          branco.
         </p>
       ) : null}
 
@@ -197,21 +195,8 @@ export function ServiceOrderDriverVoucherView({
         <div className="mt-0 grid gap-0 sm:grid-cols-2">
           <VoucherCell label="Tipo de serviço" value={serviceLabel} />
           <VoucherCell
-            label="Valores acordados (motorista)"
-            value={
-              motoristaPay != null
-                ? [
-                    `Motorista: ${formatCurrency(motoristaPay)}`,
-                    ajudantePay > 0 ? `Ajudante: ${formatCurrency(ajudantePay)}` : null,
-                    `Total: ${formatCurrency(motoristaPay + ajudantePay)}`,
-                    pendingDriverAcceptance ? "(aguardando confirmação do motorista)" : null,
-                  ]
-                    .filter(Boolean)
-                    .join("\n")
-                : pendingDriverAcceptance
-                  ? "A informar na designação"
-                  : "—"
-            }
+            label="Valores (motorista / ajudante)"
+            value={"Motorista: ____________________\nAjudante: ____________________"}
           />
         </div>
 
