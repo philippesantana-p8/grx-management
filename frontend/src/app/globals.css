@@ -371,23 +371,34 @@ body {
 .liquid-glass-field {
   width: 100%;
   border-radius: 0.75rem;
-  border: 1px solid rgba(255, 255, 255, 0.72);
-  background: linear-gradient(145deg, rgba(255, 255, 255, 0.82) 0%, rgba(248, 250, 252, 0.58) 100%);
+  /* Sempre visível no formulário branco — o usuário não precisa “adivinhar” o campo */
+  border: 1px solid rgba(208, 0, 31, 0.45);
+  background: linear-gradient(145deg, rgba(254, 242, 244, 0.95) 0%, rgba(255, 255, 255, 0.92) 100%);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   padding: 0.5rem 0.75rem;
   font-size: 0.875rem;
   line-height: 1.25;
   color: #0f172a;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  box-shadow:
+    0 0 0 3px rgba(208, 0, 31, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
   outline: none;
-  transition: border-color 0.14s ease, box-shadow 0.14s ease;
+  transition: border-color 0.14s ease, box-shadow 0.14s ease, background 0.14s ease;
+}
+
+.liquid-glass-field:hover {
+  border-color: rgba(208, 0, 31, 0.58);
+  box-shadow:
+    0 0 0 3px rgba(208, 0, 31, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
 .liquid-glass-field:focus {
-  border-color: rgba(208, 0, 31, 0.45);
+  border-color: rgba(208, 0, 31, 0.72);
+  background: linear-gradient(145deg, rgba(253, 232, 236, 0.98) 0%, rgba(255, 255, 255, 0.96) 100%);
   box-shadow:
-    0 0 0 3px rgba(208, 0, 31, 0.12),
+    0 0 0 3px rgba(208, 0, 31, 0.2),
     inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 

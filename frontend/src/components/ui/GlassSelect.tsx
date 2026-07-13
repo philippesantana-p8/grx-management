@@ -248,7 +248,7 @@ export function GlassSelect({
           glassField(),
           "flex w-full cursor-pointer select-none items-center justify-between gap-2 text-left",
           disabled && "cursor-not-allowed opacity-60",
-          open && "border-brand-600/45 ring-2 ring-brand-600/15"
+          open && "border-[rgba(208,0,31,0.72)]"
         )}
         onPointerDown={protectOpeningInteraction}
         onClick={toggleMenu}
