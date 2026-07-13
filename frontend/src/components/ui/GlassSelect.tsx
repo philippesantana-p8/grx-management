@@ -38,15 +38,17 @@ type MenuPosition = {
 function computeMenuPosition(trigger: HTMLButtonElement): MenuPosition {
   const rect = trigger.getBoundingClientRect();
   const gap = 6;
-  const spaceBelow = window.innerHeight - rect.bottom - gap - 8;
-  const spaceAbove = rect.top - gap - 8;
+  const viewportPadding = 8;
+  const spaceBelow = Math.max(0, window.innerHeight - rect.bottom - gap - viewportPadding);
+  const spaceAbove = Math.max(0, rect.top - gap - viewportPadding);
   const preferBelow = spaceBelow >= 140 || spaceBelow >= spaceAbove;
-  const maxHeight = Math.min(280, Math.max(140, preferBelow ? spaceBelow : spaceAbove));
+  const maxHeight = Math.min(280, preferBelow ? spaceBelow : spaceAbove);
+  const width = Math.min(rect.width, Math.max(0, window.innerWidth - viewportPadding * 2));
 
   return {
-    left: Math.max(8, rect.left),
-    width: Math.min(rect.width, window.innerWidth - 16),
-    top: preferBelow ? rect.bottom + gap : Math.max(8, rect.top - gap - maxHeight),
+    left: Math.max(viewportPadding, Math.min(rect.left, window.innerWidth - width - viewportPadding)),
+    width,
+    top: preferBelow ? rect.bottom + gap : Math.max(viewportPadding, rect.top - gap - maxHeight),
     maxHeight,
   };
 }
@@ -68,6 +70,7 @@ export function GlassSelect({
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const ignoreCloseRef = useRef(false);
+  const ignoreCloseTimerRef = useRef<number | null>(null);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [menu, setMenu] = useState<MenuPosition | null>(null);
@@ -83,21 +86,42 @@ export function GlassSelect({
   }, [options, query]);
 
   useEffect(() => setMounted(true), []);
+  useEffect(
+    () => () => {
+      if (ignoreCloseTimerRef.current !== null) {
+        window.clearTimeout(ignoreCloseTimerRef.current);
+      }
+    },
+    []
+  );
 
   const close = useCallback(() => {
+    if (ignoreCloseTimerRef.current !== null) {
+      window.clearTimeout(ignoreCloseTimerRef.current);
+      ignoreCloseTimerRef.current = null;
+    }
+    ignoreCloseRef.current = false;
     setOpen(false);
     setQuery("");
     setMenu(null);
   }, []);
 
+  const protectOpeningInteraction = useCallback(() => {
+    ignoreCloseRef.current = true;
+    if (ignoreCloseTimerRef.current !== null) {
+      window.clearTimeout(ignoreCloseTimerRef.current);
+    }
+    // Keep the guard through the pointer/click sequence that opens the portal.
+    ignoreCloseTimerRef.current = window.setTimeout(() => {
+      ignoreCloseRef.current = false;
+      ignoreCloseTimerRef.current = null;
+    }, 180);
+  }, []);
+
   const openMenu = useCallback(() => {
     if (disabled || !triggerRef.current) return;
-    ignoreCloseRef.current = true;
     setMenu(computeMenuPosition(triggerRef.current));
     setOpen(true);
-    window.setTimeout(() => {
-      ignoreCloseRef.current = false;
-    }, 0);
   }, [disabled]);
 
   const toggleMenu = useCallback(() => {
@@ -131,17 +155,13 @@ export function GlassSelect({
       close();
     };
 
-    const timer = window.setTimeout(() => {
-      document.addEventListener("pointerdown", onPointerDown, true);
-    }, 0);
-
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") close();
     };
+    document.addEventListener("pointerdown", onPointerDown, true);
     document.addEventListener("keydown", onKey);
 
     return () => {
-      window.clearTimeout(timer);
       document.removeEventListener("pointerdown", onPointerDown, true);
       document.removeEventListener("keydown", onKey);
     };
@@ -159,6 +179,7 @@ export function GlassSelect({
               top: menu.top,
               left: menu.left,
               width: menu.width,
+              maxHeight: menu.maxHeight,
               zIndex: 10000,
             }}
             onPointerDown={(event) => event.stopPropagation()}
@@ -178,7 +199,7 @@ export function GlassSelect({
             <ul
               role="listbox"
               className="overflow-y-auto overscroll-contain py-1"
-              style={{ maxHeight: Math.max(120, menu.maxHeight - (showSearch ? 56 : 0)) }}
+              style={{ maxHeight: Math.max(0, menu.maxHeight - (showSearch ? 56 : 0)) }}
               aria-labelledby={selectId}
             >
               {filtered.length === 0 ? (
@@ -229,6 +250,7 @@ export function GlassSelect({
           disabled && "cursor-not-allowed opacity-60",
           open && "border-brand-600/45 ring-2 ring-brand-600/15"
         )}
+        onPointerDown={protectOpeningInteraction}
         onClick={toggleMenu}
         onKeyDown={(event) => {
           if (event.key === "Enter" || event.key === " ") {
