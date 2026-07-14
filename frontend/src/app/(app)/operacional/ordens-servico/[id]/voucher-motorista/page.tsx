@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { DriverPhotoUpload } from "@/components/drivers/DriverPhotoUpload";
 import {
   ServiceOrderDriverVoucherView,
   type DriverVoucherContext,
@@ -15,6 +16,7 @@ import {
 } from "@/lib/service-order-display-status";
 import { useCompany } from "@/lib/company-context";
 import { getDriverPhotoUrl } from "@/lib/driver-photo";
+import { serviceOrderShowsDriverPhoto } from "@/lib/service-order-field-visibility";
 import { createClient } from "@/lib/supabase/client";
 import type { Driver, ServiceOrder, Vehicle } from "@/types/database";
 
@@ -30,13 +32,36 @@ function buildVehicleDescription(order: ServiceOrder, vehicle: Vehicle | null): 
 export default function ServiceOrderDriverVoucherPage() {
   const params = useParams();
   const orderId = String(params.id ?? "");
-  const { company } = useCompany();
+  const { company, companyId } = useCompany();
   const supabase = useMemo(() => createClient(), []);
   const [order, setOrder] = useState<ServiceOrder | null>(null);
+  const [driver, setDriver] = useState<Driver | null>(null);
+  const [photoStoragePath, setPhotoStoragePath] = useState<string | null>(null);
   const [context, setContext] = useState<DriverVoucherContext | null>(null);
   const [pendingAcceptance, setPendingAcceptance] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const rebuildContext = useCallback(
+    async (
+      row: ServiceOrder,
+      nextDriver: Driver | null,
+      vehicle: Vehicle | null,
+      photoPath: string | null
+    ) => {
+      const driverPhotoUrl = await getDriverPhotoUrl(photoPath);
+      setContext({
+        companyName: company?.trade_name || company?.name || "GRX Management",
+        companyDocument: company?.document ?? null,
+        driverName: nextDriver?.name ?? "Motorista designado",
+        driverDocument: nextDriver?.document ?? nextDriver?.cnh_number ?? null,
+        driverPhone: nextDriver?.phone ?? null,
+        driverPhotoUrl,
+        vehicleDescription: buildVehicleDescription(row, vehicle),
+      });
+    },
+    [company?.document, company?.name, company?.trade_name]
+  );
 
   useEffect(() => {
     if (!orderId) {
@@ -103,21 +128,13 @@ export default function ServiceOrderDriverVoucherPage() {
 
       if (cancelled) return;
 
-      const driver = driverRes.data as Driver | null;
+      const nextDriver = driverRes.data as Driver | null;
       const vehicle = vehicleRes.data as Vehicle | null;
-      const driverPhotoUrl = await getDriverPhotoUrl(driver?.photo_storage_path);
+      const photoPath = nextDriver?.photo_storage_path ?? null;
 
-      if (cancelled) return;
-
-      setContext({
-        companyName: company?.trade_name || company?.name || "GRX Management",
-        companyDocument: company?.document ?? null,
-        driverName: driver?.name ?? "Motorista designado",
-        driverDocument: driver?.document ?? driver?.cnh_number ?? null,
-        driverPhone: driver?.phone ?? null,
-        driverPhotoUrl,
-        vehicleDescription: buildVehicleDescription(row, vehicle),
-      });
+      setDriver(nextDriver);
+      setPhotoStoragePath(photoPath);
+      await rebuildContext(row, nextDriver, vehicle, photoPath);
 
       if (!row.driver_voucher_generated_at) {
         await supabase
@@ -126,13 +143,28 @@ export default function ServiceOrderDriverVoucherPage() {
           .eq("id", row.id);
       }
 
-      setLoading(false);
+      if (!cancelled) setLoading(false);
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [orderId, supabase, company?.document, company?.name, company?.trade_name]);
+  }, [orderId, supabase, rebuildContext]);
+
+  const handlePhotoPathChange = async (path: string | null) => {
+    setPhotoStoragePath(path);
+    if (!order) return;
+    const vehicle = order.vehicle_id
+      ? ((
+          await supabase.from("vehicles").select("*").eq("id", order.vehicle_id).maybeSingle()
+        ).data as Vehicle | null)
+      : null;
+    const nextDriver = driver
+      ? { ...driver, photo_storage_path: path }
+      : null;
+    if (nextDriver) setDriver(nextDriver);
+    await rebuildContext(order, nextDriver, vehicle, path);
+  };
 
   if (loading) {
     return (
@@ -147,6 +179,8 @@ export default function ServiceOrderDriverVoucherPage() {
     return <Alert variant="error">{error ?? "Não foi possível carregar o voucher."}</Alert>;
   }
 
+  const showPhotoUpload = serviceOrderShowsDriverPhoto(order.service_type);
+
   return (
     <div className="space-y-4">
       <Link
@@ -155,6 +189,26 @@ export default function ServiceOrderDriverVoucherPage() {
       >
         ← Voltar às ordens de serviço
       </Link>
+
+      {showPhotoUpload ? (
+        <div className="driver-voucher-toolbar print:hidden">
+          {driver?.id ? (
+            <DriverPhotoUpload
+              companyId={companyId}
+              driverId={driver.id}
+              photoStoragePath={photoStoragePath}
+              onPhotoPathChange={(path) => void handlePhotoPathChange(path)}
+              title="Foto do motorista nesta OS"
+              hint="Envie ou troque a foto do motorista designado. Ela fica salva no cadastro e aparece no voucher de Transporte/Frete abaixo."
+            />
+          ) : (
+            <Alert variant="warning">
+              Designe um motorista na OS para poder enviar a foto no voucher.
+            </Alert>
+          )}
+        </div>
+      ) : null}
+
       <ServiceOrderDriverVoucherView
         order={order}
         context={context}

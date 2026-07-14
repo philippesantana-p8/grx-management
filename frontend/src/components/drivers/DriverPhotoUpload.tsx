@@ -17,9 +17,11 @@ type Props = {
   photoStoragePath: string | null;
   disabled?: boolean;
   /** Arquivo pendente (cadastro novo — envia ao salvar). */
-  pendingFile: File | null;
-  onPendingFileChange: (file: File | null) => void;
+  pendingFile?: File | null;
+  onPendingFileChange?: (file: File | null) => void;
   onPhotoPathChange: (path: string | null) => void;
+  title?: string;
+  hint?: string;
 };
 
 export function DriverPhotoUpload({
@@ -27,9 +29,11 @@ export function DriverPhotoUpload({
   driverId,
   photoStoragePath,
   disabled,
-  pendingFile,
+  pendingFile = null,
   onPendingFileChange,
   onPhotoPathChange,
+  title = "Foto do motorista (voucher)",
+  hint = "Rafael: envie a foto de rosto do motorista. Ela sai no voucher final de Transporte e Frete.",
 }: Props) {
   const inputId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -72,8 +76,12 @@ export function DriverPhotoUpload({
     }
 
     if (!driverId || !companyId) {
-      onPendingFileChange(file);
-      setInfo("Foto selecionada. Ela será enviada ao salvar o cadastro do motorista.");
+      onPendingFileChange?.(file);
+      setInfo(
+        onPendingFileChange
+          ? "Foto selecionada. Ela será enviada ao salvar o cadastro do motorista."
+          : "Selecione o motorista na OS antes de enviar a foto."
+      );
       return;
     }
 
@@ -91,7 +99,7 @@ export function DriverPhotoUpload({
       return;
     }
 
-    onPendingFileChange(null);
+    onPendingFileChange?.(null);
     onPhotoPathChange(path);
     setInfo("Foto atualizada. Ela aparece no voucher de Transporte e Frete.");
   };
@@ -101,7 +109,7 @@ export function DriverPhotoUpload({
     setInfo(null);
 
     if (pendingFile) {
-      onPendingFileChange(null);
+      onPendingFileChange?.(null);
       return;
     }
 
@@ -128,11 +136,8 @@ export function DriverPhotoUpload({
   return (
     <div className={`space-y-3 sm:col-span-2 ${glassFilterPanel()}`}>
       <div>
-        <h3 className="text-sm font-semibold text-slate-900">Foto do motorista (voucher)</h3>
-        <p className="mt-1 text-xs text-slate-600">
-          Rafael: envie a foto de rosto do motorista. Ela sai no voucher final de{" "}
-          <strong>Transporte</strong> e <strong>Frete</strong>.
-        </p>
+        <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
+        <p className="mt-1 text-xs text-slate-600">{hint}</p>
       </div>
 
       {error ? <Alert variant="error">{error}</Alert> : null}

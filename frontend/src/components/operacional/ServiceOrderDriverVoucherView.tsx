@@ -3,6 +3,7 @@
 import { BrandLogo } from "@/components/brand/BrandLogo";
 import { Button } from "@/components/ui/Button";
 import {
+  serviceOrderShowsDriverPhoto,
   serviceOrderShowsFlightData,
   serviceOrderShowsPassengers,
 } from "@/lib/service-order-field-visibility";
@@ -44,9 +45,9 @@ function VoucherCell({
   className?: string;
 }) {
   return (
-    <div className={`border border-slate-300 p-2 text-xs ${className}`}>
+    <div className={`voucher-cell min-w-0 border border-slate-300 p-2 text-xs ${className}`}>
       <p className="font-semibold uppercase tracking-wide text-slate-500">{label}</p>
-      <p className="mt-1 whitespace-pre-wrap text-sm text-slate-900">{value || "—"}</p>
+      <p className="mt-1 whitespace-pre-wrap break-words text-sm text-slate-900">{value || "—"}</p>
     </div>
   );
 }
@@ -103,12 +104,16 @@ export function ServiceOrderDriverVoucherView({
     order.service_type,
     order.service_categories
   );
+  const showDriverPhoto = serviceOrderShowsDriverPhoto(order.service_type);
   const passengers = showPassengers ? normalizePassengers(order.passengers) : [];
   const serviceLabel = SERVICE_ORDER_TYPE_LABELS[order.service_type] ?? order.service_type;
   const presentationAddress = order.freight_origin_address?.trim() || "—";
   const destinationAddress = order.freight_destination_address?.trim() || "—";
   const responsible = [order.attendant, order.client_name].filter(Boolean).join(" · ") || "—";
   const contactPhone = order.phone?.trim() || "—";
+  const driverLines = [context.driverName, context.driverDocument, context.driverPhone]
+    .filter(Boolean)
+    .join("\n");
 
   return (
     <div className="driver-voucher-root mx-auto max-w-4xl space-y-4 print:max-w-none">
@@ -122,6 +127,27 @@ export function ServiceOrderDriverVoucherView({
           nav {
             display: none !important;
           }
+        }
+
+        /* Grade única de 6 colunas — bordas alinhadas em todas as linhas */
+        .voucher-fields {
+          display: grid;
+          grid-template-columns: repeat(6, minmax(0, 1fr));
+          width: 100%;
+        }
+        .voucher-fields > .voucher-cell,
+        .voucher-fields > .voucher-photo {
+          margin: 0;
+          border-width: 1px;
+        }
+        .voucher-span-2 {
+          grid-column: span 2;
+        }
+        .voucher-span-3 {
+          grid-column: span 3;
+        }
+        .voucher-span-6 {
+          grid-column: span 6;
         }
       `}</style>
 
@@ -157,82 +183,103 @@ export function ServiceOrderDriverVoucherView({
           </div>
         </header>
 
-        <div className="grid gap-0 sm:grid-cols-3">
-          <VoucherCell label="Data de apresentação" value={formatPresentationDate(order)} />
-          <VoucherCell label="Horário de apresentação" value={formatTime(order.entry_time)} />
-          <VoucherCell label="Hora de saída" value={formatTime(order.exit_time)} />
-        </div>
+        <div className="voucher-fields">
+          <VoucherCell
+            className="voucher-span-2"
+            label="Data de apresentação"
+            value={formatPresentationDate(order)}
+          />
+          <VoucherCell
+            className="voucher-span-2"
+            label="Horário de apresentação"
+            value={formatTime(order.entry_time)}
+          />
+          <VoucherCell
+            className="voucher-span-2"
+            label="Hora de saída"
+            value={formatTime(order.exit_time)}
+          />
 
-        <div className="mt-0 grid gap-0 sm:grid-cols-2">
-          <VoucherCell label="Local de apresentação" value={presentationAddress} />
-          <VoucherCell label="Endereço de destino" value={destinationAddress} />
-        </div>
+          <VoucherCell
+            className="voucher-span-3"
+            label="Local de apresentação"
+            value={presentationAddress}
+          />
+          <VoucherCell
+            className="voucher-span-3"
+            label="Endereço de destino"
+            value={destinationAddress}
+          />
 
-        {showFlight && order.flight_data ? (
-          <div className="mt-0">
-            <VoucherCell label="Dados do voo" value={order.flight_data} />
-          </div>
-        ) : null}
+          {showFlight && order.flight_data ? (
+            <VoucherCell className="voucher-span-6" label="Dados do voo" value={order.flight_data} />
+          ) : null}
 
-        <div className="mt-0 grid gap-0 sm:grid-cols-2">
-          <VoucherCell label="Responsável" value={responsible} />
-          <VoucherCell label="Telefone" value={contactPhone} />
-        </div>
+          <VoucherCell className="voucher-span-3" label="Responsável" value={responsible} />
+          <VoucherCell className="voucher-span-3" label="Telefone" value={contactPhone} />
 
-        {showPassengers ? (
-          <div className="mt-4">
-            <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Passageiros no veículo
-            </p>
-            <PassengersBlock passengers={passengers} />
-          </div>
-        ) : null}
-
-        <div className="mt-4 grid gap-0 sm:grid-cols-[auto_1fr_1fr]">
-          {context.driverPhotoUrl ? (
-            <div className="border border-slate-300 p-2">
+          {showPassengers ? (
+            <div className="voucher-span-6 border border-slate-300 p-2">
               <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Foto
+                Passageiros no veículo
               </p>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={context.driverPhotoUrl}
-                alt={context.driverName}
-                className="h-28 w-28 rounded object-cover print:h-24 print:w-24"
-              />
+              <PassengersBlock passengers={passengers} />
+            </div>
+          ) : null}
+
+          {showDriverPhoto ? (
+            <div className="voucher-photo voucher-span-2 flex flex-col border border-slate-300 p-2">
+              <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Foto do motorista
+              </p>
+              {context.driverPhotoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={context.driverPhotoUrl}
+                  alt={context.driverName}
+                  className="mx-auto h-28 w-28 rounded object-cover print:h-24 print:w-24"
+                />
+              ) : (
+                <div className="flex min-h-[7rem] flex-1 items-center justify-center rounded bg-slate-50 text-center text-xs text-slate-500">
+                  Sem foto
+                </div>
+              )}
             </div>
           ) : null}
           <VoucherCell
+            className={showDriverPhoto ? "voucher-span-2" : "voucher-span-3"}
             label="Motorista"
-            value={[context.driverName, context.driverDocument, context.driverPhone]
-              .filter(Boolean)
-              .join("\n")}
+            value={driverLines}
           />
           <VoucherCell
+            className={showDriverPhoto ? "voucher-span-2" : "voucher-span-3"}
             label="Veículo / placa"
             value={`${context.vehicleDescription}\nPlaca: ${order.plate}`}
           />
-        </div>
 
-        {order.monitoring_contact ? (
-          <div className="mt-0">
-            <VoucherCell label="Monitoria / coordenador" value={order.monitoring_contact} />
-          </div>
-        ) : null}
+          {order.monitoring_contact ? (
+            <VoucherCell
+              className="voucher-span-6"
+              label="Monitoria / coordenador"
+              value={order.monitoring_contact}
+            />
+          ) : null}
 
-        <div className="mt-0 grid gap-0 sm:grid-cols-2">
-          <VoucherCell label="Tipo de serviço" value={serviceLabel} />
+          <VoucherCell className="voucher-span-3" label="Tipo de serviço" value={serviceLabel} />
           <VoucherCell
+            className="voucher-span-3"
             label="Valores (motorista / ajudante)"
             value={"Motorista: ____________________\nAjudante: ____________________"}
           />
-        </div>
 
-        {order.notes ? (
-          <div className="mt-4">
-            <VoucherCell label="Observações" value={order.notes} className="min-h-[80px]" />
-          </div>
-        ) : null}
+          {order.notes ? (
+            <VoucherCell
+              className="voucher-span-6 min-h-[80px]"
+              label="Observações"
+              value={order.notes}
+            />
+          ) : null}
+        </div>
 
         <footer className="mt-8 grid gap-8 border-t border-slate-200 pt-6 sm:grid-cols-2">
           <div>

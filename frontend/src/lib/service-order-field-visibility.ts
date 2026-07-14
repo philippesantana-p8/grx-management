@@ -34,3 +34,9 @@ export function serviceOrderShowsRoutePanel(serviceType: string): boolean {
   const type = normalizeServiceType(serviceType);
   return type === "Frete" || type === "Transporte";
 }
+
+/** Foto do motorista no voucher: Transporte e Frete. */
+export function serviceOrderShowsDriverPhoto(serviceType: string): boolean {
+  const type = normalizeServiceType(serviceType);
+  return type === "Frete" || type === "Transporte";
+}
