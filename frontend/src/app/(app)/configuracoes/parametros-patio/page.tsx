@@ -19,6 +19,15 @@ import { listPatioPrices, listPatioVehicleTypes, seedPatioDefaults } from "@/lib
 import { createClient } from "@/lib/supabase/client";
 import { formatCurrency } from "@/lib/utils";
 
+function dayBefore(isoDate: string): string {
+  const d = new Date(`${isoDate}T12:00:00`);
+  d.setDate(d.getDate() - 1);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 export default function ParametrosPatioPage() {
   const { companyId } = useCompany();
   const supabase = useMemo(() => createClient(), []);
@@ -42,6 +51,7 @@ export default function ParametrosPatioPage() {
     price: string;
     billing_unit: string;
     valid_from: string;
+    valid_until: string;
   }>({
     modality: "Estacionamento",
     vehicle_type_id: "",
@@ -49,6 +59,7 @@ export default function ParametrosPatioPage() {
     price: "",
     billing_unit: "Diária",
     valid_from: new Date().toISOString().slice(0, 10),
+    valid_until: "",
   });
 
   const load = useCallback(async () => {
@@ -116,8 +127,37 @@ export default function ParametrosPatioPage() {
       setError("Preencha porte, serviço e valor.");
       return;
     }
+    if (
+      priceForm.valid_until &&
+      priceForm.valid_until < priceForm.valid_from
+    ) {
+      setError("Data fim não pode ser anterior à vigência inicial.");
+      return;
+    }
     setSaving(true);
     setError(null);
+
+    // Encerra vigências abertas do mesmo produto (modalidade + porte + serviço).
+    const priorEnd = dayBefore(priceForm.valid_from);
+    const { data: priors } = await supabase
+      .from("patio_price_tables")
+      .select("id, valid_from, valid_until")
+      .eq("company_id", companyId)
+      .eq("modality", priceForm.modality)
+      .eq("vehicle_type_id", priceForm.vehicle_type_id)
+      .eq("service_name", priceForm.service_name)
+      .eq("status", "Ativo")
+      .is("valid_until", null);
+
+    for (const prior of priors ?? []) {
+      if (prior.valid_from >= priceForm.valid_from) continue;
+      const end = priorEnd >= prior.valid_from ? priorEnd : prior.valid_from;
+      await supabase
+        .from("patio_price_tables")
+        .update({ valid_until: end, status: "Inativo" })
+        .eq("id", prior.id);
+    }
+
     const code = await nextCode("patio_price_tables", companyId, "PR");
     const { error: insertError } = await supabase.from("patio_price_tables").insert({
       company_id: companyId,
@@ -128,6 +168,7 @@ export default function ParametrosPatioPage() {
       price: Number(priceForm.price),
       billing_unit: priceForm.billing_unit,
       valid_from: priceForm.valid_from,
+      valid_until: priceForm.valid_until || null,
       status: "Ativo",
     });
     setSaving(false);
@@ -135,16 +176,43 @@ export default function ParametrosPatioPage() {
       setError(insertError.message);
       return;
     }
-    setMsg("Preço cadastrado (nova vigência).");
-    setPriceForm((f) => ({ ...f, price: "" }));
+    setMsg(
+      "Preço cadastrado (nova vigência). Linhas anteriores do mesmo serviço foram encerradas com Data fim."
+    );
+    setPriceForm((f) => ({ ...f, price: "", valid_until: "" }));
     await load();
   };
 
-  const deactivatePrice = async (id: string) => {
-    if (!confirm("Inativar este preço? Cadastre um novo para nova vigência.")) return;
+  const saveValidUntil = async (id: string, validUntil: string) => {
+    const row = prices.find((p) => p.id === id);
+    if (!row) return;
+    if (validUntil && validUntil < row.valid_from) {
+      setError("Data fim não pode ser anterior à Data início (Desde).");
+      return;
+    }
+    setError(null);
     const { error: updError } = await supabase
       .from("patio_price_tables")
-      .update({ status: "Inativo" })
+      .update({ valid_until: validUntil || null })
+      .eq("id", id);
+    if (updError) setError(updError.message);
+    else {
+      setMsg(validUntil ? "Data fim atualizada." : "Data fim removida (vigência aberta).");
+      await load();
+    }
+  };
+
+  const deactivatePrice = async (id: string) => {
+    if (!confirm("Inativar este preço? Informe Data fim e cadastre um novo para 2027 (ou outra data)."))
+      return;
+    const today = new Date().toISOString().slice(0, 10);
+    const row = prices.find((p) => p.id === id);
+    const { error: updError } = await supabase
+      .from("patio_price_tables")
+      .update({
+        status: "Inativo",
+        valid_until: row?.valid_until || today,
+      })
       .eq("id", id);
     if (updError) setError(updError.message);
     else await load();
@@ -230,8 +298,8 @@ export default function ParametrosPatioPage() {
       <section className={`space-y-4 ${glassFilterPanel()}`}>
         <h2 className="text-sm font-semibold text-slate-900">Tabela de preços (vigência)</h2>
         <p className="text-xs text-slate-500">
-          Inclua mensalidade de estacionamento e lava (pequeno/médio/grande). Ao mudar valor, cadastre
-          um novo preço — não edite o antigo.
+          Para reajustar em 2027 (ou qualquer data): encerre a linha antiga com <strong>Data fim</strong> e
+          cadastre um novo preço com vigência nova. O histórico permanece.
         </p>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <GlassSelect
@@ -294,13 +362,23 @@ export default function ParametrosPatioPage() {
             options={PATIO_BILLING_UNITS.map((u) => ({ value: u, label: u }))}
           />
           <label className="block space-y-1">
-            <span className="text-sm font-medium text-slate-700">Vigência a partir de</span>
+            <span className="text-sm font-medium text-slate-700">Desde (início)</span>
             <input
               type="date"
               className={glassField(true)}
               value={priceForm.valid_from}
               onChange={(e) => setPriceForm((f) => ({ ...f, valid_from: e.target.value }))}
             />
+          </label>
+          <label className="block space-y-1">
+            <span className="text-sm font-medium text-slate-700">Data fim</span>
+            <input
+              type="date"
+              className={glassField(false)}
+              value={priceForm.valid_until}
+              onChange={(e) => setPriceForm((f) => ({ ...f, valid_until: e.target.value }))}
+            />
+            <span className="text-xs text-slate-500">Vazio = vigência aberta até cadastrar a próxima.</span>
           </label>
         </div>
         <Button type="button" disabled={saving} onClick={() => void savePrice()}>
@@ -318,6 +396,7 @@ export default function ParametrosPatioPage() {
                 <th className="px-2 py-2">Valor</th>
                 <th className="px-2 py-2">Unidade</th>
                 <th className="px-2 py-2">Desde</th>
+                <th className="px-2 py-2">Data fim</th>
                 <th className="px-2 py-2">Status</th>
                 <th className="px-2 py-2" />
               </tr>
@@ -331,7 +410,16 @@ export default function ParametrosPatioPage() {
                   <td className="px-2 py-2">{p.service_name}</td>
                   <td className="px-2 py-2 font-medium">{formatCurrency(Number(p.price))}</td>
                   <td className="px-2 py-2">{p.billing_unit}</td>
-                  <td className="px-2 py-2">{p.valid_from}</td>
+                  <td className="px-2 py-2 whitespace-nowrap">{p.valid_from}</td>
+                  <td className="px-2 py-2">
+                    <input
+                      type="date"
+                      className={`${glassField(false)} min-w-[9.5rem]`}
+                      value={p.valid_until ?? ""}
+                      title="Data fim da vigência"
+                      onChange={(e) => void saveValidUntil(p.id, e.target.value)}
+                    />
+                  </td>
                   <td className="px-2 py-2">
                     <Badge variant={p.status === "Ativo" ? "success" : "default"}>{p.status}</Badge>
                   </td>
