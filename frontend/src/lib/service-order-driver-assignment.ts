@@ -66,6 +66,7 @@ export type DriverAssignmentOrderSummary = Pick<
   | "code"
   | "service_type"
   | "service_date"
+  | "entry_time"
   | "plate"
   | "client_name"
   | "freight_origin_address"
@@ -73,6 +74,11 @@ export type DriverAssignmentOrderSummary = Pick<
   | "freight_distance_km"
   | "freight_toll_amount"
 >;
+
+function formatPresentationTime(value: string | null | undefined): string {
+  if (!value) return "—";
+  return String(value).slice(0, 5);
+}
 
 const DRIVER_ASSIGNMENT_INTRO =
   "Segue a designação da ordem de serviço para sua confirmação.";
@@ -132,6 +138,7 @@ function appendDriverAssignmentOrderDetails(
     `Cliente: ${order.client_name ?? "—"}`,
     `Tipo: ${SERVICE_ORDER_TYPE_LABELS[order.service_type] ?? order.service_type}`,
     `Data: ${formatServiceDate(order.service_date)}`,
+    `Horário de apresentação: ${formatPresentationTime(order.entry_time)}`,
     `Placa: ${order.plate ?? "—"}`
   );
 

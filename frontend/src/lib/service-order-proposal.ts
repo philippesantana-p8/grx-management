@@ -487,12 +487,14 @@ export function buildWhatsAppProposalText(
 ): string {
   const amount = resolveProposalAmount(order);
   const forClient = options?.forClient ?? false;
+  const presentationTime = order.entry_time ? String(order.entry_time).slice(0, 5) : "—";
   const lines = [
     `*Proposta OS ${order.code}* — ${context.companyName}`,
     ``,
     `Cliente: ${order.client_name ?? "—"}`,
     `Tipo: ${SERVICE_ORDER_TYPE_LABELS[order.service_type] ?? order.service_type}`,
     `Data: ${formatServiceDate(order.service_date)}`,
+    `Horário de apresentação: ${presentationTime}`,
     `Placa: ${order.plate}`,
   ];
 
@@ -551,6 +553,7 @@ export function buildProposalEmailBody(
 ): string {
   const amount = resolveProposalAmount(order);
 
+  const presentationTime = order.entry_time ? String(order.entry_time).slice(0, 5) : "—";
   const lines = [
     buildClientProposalGreeting(order.client_name),
     "",
@@ -558,6 +561,7 @@ export function buildProposalEmailBody(
     `Cliente: ${order.client_name ?? "—"}`,
     `Tipo: ${SERVICE_ORDER_TYPE_LABELS[order.service_type] ?? order.service_type}`,
     `Data: ${formatServiceDate(order.service_date)}`,
+    `Horário de apresentação: ${presentationTime}`,
     `Placa: ${order.plate}`,
   ];
 
