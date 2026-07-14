@@ -225,8 +225,10 @@ export type TrafficInfraction = {
   notes: string | null;
 };
 
-export const SERVICE_ORDER_TYPES = ["Frete", "Transporte", "Estacionamento", "CarWash", "Outro"] as const;
+/** Tipos selecionáveis na OS (pátio/lava têm módulos próprios). */
+export const SERVICE_ORDER_TYPES = ["Frete", "Transporte"] as const;
 
+/** Labels de exibição — inclui tipos legados que possam existir no banco. */
 export const SERVICE_ORDER_TYPE_LABELS: Record<string, string> = {
   Frete: "Frete",
   Transporte: "Transporte",
