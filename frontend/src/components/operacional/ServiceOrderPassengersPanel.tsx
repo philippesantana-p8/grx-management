@@ -8,9 +8,17 @@ import type { ServiceOrderPassenger } from "@/types/database";
 type Props = {
   passengers: unknown;
   onChange: (next: ServiceOrderPassenger[]) => void;
+  /** Se false, o painel não renderiza (Frete / Estacionamento / Lava-rápido). */
+  visible?: boolean;
 };
 
-export function ServiceOrderPassengersPanel({ passengers, onChange }: Props) {
+export function ServiceOrderPassengersPanel({
+  passengers,
+  onChange,
+  visible = true,
+}: Props) {
+  if (!visible) return null;
+
   const rows = coercePassengersForForm(passengers);
   const displayRows = rows.length > 0 ? rows : [emptyPassengerRow()];
 

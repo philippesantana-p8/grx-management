@@ -94,8 +94,14 @@ export function ServiceOrderDriverVoucherView({
   context,
   pendingDriverAcceptance = false,
 }: Props) {
-  const showPassengers = serviceOrderShowsPassengers(order.service_type);
-  const showFlight = serviceOrderShowsFlightData(order.service_type);
+  const showPassengers = serviceOrderShowsPassengers(
+    order.service_type,
+    order.service_categories
+  );
+  const showFlight = serviceOrderShowsFlightData(
+    order.service_type,
+    order.service_categories
+  );
   const passengers = showPassengers ? normalizePassengers(order.passengers) : [];
   const serviceLabel = SERVICE_ORDER_TYPE_LABELS[order.service_type] ?? order.service_type;
   const presentationAddress = order.freight_origin_address?.trim() || "—";

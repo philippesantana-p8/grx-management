@@ -696,12 +696,15 @@ function OrdensServicoPageContent() {
             }
 
             const serviceType = String(data.service_type ?? "");
-            if (serviceOrderShowsPassengers(serviceType)) {
+            const saveCategories = Array.isArray(data.service_categories)
+              ? (data.service_categories as string[])
+              : [];
+            if (serviceOrderShowsPassengers(serviceType, saveCategories)) {
               data.passengers = normalizePassengers(data.passengers);
             } else {
               data.passengers = [];
             }
-            if (!serviceOrderShowsFlightData(serviceType)) {
+            if (!serviceOrderShowsFlightData(serviceType, saveCategories)) {
               data.flight_data = null;
             }
 
@@ -722,17 +725,19 @@ function OrdensServicoPageContent() {
             const serviceType = String(form.service_type ?? "");
             const isFrete = serviceType === "Frete";
             const showRoutePanel = serviceOrderShowsRoutePanel(serviceType);
-            const showPassengers = serviceOrderShowsPassengers(serviceType);
-            const showFlightData = serviceOrderShowsFlightData(serviceType);
+            const showPassengers = serviceOrderShowsPassengers(serviceType, categories);
+            const showFlightData = serviceOrderShowsFlightData(serviceType, categories);
 
             const handleServiceTypeChange = (value: string) => {
-              set("service_type", value);
-              set("service_categories", categoriesForServiceType(value));
+              const nextType = String(value);
+              const nextCategories = categoriesForServiceType(nextType);
+              set("service_type", nextType);
+              set("service_categories", nextCategories);
               set("chart_of_account_id", "");
-              if (!serviceOrderShowsPassengers(value)) {
+              if (!serviceOrderShowsPassengers(nextType, nextCategories)) {
                 set("passengers", []);
               }
-              if (!serviceOrderShowsFlightData(value)) {
+              if (!serviceOrderShowsFlightData(nextType, nextCategories)) {
                 set("flight_data", "");
               }
               const currentVehicle = vehicleOptions.find(
@@ -742,6 +747,24 @@ function OrdensServicoPageContent() {
                 set("freight_antt_axles", currentVehicle?.axle_count ?? 5);
               } else {
                 set("freight_antt_axles", "");
+              }
+            };
+
+            const handleCategoriesChange = (next: string[]) => {
+              let nextType = serviceType;
+              // Natureza Frete/Transporte alinha o Tipo de operação (evita passageiros no Frete).
+              if (next.includes("Frete") && !next.includes("Transporte")) {
+                nextType = "Frete";
+              } else if (next.includes("Transporte") && !next.includes("Frete")) {
+                nextType = "Transporte";
+              }
+              set("service_categories", next);
+              if (nextType !== serviceType) {
+                set("service_type", nextType);
+              }
+              if (!serviceOrderShowsPassengers(nextType, next)) {
+                set("passengers", []);
+                set("flight_data", "");
               }
             };
 
@@ -853,12 +876,12 @@ function OrdensServicoPageContent() {
                   showFlightData={showFlightData}
                 />
 
-                {showPassengers && (
-                  <ServiceOrderPassengersPanel
-                    passengers={form.passengers}
-                    onChange={(next) => set("passengers", next)}
-                  />
-                )}
+                <ServiceOrderPassengersPanel
+                  key={`passengers-${serviceType}-${showPassengers ? "on" : "off"}`}
+                  visible={showPassengers}
+                  passengers={form.passengers}
+                  onChange={(next) => set("passengers", next)}
+                />
 
                 {vehicleOptions.length === 0 && (
                   <Alert variant="warning">
@@ -892,7 +915,7 @@ function OrdensServicoPageContent() {
                 <ServiceCategoryPicker
                   categories={categories}
                   dreAccountLabel={dreLabel}
-                  onChange={(next) => set("service_categories", next)}
+                  onChange={handleCategoriesChange}
                 />
 
                 <div className="grid gap-4 sm:grid-cols-2">
