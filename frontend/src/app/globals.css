@@ -371,9 +371,9 @@ body {
 .liquid-glass-field {
   width: 100%;
   border-radius: 0.75rem;
-  /* Verde = campo para preencher (pedido Filipe). Amarelo = obrigatório (--required). */
-  border: 1px solid rgba(22, 163, 74, 0.55);
-  background: linear-gradient(145deg, rgba(240, 253, 244, 0.95) 0%, rgba(255, 255, 255, 0.92) 100%);
+  /* Azul = opcional (preencher). Amarelo suave = obrigatório (--required). Vídeo Filipe 2026-07-14. */
+  border: 1px solid rgba(59, 130, 246, 0.5);
+  background: linear-gradient(145deg, rgba(239, 246, 255, 0.96) 0%, rgba(255, 255, 255, 0.94) 100%);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   padding: 0.5rem 0.75rem;
@@ -381,50 +381,51 @@ body {
   line-height: 1.25;
   color: #0f172a;
   box-shadow:
-    0 0 0 3px rgba(34, 197, 94, 0.14),
+    0 0 0 3px rgba(59, 130, 246, 0.12),
     inset 0 1px 0 rgba(255, 255, 255, 0.9);
   outline: none;
   transition: border-color 0.14s ease, box-shadow 0.14s ease, background 0.14s ease;
 }
 
 .liquid-glass-field:hover {
-  border-color: rgba(22, 163, 74, 0.72);
+  border-color: rgba(37, 99, 235, 0.65);
   box-shadow:
-    0 0 0 3px rgba(34, 197, 94, 0.2),
+    0 0 0 3px rgba(59, 130, 246, 0.18),
     inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
 .liquid-glass-field:focus,
 .liquid-glass-field[aria-expanded="true"] {
-  border-color: rgba(21, 128, 61, 0.85);
-  background: linear-gradient(145deg, rgba(220, 252, 231, 0.98) 0%, rgba(255, 255, 255, 0.96) 100%);
+  border-color: rgba(29, 78, 216, 0.78);
+  background: linear-gradient(145deg, rgba(219, 234, 254, 0.98) 0%, rgba(255, 255, 255, 0.96) 100%);
   box-shadow:
-    0 0 0 3px rgba(34, 197, 94, 0.26),
+    0 0 0 3px rgba(59, 130, 246, 0.24),
     inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
+/* Amarelo suave (manteiga) — visível, sem neon forte */
 .liquid-glass-field--required {
-  border-color: rgba(202, 138, 4, 0.7);
-  background: linear-gradient(145deg, rgba(254, 249, 195, 0.95) 0%, rgba(255, 255, 255, 0.92) 100%);
+  border-color: rgba(217, 180, 80, 0.72);
+  background: linear-gradient(145deg, rgba(255, 252, 235, 0.98) 0%, rgba(255, 255, 255, 0.94) 100%);
   box-shadow:
-    0 0 0 3px rgba(234, 179, 8, 0.22),
-    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    0 0 0 3px rgba(234, 198, 98, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.92);
 }
 
 .liquid-glass-field--required:hover {
-  border-color: rgba(161, 98, 7, 0.82);
+  border-color: rgba(196, 155, 55, 0.82);
   box-shadow:
-    0 0 0 3px rgba(234, 179, 8, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    0 0 0 3px rgba(234, 198, 98, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.92);
 }
 
 .liquid-glass-field--required:focus,
 .liquid-glass-field--required[aria-expanded="true"] {
-  border-color: rgba(133, 77, 14, 0.9);
-  background: linear-gradient(145deg, rgba(254, 240, 138, 0.98) 0%, rgba(255, 255, 255, 0.96) 100%);
+  border-color: rgba(180, 140, 45, 0.88);
+  background: linear-gradient(145deg, rgba(255, 248, 220, 0.98) 0%, rgba(255, 255, 255, 0.96) 100%);
   box-shadow:
-    0 0 0 3px rgba(234, 179, 8, 0.36),
-    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    0 0 0 3px rgba(234, 198, 98, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.92);
 }
 
 .liquid-glass-filter-card {

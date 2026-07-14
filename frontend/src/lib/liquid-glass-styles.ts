@@ -39,7 +39,7 @@ export function glassFilterPanel(): string {
 
 /**
  * Select e inputs (liquid glass).
- * Verde = preenchimento opcional; amarelo (`required`) = obrigatório.
+ * Azul = opcional; amarelo suave (`required`) = obrigatório (vídeo Filipe).
  */
 export function glassField(required = false): string {
   return cn("liquid-glass-field", required && "liquid-glass-field--required");

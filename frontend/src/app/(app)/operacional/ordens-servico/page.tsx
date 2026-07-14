@@ -816,7 +816,8 @@ function OrdensServicoPageContent() {
                     {
                       name: "code",
                       label: "Código",
-                      required: !isNewOrder,
+                      // Vídeo Filipe: Código não é obrigatório visual — sistema gera.
+                      required: false,
                       placeholder: isNewOrder ? "Gerando código…" : undefined,
                       hint: isNewOrder
                         ? "Preenchido automaticamente (OS001, OS002…). Pode alterar se precisar."
