@@ -694,6 +694,9 @@ body {
 .sidebar-nav-btn--child {
   padding-left: 1.125rem;
   font-size: 0.8125rem;
+  line-height: 1.25;
+  white-space: normal;
+  text-align: left;
   background: rgba(255, 255, 255, 0.07);
 }
 
@@ -720,7 +723,16 @@ body {
   margin-top: 0.875rem;
 }
 
-.sidebar-nav-group .sidebar-nav-btn:first-child {
+.sidebar-nav-group-label {
+  margin: 0 0 0.35rem 0.55rem;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.sidebar-nav-group .sidebar-nav-btn:first-of-type {
   margin-top: 0.125rem;
 }
 

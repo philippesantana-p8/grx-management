@@ -17,7 +17,7 @@ export const APP_SCREENS: AppScreen[] = [
   { key: "dashboard", label: "Dashboard", group: "Geral", href: "/dashboard" },
   {
     key: "operacional.ordens-servico",
-    label: "Ordens de Serviço",
+    label: "Ordem de serviço — transporte e frete",
     group: "Operacional",
     href: "/operacional/ordens-servico",
   },
@@ -105,19 +105,19 @@ export const APP_SCREENS: AppScreen[] = [
   {
     key: "configuracoes.parametros-patio",
     label: "Parâmetros do pátio",
-    group: "Configurações",
+    group: "Parâmetros",
     href: "/configuracoes/parametros-patio",
   },
   {
     key: "configuracoes.parametros-frete",
     label: "Parâmetros de frete",
-    group: "Configurações",
+    group: "Parâmetros",
     href: "/configuracoes/parametros-frete",
   },
   {
     key: "configuracoes.parametros",
-    label: "Parâmetros (acesso master)",
-    group: "Configurações",
+    label: "Senha Master com sessão de acesso",
+    group: "Parâmetros",
     href: "/configuracoes/parametros",
   },
 ];

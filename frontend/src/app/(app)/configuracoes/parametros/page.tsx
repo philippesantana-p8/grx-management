@@ -420,7 +420,7 @@ export default function ParametrosPage() {
       <div className="mx-auto max-w-lg">
         <Card>
           <CardHeader
-            title="Parâmetros"
+            title="Senha Master com sessão de acesso"
             description="Área master: acesso a todas as telas e definição de permissões por sócio."
           />
           <CardBody className="space-y-4">
@@ -594,7 +594,7 @@ export default function ParametrosPage() {
 
       <Card>
         <CardHeader
-          title="Parâmetros"
+          title="Senha Master com sessão de acesso"
           description="Acesso master liberado. Defina, por sócio cadastrado, o que ele pode analisar, alterar ou excluir em cada tela."
         />
         <CardBody className="space-y-4">

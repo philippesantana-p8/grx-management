@@ -17,7 +17,10 @@ const NAV: NavItem[] = [
   {
     label: "Operacional",
     children: [
-      { href: "/operacional/ordens-servico", label: "Ordens de Serviço" },
+      {
+        href: "/operacional/ordens-servico",
+        label: "Ordem de serviço — transporte e frete",
+      },
       { href: "/operacional/estacionamento", label: "Estacionamento" },
       { href: "/operacional/lava-rapido", label: "Lava-rápido" },
       { href: "/operacional/agenda-veiculos", label: "Agenda da frota" },
@@ -49,9 +52,17 @@ const NAV: NavItem[] = [
     children: [
       { href: "/configuracoes/integracoes", label: "Integrações" },
       { href: "/configuracoes/mensalidade", label: "Mensalidade" },
+    ],
+  },
+  {
+    label: "Parâmetros",
+    children: [
       { href: "/configuracoes/parametros-patio", label: "Parâmetros do pátio" },
       { href: "/configuracoes/parametros-frete", label: "Parâmetros de frete" },
-      { href: "/configuracoes/parametros", label: "Parâmetros" },
+      {
+        href: "/configuracoes/parametros",
+        label: "Senha Master com sessão de acesso",
+      },
     ],
   },
 ];
@@ -76,6 +87,7 @@ function SidebarNavLink({
     <Link
       href={href}
       onClick={onNavigate}
+      title={label}
       className={cn(
         "sidebar-nav-btn",
         child && "sidebar-nav-btn--child",
@@ -154,6 +166,7 @@ export function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
               />
             ) : (
               <div key={item.label} className="sidebar-nav-group" aria-label={item.label}>
+                <p className="sidebar-nav-group-label">{item.label}</p>
                 {item.children?.map((child) => (
                   <SidebarNavLink
                     key={child.href}
