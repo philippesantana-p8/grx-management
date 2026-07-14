@@ -623,6 +623,69 @@ function OrdensServicoPageContent() {
               window.alert("Selecione um veículo cadastrado na frota.");
               return;
             }
+            if (!data.driver_id) {
+              window.alert("Selecione o motorista.");
+              return;
+            }
+            if (data.service_amount === "" || data.service_amount == null) {
+              window.alert("Informe o valor (R$) da OS.");
+              return;
+            }
+            if (!String(data.client_name ?? "").trim()) {
+              window.alert("Informe o cliente.");
+              return;
+            }
+            if (!String(data.phone ?? "").trim()) {
+              window.alert("Informe o telefone do cliente.");
+              return;
+            }
+            if (!String(data.entry_date ?? "").trim()) {
+              window.alert("Informe a data de entrada / apresentação.");
+              return;
+            }
+            if (!String(data.exit_date ?? "").trim()) {
+              window.alert("Informe a data de saída (fim do período).");
+              return;
+            }
+            if (!String(data.entry_time ?? "").trim()) {
+              window.alert("Informe o horário de apresentação.");
+              return;
+            }
+            if (!String(data.exit_time ?? "").trim()) {
+              window.alert("Informe a hora de saída.");
+              return;
+            }
+            if (!String(data.attendant ?? "").trim()) {
+              window.alert("Informe o responsável / atendente.");
+              return;
+            }
+            if (!String(data.monitoring_contact ?? "").trim()) {
+              window.alert("Informe o contato de monitoria / coordenador 24h.");
+              return;
+            }
+
+            const serviceTypeSave = String(data.service_type ?? "");
+            if (serviceOrderShowsRoutePanel(serviceTypeSave)) {
+              if (!String(data.freight_origin_address ?? "").trim()) {
+                window.alert("Informe o Ponto A — origem.");
+                return;
+              }
+              if (!String(data.freight_destination_address ?? "").trim()) {
+                window.alert("Informe o Ponto B — destino.");
+                return;
+              }
+              if (data.freight_toll_amount === "" || data.freight_toll_amount == null) {
+                window.alert("Informe o pedágio total (R$).");
+                return;
+              }
+            }
+            if (serviceOrderShowsPassengers(serviceTypeSave, categories)) {
+              const pax = normalizePassengers(data.passengers);
+              if (pax.length === 0 || !pax.some((p) => p.name.trim() && p.document_number.trim())) {
+                window.alert("Em Transporte, informe ao menos um passageiro com nome e documento.");
+                return;
+              }
+            }
             const selectedVehicle = vehicleOptions.find((v) => v.value === data.vehicle_id);
             if (!selectedVehicle) {
               window.alert("Veículo inválido — cadastre a placa em Cadastros → Veículos.");
@@ -816,7 +879,7 @@ function OrdensServicoPageContent() {
                     {
                       name: "code",
                       label: "Código",
-                      // Vídeo Filipe: Código não é obrigatório visual — sistema gera.
+                      // Vídeo: Código azul — sistema gera.
                       required: false,
                       placeholder: isNewOrder ? "Gerando código…" : undefined,
                       hint: isNewOrder
@@ -838,11 +901,22 @@ function OrdensServicoPageContent() {
                       name: "status",
                       label: "Status",
                       type: "select",
-                      required: true,
+                      // Vídeo: Status NÃO é obrigatório — permanece Aberto.
+                      required: false,
                       options: SERVICE_ORDER_STATUS.map((s) => ({ value: s, label: s })),
                     },
-                    { name: "entry_date", label: "Entrada (início do período)", type: "date" },
-                    { name: "exit_date", label: "Saída (fim do período)", type: "date" },
+                    {
+                      name: "entry_date",
+                      label: "Entrada (início do período)",
+                      type: "date",
+                      required: true,
+                    },
+                    {
+                      name: "exit_date",
+                      label: "Saída (fim do período)",
+                      type: "date",
+                      required: true,
+                    },
                     {
                       name: "vehicle_id",
                       label: "Veículo da frota (cadastro)",
@@ -864,11 +938,12 @@ function OrdensServicoPageContent() {
                       name: "driver_id",
                       label: "Motorista",
                       type: "select",
+                      required: true,
                       options: driverOptions,
                     },
-                    { name: "service_amount", label: "Valor (R$)", type: "number" },
-                    { name: "client_name", label: "Cliente" },
-                    { name: "phone", label: "Telefone" },
+                    { name: "service_amount", label: "Valor (R$)", type: "number", required: true },
+                    { name: "client_name", label: "Cliente", required: true },
+                    { name: "phone", label: "Telefone", required: true },
                   ]}
                 />
 
@@ -926,9 +1001,11 @@ function OrdensServicoPageContent() {
                     value={selectedDreId}
                     onChange={(next) => set("chart_of_account_id", next)}
                     options={dreAccountOptions}
+                    required
                   />
                   <span className="text-xs text-slate-500 sm:col-span-2">
-                    Deixe em automático para usar a conta sugerida pela natureza do serviço.
+                    Amarelo = conferir/direcionar a conta. Pode deixar automático se a natureza já
+                    sugerir a conta correta.
                   </span>
                 </div>
 

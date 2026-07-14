@@ -42,7 +42,7 @@ export function ServiceOrderPassengersPanel({
       <div>
         <h3 className="text-sm font-semibold text-slate-900">Passageiros no veículo</h3>
         <p className="mt-1 text-xs text-slate-600">
-          Preencha na abertura da OS. Os dados sairão no voucher do motorista após ele aceitar a designação.
+          Em Transporte, nome e documento são obrigatórios. Os dados saem no voucher do motorista.
         </p>
       </div>
 
@@ -50,12 +50,13 @@ export function ServiceOrderPassengersPanel({
         {displayRows.map((row, index) => (
           <div
             key={index}
-            className="grid gap-3 rounded-lg border border-slate-200/80 bg-white/40 p-3 sm:grid-cols-[1fr_1fr_1fr_auto]"
+            className="grid gap-3 rounded-lg border border-slate-200/80 bg-white/40 p-3 sm:grid-cols-[1fr_1fr_auto]"
           >
             <label className="block space-y-1">
               <span className="text-xs font-medium text-slate-600">Nome</span>
               <input
-                className={glassField()}
+                className={glassField(true)}
+                required
                 value={row.name}
                 placeholder="Nome completo"
                 onChange={(e) => updateRow(index, { name: e.target.value })}
@@ -64,19 +65,11 @@ export function ServiceOrderPassengersPanel({
             <label className="block space-y-1">
               <span className="text-xs font-medium text-slate-600">Documento (RG/CPF)</span>
               <input
-                className={glassField()}
+                className={glassField(true)}
+                required
                 value={row.document_number}
                 placeholder="Número"
                 onChange={(e) => updateRow(index, { document_number: e.target.value })}
-              />
-            </label>
-            <label className="block space-y-1">
-              <span className="text-xs font-medium text-slate-600">Órgão emissor</span>
-              <input
-                className={glassField()}
-                value={row.document_issuer ?? ""}
-                placeholder="SSP/SP"
-                onChange={(e) => updateRow(index, { document_issuer: e.target.value })}
               />
             </label>
             <div className="flex items-end pb-0.5">

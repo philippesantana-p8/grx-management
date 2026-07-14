@@ -18,6 +18,7 @@ import {
   resolveVanKmRate,
   VAN_TRANSPORT_REFERENCE_TABLE,
 } from "@/lib/transport-van-estimate";
+import { glassField } from "@/lib/liquid-glass-styles";
 import { formatCurrency } from "@/lib/utils";
 
 type FreightForm = {
@@ -297,12 +298,14 @@ export function FreightCalculatorPanel({
           address={String(form.freight_origin_address ?? "")}
           placeholder="Rua, número, cidade, UF (ex.: Rua X, Itapecerica da Serra, SP)"
           onAddressChange={(value) => set("freight_origin_address", value)}
+          required
         />
         <AddressWithCepField
           label="Ponto B — destino"
           address={String(form.freight_destination_address ?? "")}
           placeholder="Rua, número, cidade, UF (ex.: Centro, Vila Velha, ES)"
           onAddressChange={(value) => set("freight_destination_address", value)}
+          required
         />
 
         <div className="flex flex-wrap items-end gap-2 sm:col-span-2">
@@ -333,10 +336,11 @@ export function FreightCalculatorPanel({
             type="number"
             min={1}
             step="0.01"
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            className={glassField(false)}
             value={String(form.freight_distance_km ?? "")}
             onChange={(e) => set("freight_distance_km", e.target.value)}
           />
+          <span className="text-xs text-slate-500">Preenchida pelo cálculo de rota.</span>
         </label>
 
         <label className="block space-y-1">
@@ -347,7 +351,8 @@ export function FreightCalculatorPanel({
             type="number"
             min={0}
             step="0.01"
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            className={glassField(true)}
+            required
             value={String(form.freight_toll_amount ?? "")}
             onChange={(e) => {
               set("freight_toll_amount", e.target.value);

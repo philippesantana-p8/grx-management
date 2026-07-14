@@ -3,12 +3,14 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { fetchAddressByCep, formatCep, normalizeCep } from "@/lib/cep";
+import { glassField } from "@/lib/liquid-glass-styles";
 
 type Props = {
   label: string;
   address: string;
   placeholder?: string;
   onAddressChange: (value: string) => void;
+  required?: boolean;
 };
 
 export function AddressWithCepField({
@@ -16,6 +18,7 @@ export function AddressWithCepField({
   address,
   placeholder,
   onAddressChange,
+  required = false,
 }: Props) {
   const [cep, setCep] = useState("");
   const [loading, setLoading] = useState(false);
@@ -39,7 +42,8 @@ export function AddressWithCepField({
     <label className="block space-y-2 sm:col-span-2">
       <span className="text-sm font-medium text-slate-700">{label}</span>
       <input
-        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+        className={glassField(required)}
+        required={required}
         value={address}
         onChange={(e) => onAddressChange(e.target.value)}
         placeholder={placeholder}
@@ -48,7 +52,7 @@ export function AddressWithCepField({
         <div className="space-y-1">
           <span className="text-xs text-slate-500">CEP (opcional — preenche o endereço)</span>
           <input
-            className="w-36 rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            className={`w-36 ${glassField(false)}`}
             value={cep}
             onChange={(e) => setCep(formatCep(e.target.value))}
             placeholder="00000-000"
