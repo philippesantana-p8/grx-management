@@ -22,6 +22,18 @@ export const APP_SCREENS: AppScreen[] = [
     href: "/operacional/ordens-servico",
   },
   {
+    key: "operacional.estacionamento",
+    label: "Estacionamento",
+    group: "Operacional",
+    href: "/operacional/estacionamento",
+  },
+  {
+    key: "operacional.lava-rapido",
+    label: "Lava-rápido",
+    group: "Operacional",
+    href: "/operacional/lava-rapido",
+  },
+  {
     key: "operacional.agenda-veiculos",
     label: "Agenda da frota",
     group: "Operacional",
@@ -89,6 +101,12 @@ export const APP_SCREENS: AppScreen[] = [
     label: "Mensalidade",
     group: "Configurações",
     href: "/configuracoes/mensalidade",
+  },
+  {
+    key: "configuracoes.parametros-patio",
+    label: "Parâmetros do pátio",
+    group: "Configurações",
+    href: "/configuracoes/parametros-patio",
   },
   {
     key: "configuracoes.parametros",

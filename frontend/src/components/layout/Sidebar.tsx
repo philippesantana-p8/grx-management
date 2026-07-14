@@ -18,6 +18,8 @@ const NAV: NavItem[] = [
     label: "Operacional",
     children: [
       { href: "/operacional/ordens-servico", label: "Ordens de Serviço" },
+      { href: "/operacional/estacionamento", label: "Estacionamento" },
+      { href: "/operacional/lava-rapido", label: "Lava-rápido" },
       { href: "/operacional/agenda-veiculos", label: "Agenda da frota" },
       { href: "/operacional/infracoes", label: "Infrações de Trânsito" },
     ],
@@ -47,6 +49,7 @@ const NAV: NavItem[] = [
     children: [
       { href: "/configuracoes/integracoes", label: "Integrações" },
       { href: "/configuracoes/mensalidade", label: "Mensalidade" },
+      { href: "/configuracoes/parametros-patio", label: "Parâmetros do pátio" },
       { href: "/configuracoes/parametros", label: "Parâmetros" },
     ],
   },
