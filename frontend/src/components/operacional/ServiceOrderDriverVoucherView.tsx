@@ -2,6 +2,10 @@
 
 import { BrandLogo } from "@/components/brand/BrandLogo";
 import { Button } from "@/components/ui/Button";
+import {
+  serviceOrderShowsFlightData,
+  serviceOrderShowsPassengers,
+} from "@/lib/service-order-field-visibility";
 import { normalizePassengers } from "@/lib/service-order-passengers";
 import { formatServiceDate } from "@/lib/service-order-proposal";
 import {
@@ -90,7 +94,9 @@ export function ServiceOrderDriverVoucherView({
   context,
   pendingDriverAcceptance = false,
 }: Props) {
-  const passengers = normalizePassengers(order.passengers);
+  const showPassengers = serviceOrderShowsPassengers(order.service_type);
+  const showFlight = serviceOrderShowsFlightData(order.service_type);
+  const passengers = showPassengers ? normalizePassengers(order.passengers) : [];
   const serviceLabel = SERVICE_ORDER_TYPE_LABELS[order.service_type] ?? order.service_type;
   const presentationAddress = order.freight_origin_address?.trim() || "—";
   const destinationAddress = order.freight_destination_address?.trim() || "—";
@@ -155,7 +161,7 @@ export function ServiceOrderDriverVoucherView({
           <VoucherCell label="Endereço de destino" value={destinationAddress} />
         </div>
 
-        {order.flight_data ? (
+        {showFlight && order.flight_data ? (
           <div className="mt-0">
             <VoucherCell label="Dados do voo" value={order.flight_data} />
           </div>
@@ -166,12 +172,14 @@ export function ServiceOrderDriverVoucherView({
           <VoucherCell label="Telefone" value={contactPhone} />
         </div>
 
-        <div className="mt-4">
-          <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
-            Passageiros no veículo
-          </p>
-          <PassengersBlock passengers={passengers} />
-        </div>
+        {showPassengers ? (
+          <div className="mt-4">
+            <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Passageiros no veículo
+            </p>
+            <PassengersBlock passengers={passengers} />
+          </div>
+        ) : null}
 
         <div className="mt-4 grid gap-0 sm:grid-cols-2">
           <VoucherCell

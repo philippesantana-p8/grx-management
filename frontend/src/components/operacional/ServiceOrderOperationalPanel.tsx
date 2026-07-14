@@ -5,9 +5,15 @@ import { glassField, glassFilterPanel } from "@/lib/liquid-glass-styles";
 type Props = {
   form: Record<string, unknown>;
   set: (key: string, value: unknown) => void;
+  /** Dados de voo / traslado — só Transporte */
+  showFlightData?: boolean;
 };
 
-export function ServiceOrderOperationalPanel({ form, set }: Props) {
+export function ServiceOrderOperationalPanel({
+  form,
+  set,
+  showFlightData = true,
+}: Props) {
   return (
     <div className={`space-y-4 sm:col-span-2 ${glassFilterPanel()}`}>
       <div>
@@ -54,15 +60,17 @@ export function ServiceOrderOperationalPanel({ form, set }: Props) {
             onChange={(e) => set("attendant", e.target.value)}
           />
         </label>
-        <label className="block space-y-1 sm:col-span-2">
-          <span className="text-sm font-medium text-slate-700">Dados do voo (traslado)</span>
-          <input
-            className={glassField()}
-            value={String(form.flight_data ?? "")}
-            placeholder="Ex.: CGH — Congonhas, voo G3 1234"
-            onChange={(e) => set("flight_data", e.target.value)}
-          />
-        </label>
+        {showFlightData ? (
+          <label className="block space-y-1 sm:col-span-2">
+            <span className="text-sm font-medium text-slate-700">Dados do voo (traslado)</span>
+            <input
+              className={glassField()}
+              value={String(form.flight_data ?? "")}
+              placeholder="Ex.: CGH — Congonhas, voo G3 1234"
+              onChange={(e) => set("flight_data", e.target.value)}
+            />
+          </label>
+        ) : null}
         <label className="block space-y-1 sm:col-span-2">
           <span className="text-sm font-medium text-slate-700">Monitoria / coordenador 24h</span>
           <input

@@ -47,6 +47,11 @@ import {
   type ServiceOrderListRow,
 } from "@/lib/service-order-filters";
 import { formatCurrency, normalizePlate } from "@/lib/utils";
+import {
+  serviceOrderShowsFlightData,
+  serviceOrderShowsPassengers,
+  serviceOrderShowsRoutePanel,
+} from "@/lib/service-order-field-visibility";
 import { normalizePassengers } from "@/lib/service-order-passengers";
 import type { DreAccount, Driver, DriverAssignmentResponse, Vehicle } from "@/types/database";
 import {
@@ -665,7 +670,15 @@ function OrdensServicoPageContent() {
               if (data[key] === "") data[key] = null;
             }
 
-            data.passengers = normalizePassengers(data.passengers);
+            const serviceType = String(data.service_type ?? "");
+            if (serviceOrderShowsPassengers(serviceType)) {
+              data.passengers = normalizePassengers(data.passengers);
+            } else {
+              data.passengers = [];
+            }
+            if (!serviceOrderShowsFlightData(serviceType)) {
+              data.flight_data = null;
+            }
 
             await onSave(data);
           }}
@@ -681,13 +694,22 @@ function OrdensServicoPageContent() {
               suggestedDre ??
               null;
 
-            const isFrete = String(form.service_type) === "Frete";
-            const showRoutePanel = isFrete || String(form.service_type) === "Transporte";
+            const serviceType = String(form.service_type ?? "");
+            const isFrete = serviceType === "Frete";
+            const showRoutePanel = serviceOrderShowsRoutePanel(serviceType);
+            const showPassengers = serviceOrderShowsPassengers(serviceType);
+            const showFlightData = serviceOrderShowsFlightData(serviceType);
 
             const handleServiceTypeChange = (value: string) => {
               set("service_type", value);
               set("service_categories", categoriesForServiceType(value));
               set("chart_of_account_id", "");
+              if (!serviceOrderShowsPassengers(value)) {
+                set("passengers", []);
+              }
+              if (!serviceOrderShowsFlightData(value)) {
+                set("flight_data", "");
+              }
               const currentVehicle = vehicleOptions.find(
                 (v) => v.value === String(form.vehicle_id ?? "")
               );
@@ -784,12 +806,18 @@ function OrdensServicoPageContent() {
                   ]}
                 />
 
-                <ServiceOrderOperationalPanel form={form} set={set} />
-
-                <ServiceOrderPassengersPanel
-                  passengers={form.passengers}
-                  onChange={(next) => set("passengers", next)}
+                <ServiceOrderOperationalPanel
+                  form={form}
+                  set={set}
+                  showFlightData={showFlightData}
                 />
+
+                {showPassengers && (
+                  <ServiceOrderPassengersPanel
+                    passengers={form.passengers}
+                    onChange={(next) => set("passengers", next)}
+                  />
+                )}
 
                 {vehicleOptions.length === 0 && (
                   <Alert variant="warning">

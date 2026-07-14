@@ -63,7 +63,7 @@ Regra Cursor espelhada: `.cursor/rules/deploy-prod-and-dev.mdc`.
 | Área | Decisão / estado |
 |------|------------------|
 | Campos formulário | Bordas rosa sempre visíveis (liquid glass). |
-| Passageiros na OS | Botão **+ Passageiro** corrigido; linhas vazias só limpas no save. |
+| Passageiros na OS | Botão **+ Passageiro** corrigido; linhas vazias só limpas no save. Campos de passageiros e voo só no tipo **Transporte** (ocultos em Frete, Estacionamento, Lava-rápido). |
 | Voucher motorista | Valores motorista/ajudante **em branco** no voucher; sistema/designação guardam os valores. |
 | Sócios | RG / CPF / CNPJ + validações BR. |
 | Parâmetros | Senha master + frase de recuperação + permissões por tela/sócio. |
