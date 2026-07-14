@@ -371,9 +371,9 @@ body {
 .liquid-glass-field {
   width: 100%;
   border-radius: 0.75rem;
-  /* Sempre visível no formulário branco — o usuário não precisa “adivinhar” o campo */
-  border: 1px solid rgba(208, 0, 31, 0.45);
-  background: linear-gradient(145deg, rgba(254, 242, 244, 0.95) 0%, rgba(255, 255, 255, 0.92) 100%);
+  /* Verde = campo para preencher (pedido Filipe). Amarelo = obrigatório (--required). */
+  border: 1px solid rgba(22, 163, 74, 0.55);
+  background: linear-gradient(145deg, rgba(240, 253, 244, 0.95) 0%, rgba(255, 255, 255, 0.92) 100%);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   padding: 0.5rem 0.75rem;
@@ -381,24 +381,49 @@ body {
   line-height: 1.25;
   color: #0f172a;
   box-shadow:
-    0 0 0 3px rgba(208, 0, 31, 0.12),
+    0 0 0 3px rgba(34, 197, 94, 0.14),
     inset 0 1px 0 rgba(255, 255, 255, 0.9);
   outline: none;
   transition: border-color 0.14s ease, box-shadow 0.14s ease, background 0.14s ease;
 }
 
 .liquid-glass-field:hover {
-  border-color: rgba(208, 0, 31, 0.58);
+  border-color: rgba(22, 163, 74, 0.72);
   box-shadow:
-    0 0 0 3px rgba(208, 0, 31, 0.16),
+    0 0 0 3px rgba(34, 197, 94, 0.2),
     inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
-.liquid-glass-field:focus {
-  border-color: rgba(208, 0, 31, 0.72);
-  background: linear-gradient(145deg, rgba(253, 232, 236, 0.98) 0%, rgba(255, 255, 255, 0.96) 100%);
+.liquid-glass-field:focus,
+.liquid-glass-field[aria-expanded="true"] {
+  border-color: rgba(21, 128, 61, 0.85);
+  background: linear-gradient(145deg, rgba(220, 252, 231, 0.98) 0%, rgba(255, 255, 255, 0.96) 100%);
   box-shadow:
-    0 0 0 3px rgba(208, 0, 31, 0.2),
+    0 0 0 3px rgba(34, 197, 94, 0.26),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.liquid-glass-field--required {
+  border-color: rgba(202, 138, 4, 0.7);
+  background: linear-gradient(145deg, rgba(254, 249, 195, 0.95) 0%, rgba(255, 255, 255, 0.92) 100%);
+  box-shadow:
+    0 0 0 3px rgba(234, 179, 8, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.liquid-glass-field--required:hover {
+  border-color: rgba(161, 98, 7, 0.82);
+  box-shadow:
+    0 0 0 3px rgba(234, 179, 8, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.liquid-glass-field--required:focus,
+.liquid-glass-field--required[aria-expanded="true"] {
+  border-color: rgba(133, 77, 14, 0.9);
+  background: linear-gradient(145deg, rgba(254, 240, 138, 0.98) 0%, rgba(255, 255, 255, 0.96) 100%);
+  box-shadow:
+    0 0 0 3px rgba(234, 179, 8, 0.36),
     inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 

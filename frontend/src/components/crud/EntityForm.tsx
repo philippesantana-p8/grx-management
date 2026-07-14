@@ -90,10 +90,11 @@ export function FormFields({
             <label className="block space-y-1">
               <span className="text-sm font-medium text-slate-700">{field.label}</span>
               <textarea
-                className={glassField()}
+                className={glassField(Boolean(field.required))}
                 rows={3}
                 value={String(form[field.name] ?? "")}
                 onChange={(e) => set(field.name, e.target.value)}
+                required={field.required}
               />
             </label>
           ) : field.type === "date" ? (
@@ -101,7 +102,7 @@ export function FormFields({
               <span className="text-sm font-medium text-slate-700">{field.label}</span>
               <input
                 type="date"
-                className={glassField()}
+                className={glassField(Boolean(field.required))}
                 value={String(form[field.name] ?? "")}
                 onChange={(e) => set(field.name, e.target.value)}
                 required={field.required}
@@ -114,7 +115,7 @@ export function FormFields({
                 type={field.type ?? "text"}
                 readOnly={field.readOnly}
                 placeholder={field.placeholder}
-                className={`${glassField()} ${field.readOnly ? "opacity-80" : ""}`}
+                className={`${glassField(Boolean(field.required))} ${field.readOnly ? "opacity-80" : ""}`}
                 value={String(form[field.name] ?? "")}
                 onChange={(e) =>
                   set(field.name, field.type === "number" ? Number(e.target.value) : e.target.value)

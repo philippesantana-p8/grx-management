@@ -245,11 +245,11 @@ export function GlassSelect({
         aria-expanded={open}
         data-glass-select-trigger
         className={cn(
-          glassField(),
+          glassField(Boolean(required)),
           "flex w-full cursor-pointer select-none items-center justify-between gap-2 text-left",
-          disabled && "cursor-not-allowed opacity-60",
-          open && "border-[rgba(208,0,31,0.72)]"
+          disabled && "cursor-not-allowed opacity-60"
         )}
+        aria-required={required || undefined}
         onPointerDown={protectOpeningInteraction}
         onClick={toggleMenu}
         onKeyDown={(event) => {

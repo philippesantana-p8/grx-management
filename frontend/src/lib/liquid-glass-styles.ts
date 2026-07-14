@@ -37,9 +37,12 @@ export function glassFilterPanel(): string {
   return "liquid-glass-panel";
 }
 
-/** Select e inputs em painéis de filtro. */
-export function glassField(): string {
-  return "liquid-glass-field";
+/**
+ * Select e inputs (liquid glass).
+ * Verde = preenchimento opcional; amarelo (`required`) = obrigatório.
+ */
+export function glassField(required = false): string {
+  return cn("liquid-glass-field", required && "liquid-glass-field--required");
 }
 
 /** Cartão clicável de filtro (infrações). */

@@ -18,7 +18,11 @@ export function Input({ className, label, error, id, ...props }: Props) {
       )}
       <input
         id={inputId}
-        className={cn("liquid-glass-field", error && "border-red-400", className)}
+        className={cn(
+          glassField(Boolean(props.required)),
+          error && "border-red-400",
+          className
+        )}
         {...props}
       />
       {error && <p className="text-xs text-red-600">{error}</p>}
