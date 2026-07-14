@@ -15,6 +15,7 @@ import {
   type PatioVehicleType,
 } from "@/lib/patio";
 import {
+  computeParkingTotals,
   createParkingEntry,
   finalizeParkingEntry,
   listPatioVehicleTypes,
@@ -32,6 +33,7 @@ export default function EstacionamentoPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [quotedRate, setQuotedRate] = useState<number | null>(null);
   const [exitDraft, setExitDraft] = useState<Record<string, { date: string; time: string }>>({});
 
   const [form, setForm] = useState({
@@ -76,6 +78,29 @@ export default function EstacionamentoPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (!companyId || !form.vehicle_type_id || !form.entry_date) {
+      setQuotedRate(null);
+      return;
+    }
+    let cancelled = false;
+    void computeParkingTotals({
+      supabase,
+      companyId,
+      vehicleTypeId: form.vehicle_type_id,
+      billingMode: form.billing_mode,
+      entryDate: form.entry_date,
+      exitDate: null,
+    }).then((result) => {
+      if (cancelled) return;
+      if (!result.ok) setQuotedRate(null);
+      else setQuotedRate(result.dailyRate);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [companyId, form.vehicle_type_id, form.billing_mode, form.entry_date, supabase]);
 
   const openEntry = async () => {
     if (!companyId) return;
@@ -189,6 +214,18 @@ export default function EstacionamentoPage() {
             options={PARKING_BILLING_MODES.map((m) => ({ value: m, label: m }))}
           />
           <label className="block space-y-1">
+            <span className="text-sm font-medium text-slate-700">Valor (tabela)</span>
+            <input
+              className={glassField(false)}
+              readOnly
+              value={
+                quotedRate != null
+                  ? `${formatCurrency(quotedRate)}${form.billing_mode === "Mensal" ? " / mês" : " / diária"}`
+                  : "— sem preço —"
+              }
+            />
+          </label>
+          <label className="block space-y-1">
             <span className="text-sm font-medium text-slate-700">Data entrada</span>
             <input
               type="date"
@@ -239,7 +276,7 @@ export default function EstacionamentoPage() {
             />
           </label>
         </div>
-        <Button type="button" disabled={saving} onClick={() => void openEntry()}>
+        <Button type="button" disabled={saving || quotedRate == null} onClick={() => void openEntry()}>
           Abrir ordem de estacionamento
         </Button>
       </section>
@@ -253,6 +290,7 @@ export default function EstacionamentoPage() {
               <th className="px-3 py-2">Porte</th>
               <th className="px-3 py-2">Entrada</th>
               <th className="px-3 py-2">Saída / fechar</th>
+              <th className="px-3 py-2">Valor</th>
               <th className="px-3 py-2">Comprovante</th>
               <th className="px-3 py-2">Total</th>
               <th className="px-3 py-2">Status</th>
@@ -311,6 +349,18 @@ export default function EstacionamentoPage() {
                     )}
                   </td>
                   <td className="px-3 py-2">
+                    {row.daily_rate != null ? (
+                      <>
+                        {formatCurrency(Number(row.daily_rate))}
+                        <div className="text-xs text-slate-500">
+                          {row.billing_mode === "Mensal" ? "mensal" : "diária"}
+                        </div>
+                      </>
+                    ) : (
+                      "—"
+                    )}
+                  </td>
+                  <td className="px-3 py-2">
                     {companyId ? (
                       <PatioPaymentProofClip
                         companyId={companyId}
@@ -346,7 +396,7 @@ export default function EstacionamentoPage() {
             })}
             {rows.length === 0 && !loading ? (
               <tr>
-                <td colSpan={8} className="px-3 py-6 text-center text-slate-500">
+                <td colSpan={9} className="px-3 py-6 text-center text-slate-500">
                   Nenhuma ordem ainda.
                 </td>
               </tr>
