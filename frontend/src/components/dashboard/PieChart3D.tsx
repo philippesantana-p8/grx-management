@@ -65,13 +65,13 @@ function wallPath(
  * explodida, espessura rasa (~6–8% do diâmetro), mate sólido, sem liquid glass.
  * Branco da foto → laranja (contraste no fundo claro).
  */
-export function PieChart3D({ slices, size = 220, compact = false }: Props) {
-  const chartSize = Math.min(Math.max(size, 200), 240);
+export function PieChart3D({ slices, size = 260, compact = false }: Props) {
+  const chartSize = Math.min(Math.max(size, 240), 280);
   const total = slices.reduce((s, x) => s + Math.max(0, x.value), 0);
 
   if (total <= 0) {
     return (
-      <div className="flex h-48 items-center justify-center text-sm text-slate-500">
+      <div className="flex h-56 items-center justify-center text-sm text-slate-500">
         Sem resultado atribuído no período.
       </div>
     );
@@ -131,7 +131,7 @@ export function PieChart3D({ slices, size = 220, compact = false }: Props) {
     >
       <svg
         viewBox={`0 0 ${chartSize} ${viewH}`}
-        className="mx-auto h-48 w-48 shrink-0 sm:h-52 sm:w-52"
+        className="mx-auto h-56 w-56 shrink-0 sm:h-64 sm:w-64"
         role="img"
         aria-label="Gráfico de pizza 3D no estilo da referência"
       >
