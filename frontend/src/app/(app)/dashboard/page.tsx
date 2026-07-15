@@ -42,14 +42,14 @@ const EMPTY_FILTERS: DashboardFilters = {
   ownershipPct: "",
 };
 
-/** Cores do estilo pizza 3D de referência (azul / laranja / verde). */
+/** Cores sólidas no estilo pizza 3D explodida (azul / branco / vermelho…). */
 const PRODUCT_COLORS = {
-  frete: "#2f6bff",
-  estacionamento: "#ff8a1f",
-  lava: "#22c55e",
+  frete: "#3b82f6",
+  estacionamento: "#f8fafc",
+  lava: "#ef4444",
 } as const;
 
-const PARTNER_COLORS = ["#2f6bff", "#ff8a1f", "#22c55e", "#a855f7", "#06b6d4"] as const;
+const PARTNER_COLORS = ["#3b82f6", "#f8fafc", "#ef4444", "#22c55e", "#f97316"] as const;
 
 function KpiStrip({ snapshot }: { snapshot: DashboardSnapshot }) {
   return (
