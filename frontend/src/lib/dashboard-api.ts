@@ -3,7 +3,8 @@ import {
   buildSnapshot,
   DASHBOARD_DEMO_ENTRY_SOURCE,
   DASHBOARD_DEMO_PREFIX,
-  periodRange,
+  resolveDashboardRange,
+  type DashboardDateRange,
   type DashboardFilters,
   type DashboardPeriodKey,
   type DashboardSnapshot,
@@ -66,9 +67,10 @@ export async function fetchDashboardSnapshot(
   supabase: SupabaseClient,
   companyId: string,
   periodKey: DashboardPeriodKey,
-  filters?: DashboardFilters
+  filters?: DashboardFilters,
+  customRange?: Partial<DashboardDateRange> | null
 ): Promise<{ snapshot: DashboardSnapshot | null; error: string | null }> {
-  const { from, to } = periodRange(periodKey);
+  const { from, to } = resolveDashboardRange(periodKey, customRange);
 
   const schema = await getOwnershipDbSchema(supabase);
 

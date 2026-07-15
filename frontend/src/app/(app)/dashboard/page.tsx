@@ -22,7 +22,8 @@ import type {
   DashboardPeriodKey,
   DashboardSnapshot,
 } from "@/lib/dashboard-metrics";
-import { glassFilterPanel } from "@/lib/liquid-glass-styles";
+import { periodRange } from "@/lib/dashboard-metrics";
+import { glassField, glassFilterPanel } from "@/lib/liquid-glass-styles";
 import { isMasterSessionUnlocked } from "@/lib/master-password";
 import { createClient } from "@/lib/supabase/client";
 import { formatCurrency } from "@/lib/utils";
@@ -32,6 +33,7 @@ const PERIOD_OPTIONS: { value: DashboardPeriodKey; label: string }[] = [
   { value: "last_3_months", label: "Últimos 3 meses" },
   { value: "current_month", label: "Mês atual" },
   { value: "previous_month", label: "Mês anterior" },
+  { value: "custom", label: "Personalizado (datas)" },
 ];
 
 const EMPTY_FILTERS: DashboardFilters = {
@@ -162,7 +164,10 @@ function OwnershipBlock({
 export default function DashboardPage() {
   const { companyId } = useCompany();
   const supabase = useMemo(() => createClient(), []);
+  const initialRange = useMemo(() => periodRange("last_4_months"), []);
   const [period, setPeriod] = useState<DashboardPeriodKey>("last_4_months");
+  const [dateFrom, setDateFrom] = useState(initialRange.from);
+  const [dateTo, setDateTo] = useState(initialRange.to);
   const [product, setProduct] = useState<DashboardProductTab>("geral");
   const [filters, setFilters] = useState<DashboardFilters>(EMPTY_FILTERS);
   const [snapshot, setSnapshot] = useState<DashboardSnapshot | null>(null);
@@ -172,6 +177,21 @@ export default function DashboardPage() {
   const [msg, setMsg] = useState<string | null>(null);
   const masterUnlocked = companyId ? isMasterSessionUnlocked(companyId) : false;
 
+  const applyPeriodPreset = (next: DashboardPeriodKey) => {
+    setPeriod(next);
+    if (next !== "custom") {
+      const range = periodRange(next);
+      setDateFrom(range.from);
+      setDateTo(range.to);
+    }
+  };
+
+  const applyCustomDate = (which: "from" | "to", value: string) => {
+    setPeriod("custom");
+    if (which === "from") setDateFrom(value);
+    else setDateTo(value);
+  };
+
   const load = useCallback(async () => {
     if (!companyId) return;
     setLoading(true);
@@ -180,12 +200,13 @@ export default function DashboardPage() {
       supabase,
       companyId,
       period,
-      filters
+      filters,
+      { from: dateFrom, to: dateTo }
     );
     if (loadError) setError(loadError);
     setSnapshot(next);
     setLoading(false);
-  }, [companyId, period, filters, supabase]);
+  }, [companyId, period, filters, dateFrom, dateTo, supabase]);
 
   useEffect(() => {
     void load();
@@ -265,13 +286,35 @@ export default function DashboardPage() {
             Navegue por produto: visão geral, Frete/Transporte, Estacionamento e Lava-rápido.
           </p>
         </div>
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
-          <GlassSelect
-            label="Período"
-            value={period}
-            onChange={(next) => setPeriod(next as DashboardPeriodKey)}
-            options={PERIOD_OPTIONS}
-          />
+        <div className="flex flex-col gap-2 lg:items-end">
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
+            <GlassSelect
+              label="Período"
+              value={period}
+              onChange={(next) => applyPeriodPreset(next as DashboardPeriodKey)}
+              options={PERIOD_OPTIONS}
+            />
+            <label className="block min-w-[9.5rem] space-y-1 text-sm">
+              <span className="font-medium text-slate-700">De</span>
+              <input
+                type="date"
+                className={glassField()}
+                value={dateFrom}
+                max={dateTo || undefined}
+                onChange={(e) => applyCustomDate("from", e.target.value)}
+              />
+            </label>
+            <label className="block min-w-[9.5rem] space-y-1 text-sm">
+              <span className="font-medium text-slate-700">Até</span>
+              <input
+                type="date"
+                className={glassField()}
+                value={dateTo}
+                min={dateFrom || undefined}
+                onChange={(e) => applyCustomDate("to", e.target.value)}
+              />
+            </label>
+          </div>
           {masterUnlocked ? (
             <div className="flex flex-wrap gap-2">
               <Button type="button" disabled={busy} onClick={() => void handleSeedDemo()}>

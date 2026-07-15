@@ -9,7 +9,13 @@ export type DashboardPeriodKey =
   | "current_month"
   | "previous_month"
   | "last_3_months"
-  | "last_4_months";
+  | "last_4_months"
+  | "custom";
+
+export type DashboardDateRange = {
+  from: string; // YYYY-MM-DD
+  to: string;
+};
 
 export type DashboardFilters = {
   plate: string; // "" = todas
@@ -167,41 +173,57 @@ export function addToTotals(t: BucketTotals, row: FtRow): void {
   t.result = t.revenue - t.expense;
 }
 
+function toIsoDate(d: Date): string {
+  const yy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yy}-${mm}-${dd}`;
+}
+
 export function periodRange(
-  key: DashboardPeriodKey,
+  key: Exclude<DashboardPeriodKey, "custom"> | DashboardPeriodKey,
   now = new Date()
-): { from: string; to: string } {
+): DashboardDateRange {
   const y = now.getFullYear();
   const m = now.getMonth(); // 0-based
-
-  const iso = (d: Date) => {
-    const yy = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, "0");
-    const dd = String(d.getDate()).padStart(2, "0");
-    return `${yy}-${mm}-${dd}`;
-  };
 
   if (key === "previous_month") {
     const start = new Date(y, m - 1, 1);
     const end = new Date(y, m, 0);
-    return { from: iso(start), to: iso(end) };
+    return { from: toIsoDate(start), to: toIsoDate(end) };
   }
 
   if (key === "last_3_months") {
     const start = new Date(y, m - 2, 1);
     const end = new Date(y, m + 1, 0);
-    return { from: iso(start), to: iso(end) };
+    return { from: toIsoDate(start), to: toIsoDate(end) };
   }
 
   if (key === "last_4_months") {
     const start = new Date(y, m - 3, 1);
     const end = new Date(y, m + 1, 0);
-    return { from: iso(start), to: iso(end) };
+    return { from: toIsoDate(start), to: toIsoDate(end) };
   }
 
+  // current_month e custom sem datas caem no mês atual
   const start = new Date(y, m, 1);
   const end = new Date(y, m + 1, 0);
-  return { from: iso(start), to: iso(end) };
+  return { from: toIsoDate(start), to: toIsoDate(end) };
+}
+
+/** Resolve o intervalo efetivo (presets ou De/Até personalizado). */
+export function resolveDashboardRange(
+  key: DashboardPeriodKey,
+  custom?: Partial<DashboardDateRange> | null
+): DashboardDateRange {
+  if (key === "custom") {
+    const fallback = periodRange("current_month");
+    const from = (custom?.from || fallback.from).slice(0, 10);
+    const to = (custom?.to || fallback.to).slice(0, 10);
+    if (!from || !to) return fallback;
+    return from <= to ? { from, to } : { from: to, to: from };
+  }
+  return periodRange(key);
 }
 
 export function monthKey(dateIso: string): string {
