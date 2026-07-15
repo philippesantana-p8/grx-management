@@ -401,77 +401,71 @@ export default function DashboardPage() {
                   <h2 className="text-sm font-semibold text-slate-900">
                     Participação na receita
                   </h2>
-                  <div className="rounded-2xl bg-blue-200/90 p-3 ring-1 ring-blue-300/80">
-                    <PieChart3D
-                      compact
-                      slices={[
-                        {
-                          key: "frete",
-                          label: "Frete / Transporte",
-                          value: snapshot.frete.revenue,
-                          color: PRODUCT_COLORS.frete,
-                        },
-                        {
-                          key: "estac",
-                          label: "Estacionamento",
-                          value: snapshot.estacionamento.revenue,
-                          color: PRODUCT_COLORS.estacionamento,
-                        },
-                        {
-                          key: "lava",
-                          label: "Lava-rápido",
-                          value: snapshot.lava.revenue,
-                          color: PRODUCT_COLORS.lava,
-                        },
-                      ]}
-                    />
-                  </div>
+                  <PieChart3D
+                    compact
+                    slices={[
+                      {
+                        key: "frete",
+                        label: "Frete / Transporte",
+                        value: snapshot.frete.revenue,
+                        color: PRODUCT_COLORS.frete,
+                      },
+                      {
+                        key: "estac",
+                        label: "Estacionamento",
+                        value: snapshot.estacionamento.revenue,
+                        color: PRODUCT_COLORS.estacionamento,
+                      },
+                      {
+                        key: "lava",
+                        label: "Lava-rápido",
+                        value: snapshot.lava.revenue,
+                        color: PRODUCT_COLORS.lava,
+                      },
+                    ]}
+                  />
                 </div>
                 <div className={`space-y-2 ${glassFilterPanel()}`}>
                   <h2 className="text-sm font-semibold text-slate-900">
                     Participação nas despesas
                   </h2>
-                  <div className="rounded-2xl bg-emerald-50/95 p-3 ring-1 ring-emerald-100/90">
-                    <PieChart3D
-                      compact
-                      slices={[
-                        {
-                          key: "frete-d",
-                          label: "Frete / Transporte",
-                          value: snapshot.frete.expense,
-                          color: PRODUCT_COLORS.frete,
-                        },
-                        {
-                          key: "estac-d",
-                          label: "Estacionamento",
-                          value: snapshot.estacionamento.expense,
-                          color: PRODUCT_COLORS.estacionamento,
-                        },
-                        {
-                          key: "lava-d",
-                          label: "Lava-rápido",
-                          value: snapshot.lava.expense,
-                          color: PRODUCT_COLORS.lava,
-                        },
-                      ]}
-                    />
-                  </div>
+                  <PieChart3D
+                    compact
+                    slices={[
+                      {
+                        key: "frete-d",
+                        label: "Frete / Transporte",
+                        value: snapshot.frete.expense,
+                        color: PRODUCT_COLORS.frete,
+                      },
+                      {
+                        key: "estac-d",
+                        label: "Estacionamento",
+                        value: snapshot.estacionamento.expense,
+                        color: PRODUCT_COLORS.estacionamento,
+                      },
+                      {
+                        key: "lava-d",
+                        label: "Lava-rápido",
+                        value: snapshot.lava.expense,
+                        color: PRODUCT_COLORS.lava,
+                      },
+                    ]}
+                  />
                 </div>
                 <div className={`space-y-2 ${glassFilterPanel()}`}>
                   <h2 className="text-sm font-semibold text-slate-900">
                     Participações societárias
                   </h2>
-                  <div className="rounded-2xl bg-indigo-50/90 p-3 ring-1 ring-indigo-100/80">
-                    <PieChart3D
-                      compact
-                      slices={snapshot.participationByPartner.map((p, i) => ({
-                        key: p.partnerId,
-                        label: p.partnerName,
-                        value: Math.max(0, p.result),
-                        color: PARTNER_COLORS[i % PARTNER_COLORS.length],
-                      }))}
-                    />
-                  </div>
+                  <PieChart3D
+                    compact
+                    slices={snapshot.participationByPartner.map((p, i) => ({
+                      key: p.partnerId,
+                      label: p.partnerName,
+                      value: Math.max(0, p.result),
+                      color: PARTNER_COLORS[i % PARTNER_COLORS.length],
+                    }))}
+                  />
                 </div>
               </div>
               <div className={`overflow-x-auto ${glassFilterPanel()}`}>
