@@ -16,7 +16,7 @@ type Props = {
   compact?: boolean;
 };
 
-const PALETTE = ["#3b82f6", "#f8fafc", "#ef4444", "#22c55e", "#f97316", "#a855f7"];
+const PALETTE = ["#ef4444", "#f97316", "#eab308", "#2563eb", "#22c55e", "#a855f7"];
 
 function shade(hex: string, amount: number): string {
   const raw = hex.replace("#", "");
@@ -61,8 +61,9 @@ function wallPath(
 }
 
 /**
- * Pizza 3D “explodida” (referência 2): todas as fatias separadas,
- * cores sólidas opacas, laterais sombreadas e sombra no chão.
+ * Pizza 3D com extrusão variável (referência “alturas diferentes”):
+ * ângulo = participação; altura = magnitude relativa do valor.
+ * Cores sólidas mate, laterais sombreadas, sombra circular no chão.
  */
 export function PieChart3D({ slices, size = 280, compact = false }: Props) {
   const uid = useId().replace(/:/g, "");
@@ -81,13 +82,15 @@ export function PieChart3D({ slices, size = 280, compact = false }: Props) {
     );
   }
 
-  const cx = chartSize / 2;
-  const cy = chartSize / 2 - 2;
-  const r = chartSize * 0.3;
-  const depth = Math.max(28, chartSize * 0.12);
-  const explode = r * 0.2;
+  const maxDepth = Math.max(52, chartSize * 0.2);
+  const minDepth = Math.max(14, chartSize * 0.055);
+  const maxValue = Math.max(...slices.map((s) => Math.max(0, s.value)), 1);
 
-  let angle = -30;
+  const cx = chartSize / 2;
+  const baseCy = chartSize * 0.42;
+  const r = chartSize * 0.32;
+
+  let angle = -20;
   const arcs = slices
     .map((slice, i) => {
       const value = Math.max(0, slice.value);
@@ -96,7 +99,9 @@ export function PieChart3D({ slices, size = 280, compact = false }: Props) {
       const end = angle + portion;
       angle = end;
       const mid = (start + end) / 2;
-      const off = polar(0, 0, explode, mid);
+      const t = Math.sqrt(value / maxValue);
+      const depth = minDepth + t * (maxDepth - minDepth);
+      const topCy = baseCy + (maxDepth - depth);
       return {
         ...slice,
         value,
@@ -104,20 +109,23 @@ export function PieChart3D({ slices, size = 280, compact = false }: Props) {
         end,
         portion,
         mid,
-        ox: off.x,
-        oy: off.y * 0.72,
+        depth,
+        topCy,
         color: slice.color || PALETTE[i % PALETTE.length],
         idx: i,
       };
     })
     .filter((a) => a.portion > 0.35);
 
-  // Desenha de trás para frente (fatias com mid perto de 180 primeiro)
+  // Trás → frente; em empate, fatia mais baixa primeiro (topo por cima)
   const drawOrder = [...arcs].sort((a, b) => {
     const ay = Math.sin(((a.mid - 90) * Math.PI) / 180);
     const by = Math.sin(((b.mid - 90) * Math.PI) / 180);
-    return ay - by;
+    if (Math.abs(ay - by) > 0.02) return ay - by;
+    return a.depth - b.depth;
   });
+
+  const viewH = chartSize + maxDepth * 0.55;
 
   return (
     <div
@@ -128,14 +136,14 @@ export function PieChart3D({ slices, size = 280, compact = false }: Props) {
       }
     >
       <svg
-        viewBox={`0 0 ${chartSize} ${chartSize + depth + 8}`}
+        viewBox={`0 0 ${chartSize} ${viewH}`}
         className={compact ? "mx-auto h-60 w-60" : "mx-auto h-64 w-64"}
         role="img"
-        aria-label="Gráfico de pizza 3D explodida"
+        aria-label="Gráfico de pizza 3D com alturas variáveis"
       >
         <defs>
-          <filter id={`${uid}-soft`} x="-40%" y="-30%" width="180%" height="180%">
-            <feDropShadow dx="0" dy="8" stdDeviation="7" floodColor="#94a3b8" floodOpacity="0.35" />
+          <filter id={`${uid}-soft`} x="-50%" y="-40%" width="200%" height="200%">
+            <feDropShadow dx="0" dy="6" stdDeviation="8" floodColor="#94a3b8" floodOpacity="0.28" />
           </filter>
           {arcs.map((a) => (
             <linearGradient
@@ -146,60 +154,58 @@ export function PieChart3D({ slices, size = 280, compact = false }: Props) {
               x2="0"
               y2="1"
             >
-              <stop offset="0%" stopColor={shade(a.color, -18)} />
-              <stop offset="100%" stopColor={shade(a.color, -55)} />
+              <stop offset="0%" stopColor={shade(a.color, -12)} />
+              <stop offset="55%" stopColor={shade(a.color, -32)} />
+              <stop offset="100%" stopColor={shade(a.color, -48)} />
             </linearGradient>
           ))}
         </defs>
 
-        {/* sombra coletiva no chão */}
         <ellipse
           cx={cx}
-          cy={cy + depth + 18}
-          rx={r * 1.05}
-          ry={r * 0.26}
-          fill="rgba(148,163,184,0.22)"
+          cy={baseCy + maxDepth + 10}
+          rx={r * 1.08}
+          ry={r * 0.22}
+          fill="rgba(148,163,184,0.28)"
           filter={`url(#${uid}-soft)`}
         />
 
         {drawOrder.map((a) => {
-          const scx = cx + a.ox;
-          const scy = cy + a.oy;
+          const scx = cx;
+          const scy = a.topCy;
           const pStart = polar(scx, scy, r, a.start);
           const pEnd = polar(scx, scy, r, a.end);
           const center = { x: scx, y: scy };
-
-          // Face radial mais “de frente” fica um pouco mais clara
-          const faceA = shade(a.color, -35);
-          const faceB = shade(a.color, -25);
+          const faceA = shade(a.color, -28);
+          const faceB = shade(a.color, -38);
 
           return (
-            <g key={a.key} filter={`url(#${uid}-soft)`}>
-              {/* parede externa */}
+            <g key={a.key}>
               <path
-                d={wallPath(scx, scy, r, a.start, a.end, depth)}
+                d={wallPath(scx, scy, r, a.start, a.end, a.depth)}
                 fill={`url(#${uid}-side-${a.idx})`}
               />
-              {/* faces internas (corte da fatia) */}
               <polygon
-                points={`${center.x},${center.y} ${pStart.x},${pStart.y} ${pStart.x},${pStart.y + depth} ${center.x},${center.y + depth}`}
+                points={`${center.x},${center.y} ${pStart.x},${pStart.y} ${pStart.x},${
+                  pStart.y + a.depth
+                } ${center.x},${center.y + a.depth}`}
                 fill={faceA}
               />
               <polygon
-                points={`${center.x},${center.y} ${pEnd.x},${pEnd.y} ${pEnd.x},${pEnd.y + depth} ${center.x},${center.y + depth}`}
+                points={`${center.x},${center.y} ${pEnd.x},${pEnd.y} ${pEnd.x},${
+                  pEnd.y + a.depth
+                } ${center.x},${center.y + a.depth}`}
                 fill={faceB}
               />
-              {/* topo opaco sólido */}
               <path
                 d={sectorPath(scx, scy, r, a.start, a.end)}
                 fill={a.color}
-                stroke="rgba(15,23,42,0.06)"
-                strokeWidth={0.6}
+                stroke="rgba(15,23,42,0.08)"
+                strokeWidth={0.5}
               />
-              {/* highlight suave no topo (luz de cima/esquerda) */}
               <path
-                d={sectorPath(scx, scy, r, a.start, a.end)}
-                fill="rgba(255,255,255,0.14)"
+                d={sectorPath(scx, scy, r * 0.92, a.start, a.end)}
+                fill="rgba(255,255,255,0.12)"
                 style={{ mixBlendMode: "soft-light" }}
               />
             </g>
