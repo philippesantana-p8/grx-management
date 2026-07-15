@@ -16,7 +16,7 @@ type Props = {
   compact?: boolean;
 };
 
-const PALETTE = ["#d0001f", "#0d9488", "#d97706", "#0369a1", "#7c3aed", "#64748b"];
+const PALETTE = ["#2563eb", "#22c55e", "#f97316", "#a855f7", "#06b6d4", "#ef4444"];
 
 function polar(cx: number, cy: number, r: number, angle: number) {
   const rad = ((angle - 90) * Math.PI) / 180;
@@ -31,19 +31,21 @@ function arcPath(cx: number, cy: number, r: number, start: number, end: number) 
 }
 
 /** Pizza com “espessura” 3D (camada inferior deslocada). */
-export function PieChart3D({ slices, size = 200, compact = false }: Props) {
-  const chartSize = compact ? Math.min(size, 168) : size;
+export function PieChart3D({ slices, size = 220, compact = false }: Props) {
+  // Rosca maior (vídeo Correção Dash 2): anel mais largo e gráfico maior.
+  const chartSize = compact ? Math.max(size, 220) : size;
   const total = slices.reduce((s, x) => s + Math.max(0, x.value), 0);
   const cx = chartSize / 2;
-  const cy = chartSize / 2 - 6;
-  const r = chartSize * 0.34;
-  const depth = compact ? 8 : 10;
+  const cy = chartSize / 2 - 4;
+  const r = chartSize * (compact ? 0.42 : 0.38);
+  const depth = compact ? 12 : 12;
+  const hole = r * 0.28;
 
   if (total <= 0) {
     return (
       <div
         className={`flex items-center justify-center text-sm text-slate-500 ${
-          compact ? "h-36" : "h-48"
+          compact ? "h-52" : "h-48"
         }`}
       >
         Sem resultado atribuído no período.
@@ -77,8 +79,8 @@ export function PieChart3D({ slices, size = 200, compact = false }: Props) {
         viewBox={`0 0 ${chartSize} ${chartSize}`}
         className={
           compact
-            ? "mx-auto h-36 w-36 shrink-0"
-            : "mx-auto h-48 w-48 shrink-0"
+            ? "mx-auto h-52 w-52 shrink-0 drop-shadow-sm"
+            : "mx-auto h-52 w-52 shrink-0 drop-shadow-sm"
         }
         role="img"
         aria-label="Gráfico de participação"
@@ -89,7 +91,7 @@ export function PieChart3D({ slices, size = 200, compact = false }: Props) {
               key={`d-${a.key}`}
               d={arcPath(cx, cy + depth, r, a.start, a.end)}
               fill={a.color}
-              opacity={0.35}
+              opacity={0.4}
             />
           )
         )}
@@ -98,7 +100,7 @@ export function PieChart3D({ slices, size = 200, compact = false }: Props) {
             <path key={a.key} d={arcPath(cx, cy, r, a.start, a.end)} fill={a.color} />
           )
         )}
-        <circle cx={cx} cy={cy} r={r * 0.42} fill="white" opacity={0.92} />
+        <circle cx={cx} cy={cy} r={hole} fill="white" opacity={0.96} />
       </svg>
       <ul
         className={
@@ -113,7 +115,7 @@ export function PieChart3D({ slices, size = 200, compact = false }: Props) {
             <li key={a.key} className="flex items-center justify-between gap-2">
               <span className="flex min-w-0 items-center gap-1.5">
                 <span
-                  className="h-2 w-2 shrink-0 rounded-sm"
+                  className="h-2.5 w-2.5 shrink-0 rounded-sm shadow-sm"
                   style={{ background: a.color }}
                 />
                 <span className="truncate font-medium text-slate-800">{a.label}</span>

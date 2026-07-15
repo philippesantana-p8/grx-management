@@ -42,11 +42,14 @@ const EMPTY_FILTERS: DashboardFilters = {
   ownershipPct: "",
 };
 
+/** Cores vivas pedidas no vídeo Correção Dash 2. */
 const PRODUCT_COLORS = {
-  frete: "#0369a1",
-  estacionamento: "#d97706",
-  lava: "#0d9488",
+  frete: "#2563eb", // azul royal brilhante
+  estacionamento: "#f97316", // laranja brilhante
+  lava: "#22c55e", // verde brilhante
 } as const;
+
+const PARTNER_COLORS = ["#2563eb", "#22c55e", "#f97316", "#a855f7", "#06b6d4"] as const;
 
 function KpiStrip({ snapshot }: { snapshot: DashboardSnapshot }) {
   return (
@@ -456,10 +459,11 @@ export default function DashboardPage() {
                   </h2>
                   <PieChart3D
                     compact
-                    slices={snapshot.participationByPartner.map((p) => ({
+                    slices={snapshot.participationByPartner.map((p, i) => ({
                       key: p.partnerId,
                       label: p.partnerName,
                       value: Math.max(0, p.result),
+                      color: PARTNER_COLORS[i % PARTNER_COLORS.length],
                     }))}
                   />
                 </div>
