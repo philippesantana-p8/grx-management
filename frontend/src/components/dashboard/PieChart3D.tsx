@@ -48,12 +48,13 @@ function makeSliceGeometry(startDeg: number, endDeg: number, radius: number) {
   shape.lineTo(0, 0);
 
   return new THREE.ExtrudeGeometry(shape, {
-    depth: 0.48,
+    // Espessura discreta — como na foto de referência (não um “bloco”).
+    depth: 0.2,
     bevelEnabled: true,
-    bevelThickness: 0.05,
-    bevelSize: 0.045,
+    bevelThickness: 0.018,
+    bevelSize: 0.016,
     bevelOffset: 0,
-    bevelSegments: 5,
+    bevelSegments: 3,
     curveSegments: 28,
   });
 }
@@ -109,9 +110,10 @@ export function PieChart3D({ slices, compact = false }: Props) {
 
     const scene = new THREE.Scene();
 
-    const camera = new THREE.PerspectiveCamera(30, width / height, 0.1, 100);
-    camera.position.set(0, 3.6, 4.4);
-    camera.lookAt(0, 0.05, 0);
+    // Câmera alta, como na foto — pouco “lado”, espessura só sutil.
+    const camera = new THREE.PerspectiveCamera(28, width / height, 0.1, 100);
+    camera.position.set(0, 4.8, 3.0);
+    camera.lookAt(0, 0.08, 0);
 
     const renderer = new THREE.WebGLRenderer({
       antialias: true,
@@ -122,7 +124,7 @@ export function PieChart3D({ slices, compact = false }: Props) {
     renderer.setSize(width, height, false);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.08;
+    renderer.toneMappingExposure = 1.0;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     host.replaceChildren(renderer.domElement);
@@ -132,9 +134,9 @@ export function PieChart3D({ slices, compact = false }: Props) {
       display: "block",
     });
 
-    scene.add(new THREE.AmbientLight(0xffffff, 0.78));
-    const key = new THREE.DirectionalLight(0xffffff, 1.2);
-    key.position.set(-2.6, 5.4, 2.6);
+    scene.add(new THREE.AmbientLight(0xffffff, 0.88));
+    const key = new THREE.DirectionalLight(0xffffff, 0.85);
+    key.position.set(2.2, 5.5, 1.6);
     key.castShadow = true;
     key.shadow.mapSize.set(1024, 1024);
     key.shadow.camera.near = 0.5;
@@ -143,14 +145,15 @@ export function PieChart3D({ slices, compact = false }: Props) {
     key.shadow.camera.right = 4;
     key.shadow.camera.top = 4;
     key.shadow.camera.bottom = -4;
+    key.shadow.radius = 3;
     scene.add(key);
-    const fill = new THREE.DirectionalLight(0xe2e8f0, 0.4);
-    fill.position.set(3.4, 2.0, -2.4);
+    const fill = new THREE.DirectionalLight(0xf1f5f9, 0.35);
+    fill.position.set(-3.0, 2.2, -2.0);
     scene.add(fill);
 
     const ground = new THREE.Mesh(
-      new THREE.CircleGeometry(2.6, 64),
-      new THREE.ShadowMaterial({ opacity: 0.2 })
+      new THREE.CircleGeometry(2.4, 64),
+      new THREE.ShadowMaterial({ opacity: 0.14 })
     );
     ground.rotation.x = -Math.PI / 2;
     ground.position.y = 0;
@@ -160,9 +163,8 @@ export function PieChart3D({ slices, compact = false }: Props) {
     const pie = new THREE.Group();
     scene.add(pie);
 
-    const radius = 1.38;
-    const explode = 0.18;
-    const depth = 0.48;
+    const radius = 1.42;
+    const explode = 0.1;
     const disposables: Array<THREE.BufferGeometry | THREE.Material> = [
       ground.geometry,
       ground.material,
@@ -172,8 +174,8 @@ export function PieChart3D({ slices, compact = false }: Props) {
       const geom = makeSliceGeometry(arc.start, arc.end, radius);
       const mat = new THREE.MeshStandardMaterial({
         color: new THREE.Color(arc.color),
-        roughness: 0.38,
-        metalness: 0.06,
+        roughness: 0.55,
+        metalness: 0.02,
       });
       const mesh = new THREE.Mesh(geom, mat);
       mesh.castShadow = true;
@@ -183,17 +185,18 @@ export function PieChart3D({ slices, compact = false }: Props) {
       const midRad = degToRad(arc.mid - 90);
       mesh.position.x = Math.cos(midRad) * explode;
       mesh.position.z = Math.sin(midRad) * explode;
-      mesh.position.y = depth / 2;
+      mesh.position.y = 0;
       pie.add(mesh);
       disposables.push(geom, mat);
     }
 
+    // Estático como a foto — sem girar (isso “engrossava” o efeito).
+    renderer.render(scene, camera);
     let frame = 0;
     let alive = true;
     const tick = () => {
       if (!alive) return;
       frame = requestAnimationFrame(tick);
-      pie.rotation.y += 0.003;
       renderer.render(scene, camera);
     };
     tick();
