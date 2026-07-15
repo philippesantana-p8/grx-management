@@ -45,7 +45,7 @@ const EMPTY_FILTERS: DashboardFilters = {
 /** Cores sólidas no estilo pizza 3D explodida (azul / branco / vermelho…). */
 const PRODUCT_COLORS = {
   frete: "#2563eb",
-  estacionamento: "#ef4444",
+  estacionamento: "#f97316",
   lava: "#22c55e",
 } as const;
 
