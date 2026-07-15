@@ -1,6 +1,7 @@
 "use client";
 
-import { useId } from "react";
+import { useEffect, useMemo, useRef } from "react";
+import * as THREE from "three";
 import { formatCurrency } from "@/lib/utils";
 
 export type PieSlice = {
@@ -16,142 +17,220 @@ type Props = {
   compact?: boolean;
 };
 
-/** Azul / laranja / vermelho (laranja no lugar do branco da referência). */
+/** Azul / laranja / vermelho — laranja no lugar do branco da referência. */
 const PALETTE = ["#2f6bff", "#f97316", "#ef4444", "#22c55e", "#eab308", "#a855f7"];
 
-function shade(hex: string, amount: number): string {
-  const raw = hex.replace("#", "");
-  if (raw.length !== 6) return hex;
-  const n = parseInt(raw, 16);
-  const r = Math.min(255, Math.max(0, ((n >> 16) & 255) + amount));
-  const g = Math.min(255, Math.max(0, ((n >> 8) & 255) + amount));
-  const b = Math.min(255, Math.max(0, (n & 255) + amount));
-  return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, "0")}`;
+type Arc = {
+  key: string;
+  label: string;
+  value: number;
+  portion: number;
+  start: number;
+  end: number;
+  mid: number;
+  color: string;
+};
+
+function degToRad(d: number) {
+  return (d * Math.PI) / 180;
 }
 
-function polar(cx: number, cy: number, r: number, angleDeg: number) {
-  const rad = ((angleDeg - 90) * Math.PI) / 180;
-  return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
-}
-
-function sectorPath(cx: number, cy: number, r: number, start: number, end: number) {
-  const s = polar(cx, cy, r, end);
-  const e = polar(cx, cy, r, start);
-  const large = end - start > 180 ? 1 : 0;
-  return `M ${cx} ${cy} L ${e.x} ${e.y} A ${r} ${r} 0 ${large} 1 ${s.x} ${s.y} Z`;
-}
-
-/** Anel externo do topo (efeito bisel / borda arredondada). */
-function rimPath(
-  cx: number,
-  cy: number,
-  rOuter: number,
-  rInner: number,
-  start: number,
-  end: number
-) {
-  const o1 = polar(cx, cy, rOuter, start);
-  const o2 = polar(cx, cy, rOuter, end);
-  const i2 = polar(cx, cy, rInner, end);
-  const i1 = polar(cx, cy, rInner, start);
-  const large = end - start > 180 ? 1 : 0;
-  return [
-    `M ${o1.x} ${o1.y}`,
-    `A ${rOuter} ${rOuter} 0 ${large} 1 ${o2.x} ${o2.y}`,
-    `L ${i2.x} ${i2.y}`,
-    `A ${rInner} ${rInner} 0 ${large} 0 ${i1.x} ${i1.y}`,
-    "Z",
-  ].join(" ");
-}
-
-function wallPath(
-  cx: number,
-  cy: number,
-  r: number,
-  start: number,
-  end: number,
-  depth: number
-) {
-  const a = polar(cx, cy, r, start);
-  const b = polar(cx, cy, r, end);
-  const large = end - start > 180 ? 1 : 0;
-  return [
-    `M ${a.x} ${a.y}`,
-    `A ${r} ${r} 0 ${large} 1 ${b.x} ${b.y}`,
-    `L ${b.x} ${b.y + depth}`,
-    `A ${r} ${r} 0 ${large} 0 ${a.x} ${a.y + depth}`,
-    "Z",
-  ].join(" ");
-}
-
-/**
- * Gráfico 3D explodido — referência confirmada:
- * espessura uniforme, gaps entre fatias, mate, bisel suave, sombra no chão.
- * Branco da referência → laranja.
- */
-export function PieChart3D({ slices, size = 360, compact = false }: Props) {
-  const uid = useId().replace(/:/g, "");
-  const chartSize = compact ? Math.max(size, 360) : size;
-  const total = slices.reduce((s, x) => s + Math.max(0, x.value), 0);
-
-  if (total <= 0) {
-    return (
-      <div
-        className={`flex items-center justify-center text-sm text-slate-500 ${
-          compact ? "h-[22rem]" : "h-80"
-        }`}
-      >
-        Sem resultado atribuído no período.
-      </div>
-    );
+function makeSliceGeometry(startDeg: number, endDeg: number, radius: number) {
+  const shape = new THREE.Shape();
+  shape.moveTo(0, 0);
+  const steps = Math.max(20, Math.ceil((endDeg - startDeg) / 2.5));
+  for (let i = 0; i <= steps; i++) {
+    const a = degToRad(startDeg + ((endDeg - startDeg) * i) / steps);
+    const x = Math.cos(a - Math.PI / 2) * radius;
+    const y = Math.sin(a - Math.PI / 2) * radius;
+    shape.lineTo(x, y);
   }
+  shape.lineTo(0, 0);
 
-  const cx = chartSize / 2;
-  const cy = chartSize * 0.44;
-  const r = chartSize * 0.31;
-  const depth = Math.max(40, chartSize * 0.14);
-  const explode = r * 0.22;
-  const gapDeg = Math.min(5.5, 16 / Math.max(slices.length, 1));
-  const bevel = Math.max(5, r * 0.055);
+  return new THREE.ExtrudeGeometry(shape, {
+    depth: 0.48,
+    bevelEnabled: true,
+    bevelThickness: 0.05,
+    bevelSize: 0.045,
+    bevelOffset: 0,
+    bevelSegments: 5,
+    curveSegments: 28,
+  });
+}
 
-  let angle = -28;
-  const arcs = slices
+function buildArcs(slices: PieSlice[]): Arc[] {
+  const total = slices.reduce((s, x) => s + Math.max(0, x.value), 0);
+  if (total <= 0) return [];
+  let angle = -20;
+  const gap = Math.min(5, 14 / Math.max(slices.length, 1));
+  return slices
     .map((slice, i) => {
       const value = Math.max(0, slice.value);
       const portion = (value / total) * 360;
       const rawStart = angle;
       const rawEnd = angle + portion;
       angle = rawEnd;
-      const start = rawStart + gapDeg / 2;
-      const end = rawEnd - gapDeg / 2;
-      if (end - start < 0.4) return null;
-      const mid = (start + end) / 2;
-      const off = polar(0, 0, explode, mid);
+      const start = rawStart + gap / 2;
+      const end = rawEnd - gap / 2;
+      if (end - start < 0.5 || portion <= 0.35) return null;
       return {
-        ...slice,
+        key: slice.key,
+        label: slice.label,
         value,
+        portion,
         start,
         end,
-        portion,
-        mid,
-        ox: off.x,
-        oy: off.y * 0.68,
+        mid: (start + end) / 2,
         color: slice.color || PALETTE[i % PALETTE.length],
-        idx: i,
       };
     })
-    .filter((a): a is NonNullable<typeof a> => a != null && a.portion > 0.35);
+    .filter((a): a is Arc => a != null);
+}
 
-  const drawOrder = [...arcs].sort((a, b) => {
-    const ay = Math.sin(((a.mid - 90) * Math.PI) / 180);
-    const by = Math.sin(((b.mid - 90) * Math.PI) / 180);
-    return ay - by;
-  });
+/**
+ * Pizza 3D WebGL no estilo da referência anexada:
+ * fatias explodidas, extrusão com bisel, material mate, luz suave.
+ */
+export function PieChart3D({ slices, compact = false }: Props) {
+  const hostRef = useRef<HTMLDivElement | null>(null);
+  const total = slices.reduce((s, x) => s + Math.max(0, x.value), 0);
+  const arcs = useMemo(() => buildArcs(slices), [slices]);
+  const sceneKey = useMemo(
+    () => arcs.map((a) => `${a.key}:${a.value}:${a.color}`).join("|"),
+    [arcs]
+  );
 
-  const viewH = chartSize + depth + 28;
-  const svgClass = compact
-    ? "mx-auto h-[22rem] w-[22rem]"
-    : "mx-auto h-[24rem] w-[24rem]";
+  useEffect(() => {
+    const host = hostRef.current;
+    if (!host || arcs.length === 0) return;
+
+    const width = host.clientWidth || (compact ? 320 : 360);
+    const height = host.clientHeight || (compact ? 320 : 360);
+
+    const scene = new THREE.Scene();
+
+    const camera = new THREE.PerspectiveCamera(30, width / height, 0.1, 100);
+    camera.position.set(0, 3.6, 4.4);
+    camera.lookAt(0, 0.05, 0);
+
+    const renderer = new THREE.WebGLRenderer({
+      antialias: true,
+      alpha: true,
+      powerPreference: "high-performance",
+    });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.setSize(width, height, false);
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.08;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    host.replaceChildren(renderer.domElement);
+    Object.assign(renderer.domElement.style, {
+      width: "100%",
+      height: "100%",
+      display: "block",
+    });
+
+    scene.add(new THREE.AmbientLight(0xffffff, 0.78));
+    const key = new THREE.DirectionalLight(0xffffff, 1.2);
+    key.position.set(-2.6, 5.4, 2.6);
+    key.castShadow = true;
+    key.shadow.mapSize.set(1024, 1024);
+    key.shadow.camera.near = 0.5;
+    key.shadow.camera.far = 18;
+    key.shadow.camera.left = -4;
+    key.shadow.camera.right = 4;
+    key.shadow.camera.top = 4;
+    key.shadow.camera.bottom = -4;
+    scene.add(key);
+    const fill = new THREE.DirectionalLight(0xe2e8f0, 0.4);
+    fill.position.set(3.4, 2.0, -2.4);
+    scene.add(fill);
+
+    const ground = new THREE.Mesh(
+      new THREE.CircleGeometry(2.6, 64),
+      new THREE.ShadowMaterial({ opacity: 0.2 })
+    );
+    ground.rotation.x = -Math.PI / 2;
+    ground.position.y = 0;
+    ground.receiveShadow = true;
+    scene.add(ground);
+
+    const pie = new THREE.Group();
+    scene.add(pie);
+
+    const radius = 1.38;
+    const explode = 0.18;
+    const depth = 0.48;
+    const disposables: Array<THREE.BufferGeometry | THREE.Material> = [
+      ground.geometry,
+      ground.material,
+    ];
+
+    for (const arc of arcs) {
+      const geom = makeSliceGeometry(arc.start, arc.end, radius);
+      const mat = new THREE.MeshStandardMaterial({
+        color: new THREE.Color(arc.color),
+        roughness: 0.38,
+        metalness: 0.06,
+      });
+      const mesh = new THREE.Mesh(geom, mat);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      // Shape em XY, extrude em +Z → deita no chão (XZ)
+      mesh.rotation.x = -Math.PI / 2;
+      const midRad = degToRad(arc.mid - 90);
+      mesh.position.x = Math.cos(midRad) * explode;
+      mesh.position.z = Math.sin(midRad) * explode;
+      mesh.position.y = depth / 2;
+      pie.add(mesh);
+      disposables.push(geom, mat);
+    }
+
+    let frame = 0;
+    let alive = true;
+    const tick = () => {
+      if (!alive) return;
+      frame = requestAnimationFrame(tick);
+      pie.rotation.y += 0.003;
+      renderer.render(scene, camera);
+    };
+    tick();
+
+    const onResize = () => {
+      const w = host.clientWidth || width;
+      const h = host.clientHeight || height;
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      renderer.setSize(w, h, false);
+    };
+    const ro = new ResizeObserver(onResize);
+    ro.observe(host);
+
+    return () => {
+      alive = false;
+      cancelAnimationFrame(frame);
+      ro.disconnect();
+      for (const d of disposables) d.dispose();
+      renderer.dispose();
+      host.replaceChildren();
+    };
+    // sceneKey cobre mudanças de fatias; arcs é derivado estável via sceneKey
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sceneKey, compact]);
+
+  if (total <= 0) {
+    return (
+      <div
+        className={`flex items-center justify-center text-sm text-slate-500 ${
+          compact ? "h-80" : "h-72"
+        }`}
+      >
+        Sem resultado atribuído no período.
+      </div>
+    );
+  }
 
   return (
     <div
@@ -161,118 +240,16 @@ export function PieChart3D({ slices, size = 360, compact = false }: Props) {
           : "flex flex-col gap-4 sm:flex-row sm:items-center"
       }
     >
-      <svg
-        viewBox={`0 0 ${chartSize} ${viewH}`}
-        className={svgClass}
+      <div
+        ref={hostRef}
+        className={
+          compact
+            ? "mx-auto h-80 w-full max-w-[22rem]"
+            : "mx-auto h-[22rem] w-full max-w-[24rem]"
+        }
         role="img"
         aria-label="Gráfico de pizza 3D explodida"
-      >
-        <defs>
-          <filter id={`${uid}-floor`} x="-50%" y="-40%" width="200%" height="200%">
-            <feGaussianBlur stdDeviation="6" />
-          </filter>
-          <filter id={`${uid}-soft`} x="-40%" y="-30%" width="180%" height="180%">
-            <feDropShadow dx="0" dy="5" stdDeviation="5" floodColor="#64748b" floodOpacity="0.28" />
-          </filter>
-          {arcs.map((a) => (
-            <linearGradient
-              key={`side-${a.key}`}
-              id={`${uid}-side-${a.idx}`}
-              x1="0"
-              y1="0"
-              x2="0"
-              y2="1"
-            >
-              <stop offset="0%" stopColor={shade(a.color, -8)} />
-              <stop offset="45%" stopColor={shade(a.color, -28)} />
-              <stop offset="100%" stopColor={shade(a.color, -58)} />
-            </linearGradient>
-          ))}
-          {arcs.map((a) => (
-            <radialGradient
-              key={`top-${a.key}`}
-              id={`${uid}-top-${a.idx}`}
-              cx="32%"
-              cy="28%"
-              r="78%"
-            >
-              <stop offset="0%" stopColor={shade(a.color, 28)} />
-              <stop offset="55%" stopColor={a.color} />
-              <stop offset="100%" stopColor={shade(a.color, -8)} />
-            </radialGradient>
-          ))}
-        </defs>
-
-        {/* sombra coletiva no chão */}
-        <ellipse
-          cx={cx}
-          cy={cy + depth + 18}
-          rx={r * 1.18}
-          ry={r * 0.26}
-          fill="rgba(100,116,139,0.22)"
-          filter={`url(#${uid}-floor)`}
-        />
-
-        {drawOrder.map((a) => {
-          const scx = cx + a.ox;
-          const scy = cy + a.oy;
-          const pStart = polar(scx, scy, r, a.start);
-          const pEnd = polar(scx, scy, r, a.end);
-          const center = { x: scx, y: scy };
-          const sliceMid = polar(scx, scy, r * 0.45, a.mid);
-
-          return (
-            <g key={a.key}>
-              {/* sombra individual sob a fatia */}
-              <ellipse
-                cx={sliceMid.x}
-                cy={scy + depth + 10}
-                rx={r * 0.42}
-                ry={r * 0.12}
-                fill="rgba(100,116,139,0.18)"
-                filter={`url(#${uid}-floor)`}
-              />
-
-              <g filter={`url(#${uid}-soft)`}>
-                <path
-                  d={wallPath(scx, scy, r, a.start, a.end, depth)}
-                  fill={`url(#${uid}-side-${a.idx})`}
-                />
-                <polygon
-                  points={`${center.x},${center.y} ${pStart.x},${pStart.y} ${pStart.x},${
-                    pStart.y + depth
-                  } ${center.x},${center.y + depth}`}
-                  fill={shade(a.color, -30)}
-                />
-                <polygon
-                  points={`${center.x},${center.y} ${pEnd.x},${pEnd.y} ${pEnd.x},${
-                    pEnd.y + depth
-                  } ${center.x},${center.y + depth}`}
-                  fill={shade(a.color, -45)}
-                />
-                {/* topo mate com luz suave */}
-                <path
-                  d={sectorPath(scx, scy, r, a.start, a.end)}
-                  fill={`url(#${uid}-top-${a.idx})`}
-                />
-                {/* bisel claro na borda externa */}
-                <path
-                  d={rimPath(scx, scy, r, r - bevel, a.start, a.end)}
-                  fill="rgba(255,255,255,0.22)"
-                  style={{ mixBlendMode: "soft-light" }}
-                />
-                {/* bisel interno (corte da fatia) */}
-                <path
-                  d={rimPath(scx, scy, bevel * 1.6, 0.01, a.start, a.end)}
-                  fill="rgba(255,255,255,0.1)"
-                  style={{ mixBlendMode: "soft-light" }}
-                />
-              </g>
-            </g>
-          );
-        })}
-      </svg>
-
+      />
       <ul
         className={
           compact
