@@ -6,7 +6,7 @@ export type PatioModality = (typeof PATIO_MODALITIES)[number];
 export const PATIO_BILLING_UNITS = ["Diária", "Mensal", "Serviço", "Hora"] as const;
 export type PatioBillingUnit = (typeof PATIO_BILLING_UNITS)[number];
 
-export const PARKING_BILLING_MODES = ["Diária", "Mensal"] as const;
+export const PARKING_BILLING_MODES = ["Diária", "Mensal", "Rotativo"] as const;
 export type ParkingBillingMode = (typeof PARKING_BILLING_MODES)[number];
 
 export const PARKING_STATUSES = ["Aberto", "Finalizado", "Cancelado"] as const;
@@ -23,6 +23,8 @@ export const CAR_WASH_SERVICE_NAMES = [
 export const PARKING_SERVICE_NAMES = {
   diaria: "Diária Estacionamento",
   mensal: "Mensalidade Estacionamento",
+  rotativoFirst: "Rotativo 1ª Hora",
+  rotativoExtra: "Rotativo Hora Adicional",
 } as const;
 
 export const PATIO_PAYMENT_METHODS = ["Pix", "Dinheiro", "Cartão", "Faturado", "Outros"] as const;
@@ -116,6 +118,38 @@ export function calcParkingDailyCount(entryDate: string, exitDate: string): numb
   if (Number.isNaN(a.getTime()) || Number.isNaN(b.getTime()) || b < a) return 1;
   const days = Math.floor((b.getTime() - a.getTime()) / 86_400_000) + 1;
   return Math.max(1, days);
+}
+
+function parsePatioDateTime(date: string, time: string | null | undefined): Date {
+  const t = (time && /^\d{2}:\d{2}/.test(time) ? time.slice(0, 5) : "00:00") + ":00";
+  return new Date(`${date}T${t}`);
+}
+
+/** Rotativo: horas cobradas (ceil), mínimo 1. */
+export function calcParkingHourCount(
+  entryDate: string,
+  entryTime: string | null | undefined,
+  exitDate: string,
+  exitTime: string | null | undefined
+): number {
+  const start = parsePatioDateTime(entryDate, entryTime);
+  const end = parsePatioDateTime(exitDate, exitTime);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start) {
+    return 1;
+  }
+  const minutes = (end.getTime() - start.getTime()) / 60_000;
+  return Math.max(1, Math.ceil(minutes / 60));
+}
+
+/** Total rotativo: 1ª hora + (n − 1) × hora adicional. */
+export function calcRotativoTotal(
+  hourCount: number,
+  firstHourPrice: number,
+  additionalHourPrice: number
+): number {
+  const hours = Math.max(1, hourCount);
+  if (hours <= 1) return firstHourPrice;
+  return firstHourPrice + (hours - 1) * additionalHourPrice;
 }
 
 export function allowsWash(usageCategory: string): boolean {

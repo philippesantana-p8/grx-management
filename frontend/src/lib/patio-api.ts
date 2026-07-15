@@ -2,6 +2,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { nextCode } from "@/lib/codes";
 import {
   calcParkingDailyCount,
+  calcParkingHourCount,
+  calcRotativoTotal,
   PARKING_SERVICE_NAMES,
   PATIO_ENTRY_SOURCE_PARKING,
   PATIO_ENTRY_SOURCE_WASH,
@@ -19,7 +21,15 @@ export async function seedPatioDefaults(
   companyId: string
 ): Promise<string | null> {
   const { error } = await supabase.rpc("seed_patio_defaults", { p_company_id: companyId });
-  return error?.message ?? null;
+  if (error) return error.message;
+  const { error: rotError } = await supabase.rpc("seed_patio_rotativo_defaults", {
+    p_company_id: companyId,
+  });
+  // RPC pode ainda não existir até aplicar apply-044 — não bloqueia o módulo.
+  if (rotError && !/seed_patio_rotativo_defaults|function .* does not exist/i.test(rotError.message)) {
+    return rotError.message;
+  }
+  return null;
 }
 
 export async function listPatioVehicleTypes(
@@ -208,6 +218,14 @@ export async function postCarWashRevenue(params: {
   return { transactionId: txId, error: null };
 }
 
+export type ParkingTotalsOk = {
+  ok: true;
+  dailyCount: number | null;
+  dailyRate: number;
+  totalAmount: number | null;
+  additionalRate: number | null;
+};
+
 export async function computeParkingTotals(params: {
   supabase: SupabaseClient;
   companyId: string;
@@ -215,10 +233,55 @@ export async function computeParkingTotals(params: {
   billingMode: ParkingBillingMode;
   entryDate: string;
   exitDate: string | null;
-}): Promise<
-  | { ok: true; dailyCount: number | null; dailyRate: number; totalAmount: number | null }
-  | { ok: false; error: string }
-> {
+  entryTime?: string | null;
+  exitTime?: string | null;
+}): Promise<ParkingTotalsOk | { ok: false; error: string }> {
+  if (params.billingMode === "Rotativo") {
+    const first = await resolvePatioPrice({
+      supabase: params.supabase,
+      companyId: params.companyId,
+      modality: "Estacionamento",
+      vehicleTypeId: params.vehicleTypeId,
+      serviceName: PARKING_SERVICE_NAMES.rotativoFirst,
+      onDate: params.entryDate,
+    });
+    if ("error" in first) return { ok: false, error: first.error };
+
+    const extra = await resolvePatioPrice({
+      supabase: params.supabase,
+      companyId: params.companyId,
+      modality: "Estacionamento",
+      vehicleTypeId: params.vehicleTypeId,
+      serviceName: PARKING_SERVICE_NAMES.rotativoExtra,
+      onDate: params.entryDate,
+    });
+    if ("error" in extra) return { ok: false, error: extra.error };
+
+    if (!params.exitDate) {
+      return {
+        ok: true,
+        dailyCount: null,
+        dailyRate: first.price,
+        totalAmount: null,
+        additionalRate: extra.price,
+      };
+    }
+
+    const hourCount = calcParkingHourCount(
+      params.entryDate,
+      params.entryTime,
+      params.exitDate,
+      params.exitTime
+    );
+    return {
+      ok: true,
+      dailyCount: hourCount,
+      dailyRate: first.price,
+      totalAmount: calcRotativoTotal(hourCount, first.price, extra.price),
+      additionalRate: extra.price,
+    };
+  }
+
   const serviceName =
     params.billingMode === "Mensal"
       ? PARKING_SERVICE_NAMES.mensal
@@ -240,11 +303,18 @@ export async function computeParkingTotals(params: {
       dailyCount: 1,
       dailyRate: price.price,
       totalAmount: price.price,
+      additionalRate: null,
     };
   }
 
   if (!params.exitDate) {
-    return { ok: true, dailyCount: null, dailyRate: price.price, totalAmount: null };
+    return {
+      ok: true,
+      dailyCount: null,
+      dailyRate: price.price,
+      totalAmount: null,
+      additionalRate: null,
+    };
   }
 
   const dailyCount = calcParkingDailyCount(params.entryDate, params.exitDate);
@@ -253,6 +323,7 @@ export async function computeParkingTotals(params: {
     dailyCount,
     dailyRate: price.price,
     totalAmount: dailyCount * price.price,
+    additionalRate: null,
   };
 }
 
@@ -340,7 +411,9 @@ export async function finalizeParkingEntry(
     vehicleTypeId: entry.vehicle_type_id,
     billingMode,
     entryDate: entry.entry_date,
+    entryTime: entry.entry_time,
     exitDate,
+    exitTime: exitTime || null,
   });
   if (!totals.ok) return { error: totals.error };
 

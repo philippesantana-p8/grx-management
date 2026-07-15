@@ -89,10 +89,25 @@ export default function ParametrosPatioPage() {
       return [
         PARKING_SERVICE_NAMES.diaria,
         PARKING_SERVICE_NAMES.mensal,
+        PARKING_SERVICE_NAMES.rotativoFirst,
+        PARKING_SERVICE_NAMES.rotativoExtra,
       ].map((s) => ({ value: s, label: s }));
     }
     return CAR_WASH_SERVICE_NAMES.map((s) => ({ value: s, label: s }));
   }, [priceForm.modality]);
+
+  function billingUnitForService(serviceName: string, modality: string): string {
+    if (modality !== "Estacionamento") return "Serviço";
+    if (serviceName === PARKING_SERVICE_NAMES.mensal) return "Mensal";
+    if (serviceName === PARKING_SERVICE_NAMES.diaria) return "Diária";
+    if (
+      serviceName === PARKING_SERVICE_NAMES.rotativoFirst ||
+      serviceName === PARKING_SERVICE_NAMES.rotativoExtra
+    ) {
+      return "Hora";
+    }
+    return "Serviço";
+  }
 
   const saveType = async () => {
     if (!companyId || !typeForm.name.trim()) {
@@ -301,22 +316,29 @@ export default function ParametrosPatioPage() {
           Para reajustar em 2027 (ou qualquer data): encerre a linha antiga com <strong>Data fim</strong> e
           cadastre um novo preço com vigência nova. O histórico permanece.
         </p>
+        <p className="text-xs text-slate-500">
+          <strong>Rotativo:</strong> cadastre{" "}
+          <em>Rotativo 1ª Hora</em> e <em>Rotativo Hora Adicional</em> (unidade Hora) por porte.
+          Exemplo inicial: 1ª hora R$ 10 e demais R$ 5 — na ordem de estacionamento escolha cobrança{" "}
+          <strong>Rotativo</strong>.
+        </p>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <GlassSelect
             label="Modalidade"
             required
             value={priceForm.modality}
-            onChange={(next) =>
+            onChange={(next) => {
+              const service =
+                next === "Estacionamento"
+                  ? PARKING_SERVICE_NAMES.diaria
+                  : CAR_WASH_SERVICE_NAMES[0];
               setPriceForm((f) => ({
                 ...f,
                 modality: next,
-                service_name:
-                  next === "Estacionamento"
-                    ? PARKING_SERVICE_NAMES.diaria
-                    : CAR_WASH_SERVICE_NAMES[0],
-                billing_unit: next === "Estacionamento" ? "Diária" : "Serviço",
-              }))
-            }
+                service_name: service,
+                billing_unit: billingUnitForService(service, next),
+              }));
+            }}
             options={PATIO_MODALITIES.map((m) => ({ value: m, label: m }))}
           />
           <GlassSelect
@@ -334,12 +356,7 @@ export default function ParametrosPatioPage() {
               setPriceForm((f) => ({
                 ...f,
                 service_name: next,
-                billing_unit:
-                  next === PARKING_SERVICE_NAMES.mensal
-                    ? "Mensal"
-                    : next === PARKING_SERVICE_NAMES.diaria
-                      ? "Diária"
-                      : "Serviço",
+                billing_unit: billingUnitForService(next, f.modality),
               }))
             }
             options={serviceOptions}

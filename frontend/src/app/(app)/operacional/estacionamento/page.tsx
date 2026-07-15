@@ -34,6 +34,7 @@ export default function EstacionamentoPage() {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [quotedRate, setQuotedRate] = useState<number | null>(null);
+  const [quotedAdditional, setQuotedAdditional] = useState<number | null>(null);
   const [exitDraft, setExitDraft] = useState<Record<string, { date: string; time: string }>>({});
 
   const [form, setForm] = useState({
@@ -82,6 +83,7 @@ export default function EstacionamentoPage() {
   useEffect(() => {
     if (!companyId || !form.vehicle_type_id || !form.entry_date) {
       setQuotedRate(null);
+      setQuotedAdditional(null);
       return;
     }
     let cancelled = false;
@@ -91,16 +93,56 @@ export default function EstacionamentoPage() {
       vehicleTypeId: form.vehicle_type_id,
       billingMode: form.billing_mode,
       entryDate: form.entry_date,
+      entryTime: form.entry_time,
       exitDate: null,
     }).then((result) => {
       if (cancelled) return;
-      if (!result.ok) setQuotedRate(null);
-      else setQuotedRate(result.dailyRate);
+      if (!result.ok) {
+        setQuotedRate(null);
+        setQuotedAdditional(null);
+      } else {
+        setQuotedRate(result.dailyRate);
+        setQuotedAdditional(result.additionalRate);
+      }
     });
     return () => {
       cancelled = true;
     };
-  }, [companyId, form.vehicle_type_id, form.billing_mode, form.entry_date, supabase]);
+  }, [
+    companyId,
+    form.vehicle_type_id,
+    form.billing_mode,
+    form.entry_date,
+    form.entry_time,
+    supabase,
+  ]);
+
+  function quoteLabel(): string {
+    if (quotedRate == null) return "— sem preço —";
+    if (form.billing_mode === "Rotativo") {
+      const extra =
+        quotedAdditional != null ? ` · demais ${formatCurrency(quotedAdditional)}` : "";
+      return `1ª h ${formatCurrency(quotedRate)}${extra}`;
+    }
+    if (form.billing_mode === "Mensal") return `${formatCurrency(quotedRate)} / mês`;
+    return `${formatCurrency(quotedRate)} / diária`;
+  }
+
+  function rateUnitLabel(mode: string | null | undefined): string {
+    if (mode === "Mensal") return "mensal";
+    if (mode === "Rotativo") return "1ª h";
+    return "diária";
+  }
+
+  function totalBreakdown(row: ParkingEntryRow): string | null {
+    if (row.daily_count == null || row.daily_rate == null) return null;
+    if (row.billing_mode === "Rotativo") {
+      const hours = Number(row.daily_count);
+      if (hours <= 1) return "1 hora";
+      return `${hours} horas (1ª + ${hours - 1} adicional)`;
+    }
+    return `${row.daily_count} × ${formatCurrency(Number(row.daily_rate))}`;
+  }
 
   const openEntry = async () => {
     if (!companyId) return;
@@ -211,19 +253,14 @@ export default function EstacionamentoPage() {
             required
             value={form.billing_mode}
             onChange={(next) => setForm((f) => ({ ...f, billing_mode: next as ParkingBillingMode }))}
-            options={PARKING_BILLING_MODES.map((m) => ({ value: m, label: m }))}
+            options={PARKING_BILLING_MODES.map((m) => ({
+              value: m,
+              label: m === "Rotativo" ? "Rotativo (por hora)" : m,
+            }))}
           />
           <label className="block space-y-1">
             <span className="text-sm font-medium text-slate-700">Valor (tabela)</span>
-            <input
-              className={glassField(false)}
-              readOnly
-              value={
-                quotedRate != null
-                  ? `${formatCurrency(quotedRate)}${form.billing_mode === "Mensal" ? " / mês" : " / diária"}`
-                  : "— sem preço —"
-              }
-            />
+            <input className={glassField(false)} readOnly value={quoteLabel()} />
           </label>
           <label className="block space-y-1">
             <span className="text-sm font-medium text-slate-700">Data entrada</span>
@@ -353,7 +390,7 @@ export default function EstacionamentoPage() {
                       <>
                         {formatCurrency(Number(row.daily_rate))}
                         <div className="text-xs text-slate-500">
-                          {row.billing_mode === "Mensal" ? "mensal" : "diária"}
+                          {rateUnitLabel(row.billing_mode)}
                         </div>
                       </>
                     ) : (
@@ -372,10 +409,8 @@ export default function EstacionamentoPage() {
                   </td>
                   <td className="px-3 py-2">
                     {row.total_amount != null ? formatCurrency(Number(row.total_amount)) : "—"}
-                    {row.daily_count != null ? (
-                      <div className="text-xs text-slate-500">
-                        {row.daily_count} × {formatCurrency(Number(row.daily_rate ?? 0))}
-                      </div>
+                    {totalBreakdown(row) ? (
+                      <div className="text-xs text-slate-500">{totalBreakdown(row)}</div>
                     ) : null}
                   </td>
                   <td className="px-3 py-2">
