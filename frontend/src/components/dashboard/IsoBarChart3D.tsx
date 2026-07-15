@@ -1,13 +1,13 @@
 "use client";
 
-import { useId } from "react";
 import { formatCurrency } from "@/lib/utils";
+import { voxelCube } from "@/components/dashboard/pixel-3d";
 
 export type IsoBarItem = {
   key: string;
   label: string;
   value: number;
-  color: string; // front face
+  color: string;
   topColor: string;
   sideColor: string;
 };
@@ -17,105 +17,80 @@ type Props = {
   height?: number;
 };
 
-/** Barras isométricas 3D com acabamento liquid-glass. */
-export function IsoBarChart3D({ items, height = 180 }: Props) {
-  const uid = useId().replace(/:/g, "");
+/** Torres voxel / pixel 3D (empilhamento de cubos). */
+export function IsoBarChart3D({ items, height = 200 }: Props) {
   const max = Math.max(1, ...items.map((i) => Math.abs(i.value)));
-  const barW = 36;
-  const gap = 28;
-  const depth = 14;
-  const baseY = height - 28;
-  const chartW = Math.max(220, items.length * (barW + gap) + 40);
+  const voxel = 14;
+  const gap = 22;
+  const maxStacks = 8;
+  const baseY = height - 36;
+  const chartW = Math.max(240, items.length * (voxel + gap + 18) + 48);
 
   return (
-    <div className="relative w-full overflow-x-auto rounded-2xl bg-white/25 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)] backdrop-blur-[1.5px]">
+    <div className="relative w-full overflow-x-auto rounded-xl border border-slate-200/80 bg-[linear-gradient(180deg,rgba(248,250,252,0.9),rgba(226,232,240,0.35))] p-2">
       <svg
         viewBox={`0 0 ${chartW} ${height}`}
-        className="mx-auto block h-auto w-full max-w-md drop-shadow-sm"
+        className="mx-auto block h-auto w-full max-w-md [image-rendering:pixelated]"
         role="img"
-        aria-label="Gráfico de barras 3D"
+        aria-label="Gráfico de barras pixel 3D"
+        shapeRendering="crispEdges"
       >
-        <defs>
-          <linearGradient id={`${uid}-floor`} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="rgba(255,255,255,0.45)" />
-            <stop offset="100%" stopColor="rgba(148,163,184,0.08)" />
-          </linearGradient>
-          {items.map((item, index) => (
-            <g key={`defs-${item.key}`}>
-              <linearGradient id={`${uid}-front-${index}`} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#ffffff" stopOpacity="0.5" />
-                <stop offset="40%" stopColor={item.color} stopOpacity="0.95" />
-                <stop offset="100%" stopColor={item.color} stopOpacity="0.8" />
-              </linearGradient>
-              <linearGradient id={`${uid}-top-${index}`} x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stopColor="#ffffff" stopOpacity="0.7" />
-                <stop offset="55%" stopColor={item.topColor} stopOpacity="0.95" />
-                <stop offset="100%" stopColor={item.topColor} stopOpacity="0.75" />
-              </linearGradient>
-              <linearGradient id={`${uid}-side-${index}`} x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0%" stopColor={item.sideColor} stopOpacity="0.95" />
-                <stop offset="100%" stopColor={item.sideColor} stopOpacity="0.7" />
-              </linearGradient>
-            </g>
-          ))}
-        </defs>
-
-        <ellipse
-          cx={chartW / 2}
-          cy={baseY + 8}
-          rx={chartW * 0.42}
-          ry={12}
-          fill={`url(#${uid}-floor)`}
-        />
+        {/* chão pixel */}
+        {Array.from({ length: Math.floor(chartW / 8) }).map((_, i) => (
+          <rect
+            key={`g-${i}`}
+            x={i * 8}
+            y={baseY + 6}
+            width={8}
+            height={8}
+            fill={i % 2 === 0 ? "rgba(148,163,184,0.18)" : "rgba(148,163,184,0.08)"}
+          />
+        ))}
 
         {items.map((item, index) => {
-          const h = Math.max(8, (Math.abs(item.value) / max) * (height - 70));
-          const x = 28 + index * (barW + gap);
-          const y = baseY - h;
-          const front = `${x},${y} ${x + barW},${y} ${x + barW},${baseY} ${x},${baseY}`;
-          const top = `${x},${y} ${x + depth},${y - depth} ${x + barW + depth},${y - depth} ${x + barW},${y}`;
-          const side = `${x + barW},${y} ${x + barW + depth},${y - depth} ${x + barW + depth},${baseY - depth} ${x + barW},${baseY}`;
+          const stacks = Math.max(
+            1,
+            Math.round((Math.abs(item.value) / max) * maxStacks)
+          );
+          const x0 = 36 + index * (voxel + gap + 16);
+          const cubes = [];
+          for (let s = 0; s < stacks; s++) {
+            const y = baseY - s * (voxel * 0.92);
+            const cube = voxelCube(x0, y, voxel, item.color);
+            cubes.push(
+              <g key={`${item.key}-${s}`}>
+                <polygon points={cube.side} fill={cube.colors.side} />
+                <polygon points={cube.front} fill={cube.colors.front} />
+                <polygon points={cube.top} fill={cube.colors.top} />
+                <rect
+                  x={x0 + 2}
+                  y={y + 2}
+                  width={4}
+                  height={3}
+                  fill="rgba(255,255,255,0.4)"
+                />
+              </g>
+            );
+          }
 
           return (
             <g key={item.key}>
-              <polygon
-                points={side}
-                fill={`url(#${uid}-side-${index})`}
-                stroke="rgba(255,255,255,0.25)"
-                strokeWidth={0.75}
-              />
-              <polygon
-                points={front}
-                fill={`url(#${uid}-front-${index})`}
-                stroke="rgba(255,255,255,0.45)"
-                strokeWidth={1}
-              />
-              <polygon
-                points={top}
-                fill={`url(#${uid}-top-${index})`}
-                stroke="rgba(255,255,255,0.65)"
-                strokeWidth={1}
-              />
-              {/* sheen na face frontal */}
-              <polygon
-                points={`${x + 3},${y + 2} ${x + barW * 0.38},${y + 2} ${x + barW * 0.38},${baseY - 2} ${x + 3},${baseY - 2}`}
-                fill="rgba(255,255,255,0.18)"
-              />
+              {cubes}
               <text
-                x={x + barW / 2 + depth / 4}
-                y={y - depth - 8}
+                x={x0 + voxel * 0.7}
+                y={baseY - stacks * (voxel * 0.92) - 10}
                 textAnchor="middle"
-                className="fill-slate-700"
-                style={{ fontSize: 10, fontWeight: 600 }}
+                className="fill-slate-800"
+                style={{ fontSize: 10, fontWeight: 700 }}
               >
                 {formatCurrency(item.value)}
               </text>
               <text
-                x={x + barW / 2}
-                y={baseY + 18}
+                x={x0 + voxel * 0.55}
+                y={baseY + 22}
                 textAnchor="middle"
                 className="fill-slate-500"
-                style={{ fontSize: 10 }}
+                style={{ fontSize: 10, fontWeight: 600 }}
               >
                 {item.label}
               </text>
@@ -128,7 +103,7 @@ export function IsoBarChart3D({ items, height = 180 }: Props) {
 }
 
 export const GRX_BAR_COLORS = {
-  revenue: { color: "#059669", topColor: "#34d399", sideColor: "#047857" },
-  expense: { color: "#d0001f", topColor: "#f87171", sideColor: "#9f1239" },
-  result: { color: "#0369a1", topColor: "#38bdf8", sideColor: "#075985" },
+  revenue: { color: "#22c55e", topColor: "#4ade80", sideColor: "#15803d" },
+  expense: { color: "#ef4444", topColor: "#f87171", sideColor: "#b91c1c" },
+  result: { color: "#2563eb", topColor: "#60a5fa", sideColor: "#1d4ed8" },
 } as const;

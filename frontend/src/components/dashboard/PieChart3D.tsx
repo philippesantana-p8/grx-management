@@ -1,7 +1,7 @@
 "use client";
 
-import { useId } from "react";
 import { formatCurrency } from "@/lib/utils";
+import { shade, voxelCube } from "@/components/dashboard/pixel-3d";
 
 export type PieSlice = {
   key: string;
@@ -13,34 +13,24 @@ export type PieSlice = {
 type Props = {
   slices: PieSlice[];
   size?: number;
-  /** Layout vertical compacto (3 colunas no Geral). */
   compact?: boolean;
 };
 
 const PALETTE = ["#2563eb", "#22c55e", "#f97316", "#a855f7", "#06b6d4", "#ef4444"];
 
-function polar(cx: number, cy: number, r: number, angle: number) {
-  const rad = ((angle - 90) * Math.PI) / 180;
-  return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
-}
+type Voxel = {
+  key: string;
+  x: number;
+  y: number;
+  z: number;
+  color: string;
+  sort: number;
+};
 
-function arcPath(cx: number, cy: number, r: number, start: number, end: number) {
-  const s = polar(cx, cy, r, end);
-  const e = polar(cx, cy, r, start);
-  const large = end - start > 180 ? 1 : 0;
-  return `M ${cx} ${cy} L ${e.x} ${e.y} A ${r} ${r} 0 ${large} 1 ${s.x} ${s.y} Z`;
-}
-
-/** Pizza 3D com acabamento liquid-glass (gradiente + highlight + borda). */
+/** Rosca 3D em voxels (pixel art) — fatias por ângulo. */
 export function PieChart3D({ slices, size = 220, compact = false }: Props) {
-  const uid = useId().replace(/:/g, "");
-  const chartSize = compact ? Math.max(size, 220) : size;
+  const chartSize = compact ? Math.max(size, 240) : size;
   const total = slices.reduce((s, x) => s + Math.max(0, x.value), 0);
-  const cx = chartSize / 2;
-  const cy = chartSize / 2 - 4;
-  const r = chartSize * (compact ? 0.42 : 0.38);
-  const depth = 12;
-  const hole = r * 0.28;
 
   if (total <= 0) {
     return (
@@ -54,20 +44,54 @@ export function PieChart3D({ slices, size = 220, compact = false }: Props) {
     );
   }
 
-  let angle = 0;
-  const arcs = slices.map((slice, i) => {
-    const portion = (Math.max(0, slice.value) / total) * 360;
-    const start = angle;
-    const end = angle + portion;
-    angle = end;
-    return {
-      ...slice,
-      start,
-      end,
-      color: slice.color || PALETTE[i % PALETTE.length],
-      gradId: `${uid}-slice-${i}`,
-    };
-  });
+  let cursor = 0;
+  const arcs = slices
+    .map((slice, i) => {
+      const value = Math.max(0, slice.value);
+      const start = cursor;
+      const portion = value / total;
+      cursor += portion;
+      return {
+        ...slice,
+        start,
+        end: cursor,
+        color: slice.color || PALETTE[i % PALETTE.length],
+        value,
+      };
+    })
+    .filter((a) => a.end - a.start > 0.001);
+
+  const cx = chartSize / 2;
+  const cy = chartSize / 2 + 10;
+  const outerR = chartSize * 0.34;
+  const innerR = outerR * 0.42;
+  const voxel = compact ? 11 : 12;
+  const layers = 3;
+  const steps = 56;
+
+  const voxels: Voxel[] = [];
+  for (let i = 0; i < steps; i++) {
+    const t = (i + 0.5) / steps;
+    const arc = arcs.find((a) => t >= a.start && t < a.end) ?? arcs[arcs.length - 1];
+    const angle = t * Math.PI * 2 - Math.PI / 2;
+    for (let ring = 0; ring < 2; ring++) {
+      const rr = innerR + (outerR - innerR) * (0.35 + ring * 0.45);
+      const px = cx + Math.cos(angle) * rr;
+      const py = cy + Math.sin(angle) * rr * 0.55;
+      for (let z = 0; z < layers; z++) {
+        voxels.push({
+          key: `${i}-${ring}-${z}`,
+          x: px - voxel / 2,
+          y: py - z * (voxel * 0.55),
+          z,
+          color: arc.color,
+          sort: py + z * 0.01 + Math.sin(angle) * 0.001,
+        });
+      }
+    }
+  }
+
+  voxels.sort((a, b) => a.sort - b.sort);
 
   return (
     <div
@@ -77,86 +101,53 @@ export function PieChart3D({ slices, size = 220, compact = false }: Props) {
           : "flex flex-col gap-4 sm:flex-row sm:items-center"
       }
     >
-      <div className="relative mx-auto shrink-0">
+      <div className="relative mx-auto">
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-2 rounded-full bg-white/35 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)] backdrop-blur-[2px]"
+          className="pointer-events-none absolute inset-3 rounded-[28px] bg-[repeating-linear-gradient(0deg,rgba(15,23,42,0.03)_0_2px,transparent_2px_4px)]"
         />
         <svg
           viewBox={`0 0 ${chartSize} ${chartSize}`}
-          className="relative mx-auto h-52 w-52 drop-shadow-md"
+          className="relative mx-auto h-56 w-56 [image-rendering:pixelated]"
           role="img"
-          aria-label="Gráfico de participação"
+          aria-label="Gráfico pixel 3D"
+          shapeRendering="crispEdges"
         >
-          <defs>
-            {arcs.map((a) => (
-              <linearGradient
-                key={a.gradId}
-                id={a.gradId}
-                x1="0%"
-                y1="0%"
-                x2="100%"
-                y2="100%"
-              >
-                <stop offset="0%" stopColor="#ffffff" stopOpacity="0.55" />
-                <stop offset="38%" stopColor={a.color} stopOpacity="0.92" />
-                <stop offset="100%" stopColor={a.color} stopOpacity="0.78" />
-              </linearGradient>
-            ))}
-            <radialGradient id={`${uid}-hole`} cx="35%" cy="30%" r="70%">
-              <stop offset="0%" stopColor="#ffffff" stopOpacity="0.95" />
-              <stop offset="55%" stopColor="#f8fafc" stopOpacity="0.82" />
-              <stop offset="100%" stopColor="#e2e8f0" stopOpacity="0.55" />
-            </radialGradient>
-            <linearGradient id={`${uid}-sheen`} x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" stopColor="#ffffff" stopOpacity="0.55" />
-              <stop offset="55%" stopColor="#ffffff" stopOpacity="0.05" />
-              <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
-            </linearGradient>
-          </defs>
-
-          {/* camada de profundidade 3D */}
-          {arcs.map((a) =>
-            a.end - a.start < 0.5 ? null : (
-              <path
-                key={`d-${a.key}`}
-                d={arcPath(cx, cy + depth, r, a.start, a.end)}
-                fill={a.color}
-                opacity={0.28}
-              />
-            )
-          )}
-
-          {/* face superior com vidro */}
-          {arcs.map((a) =>
-            a.end - a.start < 0.5 ? null : (
-              <path
-                key={a.key}
-                d={arcPath(cx, cy, r, a.start, a.end)}
-                fill={`url(#${a.gradId})`}
-                stroke="rgba(255,255,255,0.55)"
-                strokeWidth={1.25}
-              />
-            )
-          )}
-
-          {/* brilho liquid-glass */}
+          {/* sombra do chão */}
           <ellipse
-            cx={cx - r * 0.12}
-            cy={cy - r * 0.22}
-            rx={r * 0.72}
-            ry={r * 0.38}
-            fill={`url(#${uid}-sheen)`}
-            style={{ mixBlendMode: "soft-light" }}
-          />
-
-          <circle
             cx={cx}
-            cy={cy}
-            r={hole}
-            fill={`url(#${uid}-hole)`}
-            stroke="rgba(255,255,255,0.7)"
-            strokeWidth={1.5}
+            cy={cy + 18}
+            rx={outerR * 1.05}
+            ry={outerR * 0.28}
+            fill="rgba(15,23,42,0.12)"
+          />
+          {voxels.map((v) => {
+            const cube = voxelCube(v.x, v.y, voxel, v.color);
+            return (
+              <g key={v.key}>
+                <polygon points={cube.side} fill={cube.colors.side} />
+                <polygon points={cube.front} fill={cube.colors.front} />
+                <polygon points={cube.top} fill={cube.colors.top} />
+                {/* pixel highlight */}
+                <rect
+                  x={v.x + 1}
+                  y={v.y + 1}
+                  width={Math.max(2, voxel * 0.28)}
+                  height={Math.max(2, voxel * 0.22)}
+                  fill="rgba(255,255,255,0.35)"
+                />
+              </g>
+            );
+          })}
+          {/* núcleo pixel */}
+          <rect
+            x={cx - 14}
+            y={cy - 10}
+            width={28}
+            height={20}
+            fill="#f8fafc"
+            stroke={shade("#94a3b8", 0)}
+            strokeWidth={2}
           />
         </svg>
       </div>
@@ -169,12 +160,12 @@ export function PieChart3D({ slices, size = 220, compact = false }: Props) {
         }
       >
         {arcs.map((a) => {
-          const pct = total > 0 ? (Math.max(0, a.value) / total) * 100 : 0;
+          const pct = (a.value / total) * 100;
           return (
             <li key={a.key} className="flex items-center justify-between gap-2">
               <span className="flex min-w-0 items-center gap-1.5">
                 <span
-                  className="h-2.5 w-2.5 shrink-0 rounded-sm shadow-sm ring-1 ring-white/70"
+                  className="h-3 w-3 shrink-0 border border-slate-900/20 shadow-[2px_2px_0_rgba(15,23,42,0.15)]"
                   style={{ background: a.color }}
                 />
                 <span className="truncate font-medium text-slate-800">{a.label}</span>
