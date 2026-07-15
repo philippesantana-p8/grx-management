@@ -65,16 +65,16 @@ function wallPath(
  * ângulo = participação; altura = magnitude relativa do valor.
  * Cores sólidas mate, laterais sombreadas, sombra circular no chão.
  */
-export function PieChart3D({ slices, size = 280, compact = false }: Props) {
+export function PieChart3D({ slices, size = 320, compact = false }: Props) {
   const uid = useId().replace(/:/g, "");
-  const chartSize = compact ? Math.max(size, 280) : size;
+  const chartSize = compact ? Math.max(size, 320) : size;
   const total = slices.reduce((s, x) => s + Math.max(0, x.value), 0);
 
   if (total <= 0) {
     return (
       <div
         className={`flex items-center justify-center text-sm text-slate-500 ${
-          compact ? "h-60" : "h-56"
+          compact ? "h-72" : "h-64"
         }`}
       >
         Sem resultado atribuído no período.
@@ -88,7 +88,7 @@ export function PieChart3D({ slices, size = 280, compact = false }: Props) {
 
   const cx = chartSize / 2;
   const baseCy = chartSize * 0.42;
-  const r = chartSize * 0.32;
+  const r = chartSize * 0.34;
 
   let angle = -20;
   const arcs = slices
@@ -137,7 +137,7 @@ export function PieChart3D({ slices, size = 280, compact = false }: Props) {
     >
       <svg
         viewBox={`0 0 ${chartSize} ${viewH}`}
-        className={compact ? "mx-auto h-60 w-60" : "mx-auto h-64 w-64"}
+        className={compact ? "mx-auto h-72 w-72" : "mx-auto h-80 w-80"}
         role="img"
         aria-label="Gráfico de pizza 3D com alturas variáveis"
       >
