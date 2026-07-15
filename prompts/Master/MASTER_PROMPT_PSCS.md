@@ -67,7 +67,7 @@ Regra Cursor espelhada: `.cursor/rules/deploy-prod-and-dev.mdc`.
 | Voucher motorista | Valores motorista/ajudante **em branco** no voucher; sistema/designação guardam os valores. Foto do motorista no cadastro → voucher Transporte/Frete. SQL: `apply-040-driver-photo.sql`. |
 | Sócios | RG / CPF / CNPJ + validações BR. |
 | Menu / nomes | OS = **Ordem de Serviço — Transporte e Frete**; **Agenda da Frota** logo abaixo. DRE com iniciais maiúsculas (Empresa, Motorista/Ajudante, Veículo). Ordem dos blocos: Cadastros → **Parâmetros** → **Configurações** (Integrações + Mensalidade). |
-| Parâmetros | Senha master + frase de recuperação + permissões por tela/sócio. |
+| Parâmetros | **Senha Máster - Concessão de Acessos** (frase de recuperação + permissões por tela/sócio). |
 | Auth | Cadastro/login e-mail + reset de senha. |
 | DRE motorista | Pagamentos + lançamento automático Motorista/Ajudante. |
 | DRE veículo | Aba **Despesas do veículo** por placa (pedágio, combustível, pneu, oficina, outros). Anti-duplicata: mesma **data + OS + conta DRE**. SQL: `apply-038-vehicle-expenses.sql`. |
