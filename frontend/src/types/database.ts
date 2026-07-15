@@ -54,6 +54,8 @@ export type Vehicle = {
   operational_partner_id: string | null;
   status: string;
   notes: string | null;
+  /** Path no Storage (company-attachments) — foto mestre da frota. */
+  photo_storage_path?: string | null;
 };
 
 export type VehicleOwnership = {

@@ -11,6 +11,7 @@ import { ServiceOrderListFilters } from "@/components/operacional/ServiceOrderLi
 import { ServiceOrderOperationalPanel } from "@/components/operacional/ServiceOrderOperationalPanel";
 import { ServiceOrderPassengersPanel } from "@/components/operacional/ServiceOrderPassengersPanel";
 import { ServiceOrderRowActions } from "@/components/operacional/ServiceOrderRowActions";
+import { VehiclePhotoPreview } from "@/components/vehicles/VehiclePhotoPreview";
 import { Badge, Alert } from "@/components/ui/Badge";
 import { GlassSelect } from "@/components/ui/GlassSelect";
 import { nextCode } from "@/lib/codes";
@@ -51,6 +52,7 @@ import {
   serviceOrderShowsFlightData,
   serviceOrderShowsPassengers,
   serviceOrderShowsRoutePanel,
+  serviceOrderShowsVehiclePhoto,
 } from "@/lib/service-order-field-visibility";
 import { normalizePassengers } from "@/lib/service-order-passengers";
 import type { DreAccount, Driver, DriverAssignmentResponse, Vehicle } from "@/types/database";
@@ -386,6 +388,7 @@ function OrdensServicoPageContent() {
     model: v.model,
     year: v.year,
     vehicle_category: v.vehicle_category,
+    photo_storage_path: v.photo_storage_path ?? null,
   }));
 
   const initialNewDraft = useMemo(() => {
@@ -965,6 +968,17 @@ function OrdensServicoPageContent() {
                     Nenhum veículo ativo na frota. Cadastre em Cadastros → Veículos antes de abrir a OS.
                   </Alert>
                 )}
+
+                {serviceOrderShowsVehiclePhoto(serviceType) &&
+                String(form.vehicle_id ?? "") ? (
+                  <VehiclePhotoPreview
+                    photoStoragePath={
+                      vehicleOptions.find((v) => v.value === String(form.vehicle_id ?? ""))
+                        ?.photo_storage_path
+                    }
+                    className="rounded-xl border border-slate-200 bg-white p-3"
+                  />
+                ) : null}
 
                 <VehicleSelectionSync
                   vehicleId={String(form.vehicle_id ?? "")}

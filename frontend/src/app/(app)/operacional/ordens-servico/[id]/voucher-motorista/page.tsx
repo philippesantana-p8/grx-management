@@ -16,6 +16,7 @@ import {
 } from "@/lib/service-order-display-status";
 import { useCompany } from "@/lib/company-context";
 import { getDriverPhotoUrl } from "@/lib/driver-photo";
+import { getVehiclePhotoUrl } from "@/lib/vehicle-photo";
 import { serviceOrderShowsDriverPhoto } from "@/lib/service-order-field-visibility";
 import { createClient } from "@/lib/supabase/client";
 import type { Driver, ServiceOrder, Vehicle } from "@/types/database";
@@ -47,9 +48,12 @@ export default function ServiceOrderDriverVoucherPage() {
       row: ServiceOrder,
       nextDriver: Driver | null,
       vehicle: Vehicle | null,
-      photoPath: string | null
+      driverPhotoPath: string | null
     ) => {
-      const driverPhotoUrl = await getDriverPhotoUrl(photoPath);
+      const [driverPhotoUrl, vehiclePhotoUrl] = await Promise.all([
+        getDriverPhotoUrl(driverPhotoPath),
+        getVehiclePhotoUrl(vehicle?.photo_storage_path),
+      ]);
       setContext({
         companyName: company?.trade_name || company?.name || "GRX Management",
         companyDocument: company?.document ?? null,
@@ -57,6 +61,7 @@ export default function ServiceOrderDriverVoucherPage() {
         driverDocument: nextDriver?.document ?? nextDriver?.cnh_number ?? null,
         driverPhone: nextDriver?.phone ?? null,
         driverPhotoUrl,
+        vehiclePhotoUrl,
         vehicleDescription: buildVehicleDescription(row, vehicle),
       });
     },

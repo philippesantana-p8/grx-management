@@ -65,6 +65,7 @@ Regra Cursor espelhada: `.cursor/rules/deploy-prod-and-dev.mdc`.
 | Campos formulário | Liquid glass: **azul** = opcional; **amarelo suave** = obrigatório (vídeo Filipe 2026-07-14). OS amarelo: Tipo, Data, Entrada/Saída, Veículo, Motorista, Valor, Cliente, Telefone, apresentação/horários, atendente, monitoria 24h, Conta DRE, Ponto A/B, Pedágio, passageiros (Transporte). Status/Código/Observações/voo/órgão emissor = azul. |
 | Passageiros na OS | Só no tipo **Transporte**. Frete/Estacionamento/Lava-rápido escondem o painel; natureza DRE só-Frete também alinha o tipo e esconde. |
 | Voucher motorista | Valores motorista/ajudante **em branco** no voucher; sistema/designação guardam os valores. Foto do motorista no cadastro → voucher Transporte/Frete. SQL: `apply-040-driver-photo.sql`. |
+| Foto veículo | Foto mestre em Cadastros → Veículos (`vehicles.photo_storage_path`, bucket `company-attachments`). Na OS/voucher Frete/Transporte: preview **somente leitura** (sem upload na OS). SQL: `apply-045-vehicle-photo.sql`. |
 | Sócios | RG / CPF / CNPJ + validações BR. |
 | Menu / nomes | OS = **Ordem de Serviço — Transporte e Frete**; **Agenda da Frota** logo abaixo. DRE com iniciais maiúsculas (Empresa, Motorista/Ajudante, Veículo). Ordem dos blocos: Cadastros → **Parâmetros** → **Configurações** (Integrações + Mensalidade). |
 | Parâmetros | **Senha Máster - Concessão de Acessos** (frase de recuperação + permissões por tela/sócio). |

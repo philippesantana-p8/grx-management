@@ -40,3 +40,8 @@ export function serviceOrderShowsDriverPhoto(serviceType: string): boolean {
   const type = normalizeServiceType(serviceType);
   return type === "Frete" || type === "Transporte";
 }
+
+/** Foto do veículo na OS/voucher: Transporte e Frete (somente leitura). */
+export function serviceOrderShowsVehiclePhoto(serviceType: string): boolean {
+  return serviceOrderShowsDriverPhoto(serviceType);
+}

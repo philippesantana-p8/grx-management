@@ -6,6 +6,7 @@ import {
   serviceOrderShowsDriverPhoto,
   serviceOrderShowsFlightData,
   serviceOrderShowsPassengers,
+  serviceOrderShowsVehiclePhoto,
 } from "@/lib/service-order-field-visibility";
 import { normalizePassengers } from "@/lib/service-order-passengers";
 import { formatServiceDate } from "@/lib/service-order-proposal";
@@ -22,6 +23,7 @@ export type DriverVoucherContext = {
   driverDocument: string | null;
   driverPhone: string | null;
   driverPhotoUrl?: string | null;
+  vehiclePhotoUrl?: string | null;
   vehicleDescription: string;
 };
 
@@ -96,6 +98,7 @@ export function ServiceOrderDriverVoucherView({
   context,
   pendingDriverAcceptance = false,
 }: Props) {
+  const showVehiclePhoto = serviceOrderShowsVehiclePhoto(order.service_type);
   const showPassengers = serviceOrderShowsPassengers(
     order.service_type,
     order.service_categories
@@ -247,12 +250,43 @@ export function ServiceOrderDriverVoucherView({
             </div>
           ) : null}
           <VoucherCell
-            className={showDriverPhoto ? "voucher-span-2" : "voucher-span-3"}
+            className={
+              showDriverPhoto && showVehiclePhoto
+                ? "voucher-span-2"
+                : showDriverPhoto || showVehiclePhoto
+                  ? "voucher-span-2"
+                  : "voucher-span-3"
+            }
             label="Motorista"
             value={driverLines}
           />
+          {showVehiclePhoto ? (
+            <div className="voucher-photo voucher-span-2 flex flex-col border border-slate-300 p-2">
+              <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Foto do veículo
+              </p>
+              {context.vehiclePhotoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={context.vehiclePhotoUrl}
+                  alt={order.plate || "Veículo"}
+                  className="mx-auto h-28 w-28 rounded object-cover print:h-24 print:w-24"
+                />
+              ) : (
+                <div className="flex min-h-[7rem] flex-1 items-center justify-center rounded bg-slate-50 text-center text-xs text-slate-500">
+                  Sem foto
+                </div>
+              )}
+            </div>
+          ) : null}
           <VoucherCell
-            className={showDriverPhoto ? "voucher-span-2" : "voucher-span-3"}
+            className={
+              showDriverPhoto && showVehiclePhoto
+                ? "voucher-span-6"
+                : showDriverPhoto || showVehiclePhoto
+                  ? "voucher-span-2"
+                  : "voucher-span-3"
+            }
             label="Veículo / placa"
             value={`${context.vehicleDescription}\nPlaca: ${order.plate}`}
           />
