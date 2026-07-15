@@ -102,7 +102,7 @@ export default function AgendaVeiculosPage() {
   return (
     <Card>
       <CardHeader
-        title="Agenda da frota"
+        title="Agenda da Frota"
         description="Quadro semanal por placa. Clique no código da OS para abrir o cadastro. Filtre por placa para ver manhã/tarde livres e se dá para usar o veículo mais de uma vez no dia."
       />
       <CardBody className="space-y-4">

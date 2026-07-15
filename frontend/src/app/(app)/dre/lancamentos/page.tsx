@@ -181,7 +181,7 @@ export default function DreLancamentosPage() {
   return (
     <Card>
       <CardHeader
-        title="Lançamentos da empresa"
+        title="Lançamentos da Empresa"
         description="Controle mensal da GRX: receitas e despesas gerais (geladeira, material de escritório, aluguel, etc.) — sem vínculo obrigatório com veículo. Use as contas do plano DRE."
       />
       <CardBody className="space-y-6">

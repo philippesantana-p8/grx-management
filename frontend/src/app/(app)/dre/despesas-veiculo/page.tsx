@@ -188,7 +188,7 @@ export default function DreDespesasVeiculoPage() {
   return (
     <Card>
       <CardHeader
-        title="Despesas do veículo"
+        title="Despesas do Veículo"
         description="Lance pedágio, combustível, pneu, oficina e demais custos por placa. Com OS informada, o sistema bloqueia duplicata da mesma conta na mesma data."
       />
       <CardBody className="space-y-6">

@@ -441,7 +441,7 @@ function OrdensServicoPageContent() {
       refreshKey={listRefreshKey}
       initialEditId={initialEditId}
       initialNewDraft={initialNewDraft}
-      title="Ordem de serviço — transporte e frete"
+      title="Ordem de Serviço — Transporte e Frete"
       description="Frete e Transporte — natureza do serviço vinculada às contas DRE (pátio e lava nos módulos próprios)"
       table="service_orders"
       orderBy="service_date"

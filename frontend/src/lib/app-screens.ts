@@ -17,9 +17,15 @@ export const APP_SCREENS: AppScreen[] = [
   { key: "dashboard", label: "Dashboard", group: "Geral", href: "/dashboard" },
   {
     key: "operacional.ordens-servico",
-    label: "Ordem de serviço — transporte e frete",
+    label: "Ordem de Serviço — Transporte e Frete",
     group: "Operacional",
     href: "/operacional/ordens-servico",
+  },
+  {
+    key: "operacional.agenda-veiculos",
+    label: "Agenda da Frota",
+    group: "Operacional",
+    href: "/operacional/agenda-veiculos",
   },
   {
     key: "operacional.estacionamento",
@@ -34,12 +40,6 @@ export const APP_SCREENS: AppScreen[] = [
     href: "/operacional/lava-rapido",
   },
   {
-    key: "operacional.agenda-veiculos",
-    label: "Agenda da frota",
-    group: "Operacional",
-    href: "/operacional/agenda-veiculos",
-  },
-  {
     key: "operacional.infracoes",
     label: "Infrações de Trânsito",
     group: "Operacional",
@@ -47,19 +47,19 @@ export const APP_SCREENS: AppScreen[] = [
   },
   {
     key: "dre.lancamentos",
-    label: "Lançamentos da empresa",
+    label: "Lançamentos da Empresa",
     group: "DRE",
     href: "/dre/lancamentos",
   },
   {
     key: "dre.despesas-motorista",
-    label: "Despesas motorista / ajudante",
+    label: "Despesas Motorista / Ajudante",
     group: "DRE",
     href: "/dre/despesas-motorista",
   },
   {
     key: "dre.despesas-veiculo",
-    label: "Despesas do veículo",
+    label: "Despesas do Veículo",
     group: "DRE",
     href: "/dre/despesas-veiculo",
   },
@@ -91,18 +91,6 @@ export const APP_SCREENS: AppScreen[] = [
     href: "/cadastros/fornecedores",
   },
   {
-    key: "configuracoes.integracoes",
-    label: "Integrações",
-    group: "Configurações",
-    href: "/configuracoes/integracoes",
-  },
-  {
-    key: "configuracoes.mensalidade",
-    label: "Mensalidade",
-    group: "Configurações",
-    href: "/configuracoes/mensalidade",
-  },
-  {
     key: "configuracoes.parametros-patio",
     label: "Parâmetros do pátio",
     group: "Parâmetros",
@@ -119,6 +107,18 @@ export const APP_SCREENS: AppScreen[] = [
     label: "Senha Master com sessão de acesso",
     group: "Parâmetros",
     href: "/configuracoes/parametros",
+  },
+  {
+    key: "configuracoes.integracoes",
+    label: "Integrações",
+    group: "Configurações",
+    href: "/configuracoes/integracoes",
+  },
+  {
+    key: "configuracoes.mensalidade",
+    label: "Mensalidade",
+    group: "Configurações",
+    href: "/configuracoes/mensalidade",
   },
 ];
 

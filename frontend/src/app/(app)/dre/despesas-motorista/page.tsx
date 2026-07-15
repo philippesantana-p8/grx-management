@@ -82,7 +82,7 @@ export default function DreDespesasMotoristaPage() {
   return (
     <Card>
       <CardHeader
-        title="Despesas motorista / ajudante"
+        title="Despesas Motorista / Ajudante"
         description="Após concluir o frete, a OS entra aqui com valores e dados bancários do motorista. Anexe o comprovante, marque pago e o lançamento DRE é gerado automaticamente."
       />
       <CardBody className="space-y-6">

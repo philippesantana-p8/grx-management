@@ -19,20 +19,20 @@ const NAV: NavItem[] = [
     children: [
       {
         href: "/operacional/ordens-servico",
-        label: "Ordem de serviço — transporte e frete",
+        label: "Ordem de Serviço — Transporte e Frete",
       },
+      { href: "/operacional/agenda-veiculos", label: "Agenda da Frota" },
       { href: "/operacional/estacionamento", label: "Estacionamento" },
       { href: "/operacional/lava-rapido", label: "Lava-rápido" },
-      { href: "/operacional/agenda-veiculos", label: "Agenda da frota" },
       { href: "/operacional/infracoes", label: "Infrações de Trânsito" },
     ],
   },
   {
     label: "DRE",
     children: [
-      { href: "/dre/lancamentos", label: "Lançamentos da empresa" },
-      { href: "/dre/despesas-motorista", label: "Despesas motorista / ajudante" },
-      { href: "/dre/despesas-veiculo", label: "Despesas do veículo" },
+      { href: "/dre/lancamentos", label: "Lançamentos da Empresa" },
+      { href: "/dre/despesas-motorista", label: "Despesas Motorista / Ajudante" },
+      { href: "/dre/despesas-veiculo", label: "Despesas do Veículo" },
     ],
   },
   {
@@ -48,13 +48,6 @@ const NAV: NavItem[] = [
     ],
   },
   {
-    label: "Configurações",
-    children: [
-      { href: "/configuracoes/integracoes", label: "Integrações" },
-      { href: "/configuracoes/mensalidade", label: "Mensalidade" },
-    ],
-  },
-  {
     label: "Parâmetros",
     children: [
       { href: "/configuracoes/parametros-patio", label: "Parâmetros do pátio" },
@@ -63,6 +56,13 @@ const NAV: NavItem[] = [
         href: "/configuracoes/parametros",
         label: "Senha Master com sessão de acesso",
       },
+    ],
+  },
+  {
+    label: "Configurações",
+    children: [
+      { href: "/configuracoes/integracoes", label: "Integrações" },
+      { href: "/configuracoes/mensalidade", label: "Mensalidade" },
     ],
   },
 ];

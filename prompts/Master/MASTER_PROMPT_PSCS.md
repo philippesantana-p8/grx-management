@@ -66,7 +66,7 @@ Regra Cursor espelhada: `.cursor/rules/deploy-prod-and-dev.mdc`.
 | Passageiros na OS | Só no tipo **Transporte**. Frete/Estacionamento/Lava-rápido escondem o painel; natureza DRE só-Frete também alinha o tipo e esconde. |
 | Voucher motorista | Valores motorista/ajudante **em branco** no voucher; sistema/designação guardam os valores. Foto do motorista no cadastro → voucher Transporte/Frete. SQL: `apply-040-driver-photo.sql`. |
 | Sócios | RG / CPF / CNPJ + validações BR. |
-| Menu / nomes | OS geral = **Ordem de serviço — transporte e frete**. Configurações = Integrações + Mensalidade. Bloco **Parâmetros** = pátio, frete, **Senha Master com sessão de acesso**. |
+| Menu / nomes | OS = **Ordem de Serviço — Transporte e Frete**; **Agenda da Frota** logo abaixo. DRE com iniciais maiúsculas (Empresa, Motorista/Ajudante, Veículo). Ordem dos blocos: Cadastros → **Parâmetros** → **Configurações** (Integrações + Mensalidade). |
 | Parâmetros | Senha master + frase de recuperação + permissões por tela/sócio. |
 | Auth | Cadastro/login e-mail + reset de senha. |
 | DRE motorista | Pagamentos + lançamento automático Motorista/Ajudante. |
