@@ -118,33 +118,53 @@ BEGIN
   WHERE company_id = p_company_id
     AND vehicle_id IN (v_swu, v_ghr, v_tls, v_suy);
 
-  IF v_swu IS NOT NULL THEN
-    EXECUTE format(
-      'INSERT INTO vehicle_ownership (company_id, vehicle_id, partner_id, ownership_percentage, %I, status)
-       VALUES ($1,$2,$3,$4,$5,''Ativo''), ($1,$2,$6,$4,$5,''Ativo'')',
-      v_date_col
-    ) USING p_company_id, v_swu, v_rafael, v_pct_50, v_start, v_malu;
-  END IF;
-  IF v_tls IS NOT NULL THEN
-    EXECUTE format(
-      'INSERT INTO vehicle_ownership (company_id, vehicle_id, partner_id, ownership_percentage, %I, status)
-       VALUES ($1,$2,$3,$4,$5,''Ativo''), ($1,$2,$6,$4,$5,''Ativo'')',
-      v_date_col
-    ) USING p_company_id, v_tls, v_rafael, v_pct_50, v_start, v_malu;
-  END IF;
-  IF v_suy IS NOT NULL THEN
-    EXECUTE format(
-      'INSERT INTO vehicle_ownership (company_id, vehicle_id, partner_id, ownership_percentage, %I, status)
-       VALUES ($1,$2,$3,$4,$5,''Ativo''), ($1,$2,$6,$4,$5,''Ativo'')',
-      v_date_col
-    ) USING p_company_id, v_suy, v_rafael, v_pct_50, v_start, v_malu;
-  END IF;
-  IF v_ghr IS NOT NULL THEN
-    EXECUTE format(
-      'INSERT INTO vehicle_ownership (company_id, vehicle_id, partner_id, ownership_percentage, %I, status)
-       VALUES ($1,$2,$3,$4,$5,''Ativo'')',
-      v_date_col
-    ) USING p_company_id, v_ghr, v_grx, v_pct_100, v_start;
+  -- Inserts sem SQL dinâmico (compatível com start_date legado e effective_date)
+  IF v_date_col = 'effective_date' THEN
+    IF v_swu IS NOT NULL THEN
+      INSERT INTO vehicle_ownership (company_id, vehicle_id, partner_id, ownership_percentage, effective_date, status)
+      VALUES
+        (p_company_id, v_swu, v_rafael, v_pct_50, v_start, 'Ativo'),
+        (p_company_id, v_swu, v_malu, v_pct_50, v_start, 'Ativo');
+    END IF;
+    IF v_tls IS NOT NULL THEN
+      INSERT INTO vehicle_ownership (company_id, vehicle_id, partner_id, ownership_percentage, effective_date, status)
+      VALUES
+        (p_company_id, v_tls, v_rafael, v_pct_50, v_start, 'Ativo'),
+        (p_company_id, v_tls, v_malu, v_pct_50, v_start, 'Ativo');
+    END IF;
+    IF v_suy IS NOT NULL THEN
+      INSERT INTO vehicle_ownership (company_id, vehicle_id, partner_id, ownership_percentage, effective_date, status)
+      VALUES
+        (p_company_id, v_suy, v_rafael, v_pct_50, v_start, 'Ativo'),
+        (p_company_id, v_suy, v_malu, v_pct_50, v_start, 'Ativo');
+    END IF;
+    IF v_ghr IS NOT NULL THEN
+      INSERT INTO vehicle_ownership (company_id, vehicle_id, partner_id, ownership_percentage, effective_date, status)
+      VALUES (p_company_id, v_ghr, v_grx, v_pct_100, v_start, 'Ativo');
+    END IF;
+  ELSE
+    IF v_swu IS NOT NULL THEN
+      INSERT INTO vehicle_ownership (company_id, vehicle_id, partner_id, ownership_percentage, start_date, status)
+      VALUES
+        (p_company_id, v_swu, v_rafael, v_pct_50, v_start, 'Ativo'),
+        (p_company_id, v_swu, v_malu, v_pct_50, v_start, 'Ativo');
+    END IF;
+    IF v_tls IS NOT NULL THEN
+      INSERT INTO vehicle_ownership (company_id, vehicle_id, partner_id, ownership_percentage, start_date, status)
+      VALUES
+        (p_company_id, v_tls, v_rafael, v_pct_50, v_start, 'Ativo'),
+        (p_company_id, v_tls, v_malu, v_pct_50, v_start, 'Ativo');
+    END IF;
+    IF v_suy IS NOT NULL THEN
+      INSERT INTO vehicle_ownership (company_id, vehicle_id, partner_id, ownership_percentage, start_date, status)
+      VALUES
+        (p_company_id, v_suy, v_rafael, v_pct_50, v_start, 'Ativo'),
+        (p_company_id, v_suy, v_malu, v_pct_50, v_start, 'Ativo');
+    END IF;
+    IF v_ghr IS NOT NULL THEN
+      INSERT INTO vehicle_ownership (company_id, vehicle_id, partner_id, ownership_percentage, start_date, status)
+      VALUES (p_company_id, v_ghr, v_grx, v_pct_100, v_start, 'Ativo');
+    END IF;
   END IF;
 
   DELETE FROM financial_transactions
