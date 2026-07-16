@@ -13,12 +13,9 @@ import { firstAllowedHref, screenKeyFromPath } from "@/lib/app-screens";
 export function ScreenAccessGate({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { loading, canViewScreen, isAdmin, partnerId } = useAccess();
+  const { loading, canViewScreen } = useAccess();
   const screenKey = screenKeyFromPath(pathname);
-  const restricted = Boolean(partnerId) && !isAdmin;
-  const denied = Boolean(
-    restricted && screenKey && !canViewScreen(screenKey)
-  );
+  const denied = Boolean(screenKey && !loading && !canViewScreen(screenKey));
 
   useEffect(() => {
     if (loading || !denied) return;
@@ -26,18 +23,11 @@ export function ScreenAccessGate({ children }: { children: ReactNode }) {
     router.replace(next ?? "/login?error=sem-acesso");
   }, [loading, denied, canViewScreen, router]);
 
-  if (loading) {
+  if (loading || denied) {
     return (
-      <div className="flex min-h-[40vh] items-center justify-center p-8">
+      <div className="flex min-h-[40vh] flex-col items-center justify-center gap-2 p-8 text-sm text-slate-600">
         <Loading />
-      </div>
-    );
-  }
-
-  if (denied) {
-    return (
-      <div className="flex min-h-[40vh] items-center justify-center p-8 text-sm text-slate-600">
-        Redirecionando para uma tela permitida…
+        {denied ? <span>Redirecionando para uma tela permitida…</span> : null}
       </div>
     );
   }

@@ -1,5 +1,9 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import {
+  resolveForbiddenRedirect,
+  resolvePostLoginPath,
+} from "@/lib/access-server";
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
@@ -55,10 +59,12 @@ export async function updateSession(request: NextRequest) {
   if (user && isAuthPage) {
     const next = request.nextUrl.searchParams.get("next");
     if (next?.startsWith("/")) {
-      return NextResponse.redirect(new URL(next, request.nextUrl.origin));
+      const forbidden = await resolveForbiddenRedirect(supabase, user.id, next);
+      const dest = forbidden ?? next;
+      return NextResponse.redirect(new URL(dest, request.nextUrl.origin));
     }
     const url = request.nextUrl.clone();
-    url.pathname = "/dashboard";
+    url.pathname = await resolvePostLoginPath(supabase, user.id);
     url.search = "";
     return NextResponse.redirect(url);
   }
@@ -74,6 +80,25 @@ export async function updateSession(request: NextRequest) {
       const url = request.nextUrl.clone();
       url.pathname = "/setup";
       return NextResponse.redirect(url);
+    }
+
+    const pathname = request.nextUrl.pathname;
+    if (
+      !pathname.startsWith("/api/") &&
+      !isPublicProposal &&
+      !isPublicDriverAssignment
+    ) {
+      const forbiddenTo = await resolveForbiddenRedirect(
+        supabase,
+        user.id,
+        pathname
+      );
+      if (forbiddenTo && forbiddenTo !== pathname) {
+        const url = request.nextUrl.clone();
+        url.pathname = forbiddenTo;
+        url.search = "";
+        return NextResponse.redirect(url);
+      }
     }
   }
 

@@ -41,7 +41,7 @@ const AccessContext = createContext<AccessContextValue>({
 });
 
 export function AccessProvider({ children }: { children: ReactNode }) {
-  const { companyId } = useCompany();
+  const { companyId, loading: companyLoading } = useCompany();
   const supabase = createClient();
   const [loading, setLoading] = useState(true);
   const [role, setRole] = useState<MemberRole | null>(null);
@@ -49,9 +49,20 @@ export function AccessProvider({ children }: { children: ReactNode }) {
   const [permissionsByScreen, setPermissionsByScreen] = useState<
     Record<string, ScreenPermissionFlags>
   >({});
+  /** Sócio com partner_id: permissões finas. Sem partner após load = legado full. */
+  const [accessMode, setAccessMode] = useState<"loading" | "full" | "restricted">(
+    "loading"
+  );
 
   const refreshAccess = useCallback(async () => {
     setLoading(true);
+    setAccessMode("loading");
+
+    // Não liberar telas enquanto a empresa ainda não carregou (evita “full access” fantasma).
+    if (companyLoading) {
+      return;
+    }
+
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -60,6 +71,7 @@ export function AccessProvider({ children }: { children: ReactNode }) {
       setRole(null);
       setPartnerId(null);
       setPermissionsByScreen({});
+      setAccessMode("full");
       setLoading(false);
       return;
     }
@@ -81,6 +93,7 @@ export function AccessProvider({ children }: { children: ReactNode }) {
       const full: Record<string, ScreenPermissionFlags> = {};
       for (const screen of APP_SCREENS) full[screen.key] = { ...FULL_ACCESS };
       setPermissionsByScreen(full);
+      setAccessMode("full");
       setLoading(false);
       return;
     }
@@ -100,38 +113,51 @@ export function AccessProvider({ children }: { children: ReactNode }) {
       };
     }
     setPermissionsByScreen(map);
+    setAccessMode("restricted");
     setLoading(false);
-  }, [companyId, supabase]);
+  }, [companyId, companyLoading, supabase]);
 
   useEffect(() => {
     void refreshAccess();
   }, [refreshAccess]);
 
   const isAdmin = role === "admin";
+  const accessReady = !loading && !companyLoading && accessMode !== "loading";
 
   const value = useMemo<AccessContextValue>(
     () => ({
-      loading,
+      loading: !accessReady,
       role,
       partnerId,
       isAdmin,
       permissionsByScreen,
       refreshAccess,
       canViewScreen: (screenKey: string) => {
-        if (isAdmin || !partnerId) return true;
+        if (!accessReady) return false;
+        if (accessMode === "full" || isAdmin) return true;
         if (screenKey === "configuracoes.parametros") return false;
         return Boolean(permissionsByScreen[screenKey]?.can_view);
       },
       canEditScreen: (screenKey: string) => {
-        if (isAdmin || !partnerId) return true;
+        if (!accessReady) return false;
+        if (accessMode === "full" || isAdmin) return true;
         return Boolean(permissionsByScreen[screenKey]?.can_edit);
       },
       canDeleteScreen: (screenKey: string) => {
-        if (isAdmin || !partnerId) return true;
+        if (!accessReady) return false;
+        if (accessMode === "full" || isAdmin) return true;
         return Boolean(permissionsByScreen[screenKey]?.can_delete);
       },
     }),
-    [isAdmin, loading, partnerId, permissionsByScreen, refreshAccess, role]
+    [
+      accessMode,
+      accessReady,
+      isAdmin,
+      partnerId,
+      permissionsByScreen,
+      refreshAccess,
+      role,
+    ]
   );
 
   return <AccessContext.Provider value={value}>{children}</AccessContext.Provider>;
