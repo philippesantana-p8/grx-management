@@ -241,7 +241,7 @@ export function BillingParametersPanel() {
 
         <div className="flex flex-wrap gap-3">
           <Button type="button" onClick={() => void save(false)} disabled={saving || loading}>
-            {saving ? "Salvando…" : "Salvar parâmetros"}
+            {saving ? "Salvando…" : "Salvar parâmetros de mensalidade"}
           </Button>
           <Button
             type="button"

@@ -730,13 +730,19 @@ export default function ParametrosPage() {
                   </tbody>
                 </table>
               </div>
-              <Button
-                type="button"
-                onClick={() => void savePermissions()}
-                disabled={savingPerms}
-              >
-                {savingPerms ? "Salvando…" : "Salvar permissões"}
-              </Button>
+              <div className="sticky bottom-0 z-10 -mx-1 flex flex-wrap items-center gap-3 border-t border-slate-200 bg-white/95 px-1 py-3 backdrop-blur">
+                <Button
+                  type="button"
+                  onClick={() => void savePermissions()}
+                  disabled={savingPerms}
+                >
+                  {savingPerms ? "Salvando…" : "Salvar permissões do sócio"}
+                </Button>
+                <p className="text-xs text-slate-500">
+                  Este botão grava as telas liberadas no banco. O “Salvar parâmetros” do bloco
+                  Asaas (acima) não altera permissões.
+                </p>
+              </div>
             </>
           )}
         </CardBody>
