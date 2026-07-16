@@ -98,11 +98,17 @@ export default function HistoricoExclusoesPage() {
       <div>
         <h1 className="text-xl font-bold text-slate-900 sm:text-2xl">Histórico de exclusões</h1>
         <p className="mt-1 text-sm text-slate-500">
-          Auditoria de quem excluiu registros, com data/hora e resumo do que foi removido.
+          Quem excluiu, quando (data/hora) e a observação/motivo informado no momento da exclusão.
         </p>
       </div>
 
       {error ? <Alert variant="error">{error}</Alert> : null}
+      {error && /reason/i.test(error) ? (
+        <Alert variant="warning">
+          A coluna de observação ainda não existe no banco. Aplique o SQL{" "}
+          <code className="text-xs">apply-049-deletion-audit-reason.sql</code> no Supabase.
+        </Alert>
+      ) : null}
 
       <section className={`space-y-3 ${glassFilterPanel()}`}>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -144,13 +150,13 @@ export default function HistoricoExclusoesPage() {
         <table className="min-w-full text-left text-sm">
           <thead className="bg-slate-50 text-xs uppercase text-slate-500">
             <tr>
-              <th className="px-3 py-2">Data / hora</th>
+              <th className="px-3 py-2">Data / hora da exclusão</th>
               <th className="px-3 py-2">Usuário</th>
               <th className="px-3 py-2">Tela</th>
               <th className="px-3 py-2">Tipo</th>
               <th className="px-3 py-2">Código</th>
               <th className="px-3 py-2">Resumo</th>
-              <th className="px-3 py-2">Motivo</th>
+              <th className="min-w-[14rem] px-3 py-2">Observação da exclusão</th>
               <th className="px-3 py-2">Modo</th>
               <th className="px-3 py-2" />
             </tr>
@@ -158,8 +164,10 @@ export default function HistoricoExclusoesPage() {
           <tbody>
             {rows.map((row) => (
               <Fragment key={row.id}>
-                <tr className="border-t border-slate-100">
-                  <td className="whitespace-nowrap px-3 py-2">{formatOccurredAt(row.occurred_at)}</td>
+                <tr className="border-t border-slate-100 align-top">
+                  <td className="whitespace-nowrap px-3 py-2 font-medium text-slate-900">
+                    {formatOccurredAt(row.occurred_at)}
+                  </td>
                   <td className="px-3 py-2">
                     <div className="font-medium text-slate-900">
                       {row.actor_name || "—"}
@@ -171,11 +179,17 @@ export default function HistoricoExclusoesPage() {
                   <td className="px-3 py-2">{screenLabel(row.screen_key)}</td>
                   <td className="px-3 py-2">{row.entity_type}</td>
                   <td className="px-3 py-2 font-medium">{row.entity_code || "—"}</td>
-                  <td className="max-w-xs truncate px-3 py-2" title={row.summary ?? undefined}>
+                  <td className="max-w-xs px-3 py-2 text-slate-700" title={row.summary ?? undefined}>
                     {row.summary || "—"}
                   </td>
-                  <td className="max-w-xs truncate px-3 py-2" title={row.reason ?? undefined}>
-                    {row.reason || "—"}
+                  <td className="min-w-[14rem] max-w-md px-3 py-2">
+                    {row.reason ? (
+                      <p className="whitespace-pre-wrap text-sm font-medium text-slate-900">
+                        {row.reason}
+                      </p>
+                    ) : (
+                      <span className="text-sm text-slate-400">Sem observação</span>
+                    )}
                   </td>
                   <td className="px-3 py-2">
                     <Badge variant={row.delete_mode === "soft" ? "warning" : "danger"}>
@@ -199,11 +213,21 @@ export default function HistoricoExclusoesPage() {
                 {expandedId === row.id ? (
                   <tr className="border-t border-slate-50 bg-slate-50/80">
                     <td colSpan={9} className="px-3 py-3">
-                      {row.reason ? (
-                        <p className="mb-2 text-sm text-slate-800">
-                          <span className="font-medium">Motivo:</span> {row.reason}
+                      <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
+                        <p>
+                          <span className="font-semibold">Excluído em:</span>{" "}
+                          {formatOccurredAt(row.occurred_at)}
                         </p>
-                      ) : null}
+                        <p className="mt-1">
+                          <span className="font-semibold">Por:</span>{" "}
+                          {row.actor_name || "—"}
+                          {row.actor_email ? ` (${row.actor_email})` : ""}
+                        </p>
+                        <p className="mt-1 whitespace-pre-wrap">
+                          <span className="font-semibold">Observação registrada:</span>{" "}
+                          {row.reason || "—"}
+                        </p>
+                      </div>
                       {row.payload_json ? (
                         <pre className="max-h-64 overflow-auto whitespace-pre-wrap break-all text-xs text-slate-700">
                           {JSON.stringify(row.payload_json, null, 2)}
