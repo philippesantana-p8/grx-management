@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BrandLogo } from "@/components/brand/BrandLogo";
 import { useAccess } from "@/lib/access-context";
-import { screenKeyFromPath } from "@/lib/app-screens";
+import { firstAllowedHref, screenKeyFromPath } from "@/lib/app-screens";
 import { cn } from "@/lib/utils";
 
 type NavChild = { href: string; label: string };
@@ -107,17 +107,21 @@ type SidebarProps = {
 
 export function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
   const { canViewScreen, loading } = useAccess();
+  const homeHref = firstAllowedHref(canViewScreen) ?? "/dashboard";
 
   const visibleNav = NAV.map((item) => {
     if (item.href) {
       const key = screenKeyFromPath(item.href);
-      if (key && !canViewScreen(key) && !loading) return null;
+      if (loading) return null;
+      if (key && !canViewScreen(key)) return null;
       return item;
     }
     const children = (item.children ?? []).filter((child) => {
       const key = screenKeyFromPath(child.href);
       if (!key) return true;
-      return loading || canViewScreen(key);
+      // Enquanto carrega permissões, não liberar menu inteiro (evita flash).
+      if (loading) return false;
+      return canViewScreen(key);
     });
     if (children.length === 0) return null;
     return { ...item, children };
@@ -142,7 +146,7 @@ export function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
         aria-label="Menu principal"
       >
         <div className="sidebar-brand-zone flex items-center justify-between gap-2">
-          <Link href="/dashboard" className="brand-logo-link" onClick={onClose}>
+          <Link href={homeHref} className="brand-logo-link" onClick={onClose}>
             <BrandLogo variant="mark" size="sm" className="brand-logo-mark--sidebar" />
           </Link>
           <button

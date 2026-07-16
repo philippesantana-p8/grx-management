@@ -129,6 +129,15 @@ export function screenKeyFromPath(pathname: string): string | null {
   return match?.key ?? null;
 }
 
+/** Primeira tela liberada (ordem do menu), ou null se nenhuma. */
+export function firstAllowedHref(canView: (screenKey: string) => boolean): string | null {
+  for (const screen of APP_SCREENS) {
+    if (screen.key === "configuracoes.parametros") continue;
+    if (canView(screen.key)) return screen.href;
+  }
+  return null;
+}
+
 export const FULL_ACCESS: ScreenPermissionFlags = {
   can_view: true,
   can_edit: true,

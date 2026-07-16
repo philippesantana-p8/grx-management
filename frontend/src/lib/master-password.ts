@@ -64,20 +64,28 @@ export async function verifyRecoveryPhrase(
 
 const SESSION_KEY = "grx_master_unlocked";
 
-export function isMasterSessionUnlocked(companyId: string): boolean {
+type MasterSession = { companyId?: string; userId?: string; at?: number };
+
+export function isMasterSessionUnlocked(companyId: string, userId?: string | null): boolean {
   if (typeof window === "undefined") return false;
   try {
     const raw = sessionStorage.getItem(SESSION_KEY);
     if (!raw) return false;
-    const data = JSON.parse(raw) as { companyId?: string; at?: number };
-    return data.companyId === companyId;
+    const data = JSON.parse(raw) as MasterSession;
+    if (data.companyId !== companyId) return false;
+    // Exige userId: evita admin desbloquear e o sócio de teste herdar na mesma aba.
+    if (!userId || !data.userId || data.userId !== userId) return false;
+    return true;
   } catch {
     return false;
   }
 }
 
-export function setMasterSessionUnlocked(companyId: string) {
-  sessionStorage.setItem(SESSION_KEY, JSON.stringify({ companyId, at: Date.now() }));
+export function setMasterSessionUnlocked(companyId: string, userId: string) {
+  sessionStorage.setItem(
+    SESSION_KEY,
+    JSON.stringify({ companyId, userId, at: Date.now() } satisfies MasterSession)
+  );
 }
 
 export function clearMasterSession() {

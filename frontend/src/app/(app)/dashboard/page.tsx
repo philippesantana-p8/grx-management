@@ -178,7 +178,10 @@ export default function DashboardPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
-  const masterUnlocked = companyId ? isMasterSessionUnlocked(companyId) : false;
+  const [authUserId, setAuthUserId] = useState<string | null>(null);
+  const masterUnlocked = Boolean(
+    companyId && authUserId && isMasterSessionUnlocked(companyId, authUserId)
+  );
 
   const applyPeriodPreset = (next: DashboardPeriodKey) => {
     setPeriod(next);
@@ -214,6 +217,12 @@ export default function DashboardPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    void supabase.auth.getUser().then(({ data }) => {
+      setAuthUserId(data.user?.id ?? null);
+    });
+  }, [supabase]);
 
   const handleSeedDemo = async () => {
     if (!companyId) return;

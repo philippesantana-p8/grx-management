@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useCompany } from "@/lib/company-context";
+import { clearMasterSession } from "@/lib/master-password";
 
 type HeaderProps = {
   onMenuClick?: () => void;
@@ -14,6 +15,7 @@ export function Header({ onMenuClick }: HeaderProps) {
   const supabase = createClient();
 
   const handleLogout = async () => {
+    clearMasterSession();
     await supabase.auth.signOut();
     router.push("/login");
     router.refresh();

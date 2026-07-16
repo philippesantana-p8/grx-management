@@ -75,7 +75,12 @@ export default function ParametrosPage() {
     const next = (data as SecuritySettings | null) ?? null;
     setSettings(next);
     setGateMode(next ? "unlock" : "create");
-    setUnlocked(Boolean(companyId && isMasterSessionUnlocked(companyId)));
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    setUnlocked(
+      Boolean(companyId && user?.id && isMasterSessionUnlocked(companyId, user.id))
+    );
     setLoading(false);
   }, [companyId, supabase]);
 
@@ -203,7 +208,7 @@ export default function ParametrosPage() {
       return;
     }
 
-    setMasterSessionUnlocked(companyId);
+    if (user?.id) setMasterSessionUnlocked(companyId, user.id);
     setUnlocked(true);
     setSettings({
       master_password_salt: passwordSalt,
@@ -230,7 +235,14 @@ export default function ParametrosPage() {
       setError("Senha master incorreta.");
       return;
     }
-    setMasterSessionUnlocked(companyId);
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user?.id) {
+      setError("Sessão inválida. Faça login novamente.");
+      return;
+    }
+    setMasterSessionUnlocked(companyId, user.id);
     setUnlocked(true);
     clearGateFields();
     setMsg("Acesso master liberado nesta sessão.");
@@ -291,7 +303,7 @@ export default function ParametrosPage() {
       master_password_salt: passwordSalt,
       master_password_hash: passwordHash,
     });
-    setMasterSessionUnlocked(companyId);
+    if (user?.id) setMasterSessionUnlocked(companyId, user.id);
     setUnlocked(true);
     clearGateFields();
     setGateMode("unlock");
@@ -328,14 +340,17 @@ export default function ParametrosPage() {
     setError(null);
     setMsg(null);
 
-    const rows = Object.values(perms).map((row) => ({
-      company_id: companyId,
-      partner_id: selectedPartnerId,
-      screen_key: row.screen_key,
-      can_view: row.can_view,
-      can_edit: row.can_edit,
-      can_delete: row.can_delete,
-    }));
+    // Só grava telas com algum acesso; ausente no banco = negado (fiel aos checkboxes).
+    const rows = Object.values(perms)
+      .filter((row) => row.can_view || row.can_edit || row.can_delete)
+      .map((row) => ({
+        company_id: companyId,
+        partner_id: selectedPartnerId,
+        screen_key: row.screen_key,
+        can_view: row.can_view,
+        can_edit: row.can_edit,
+        can_delete: row.can_delete,
+      }));
 
     const { error: delError } = await supabase
       .from("partner_screen_permissions")
@@ -349,7 +364,10 @@ export default function ParametrosPage() {
       return;
     }
 
-    const { error: insError } = await supabase.from("partner_screen_permissions").insert(rows);
+    const { error: insError } =
+      rows.length > 0
+        ? await supabase.from("partner_screen_permissions").insert(rows)
+        : { error: null };
 
     if (insError) {
       setError(insError.message);
