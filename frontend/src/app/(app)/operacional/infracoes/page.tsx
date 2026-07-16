@@ -152,6 +152,7 @@ export default function InfracoesPage() {
       title="Infrações de Trânsito"
       description="Acompanhe indicação ao órgão autuador, comprovante de pagamento, baixa e arquivamento"
       table="traffic_infractions"
+      auditScreenKey="operacional.infracoes"
       orderBy="infraction_date"
       softDelete={false}
       transformItems={transformItems}

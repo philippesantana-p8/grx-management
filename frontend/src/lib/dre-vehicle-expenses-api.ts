@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { recordDeletion, summarizeDeletedRow } from "@/lib/deletion-audit";
 import {
   VEHICLE_EXPENSE_CATEGORIES,
   VEHICLE_EXPENSE_ENTRY_SOURCE,
@@ -297,6 +298,29 @@ export async function deleteVehicleExpense(
   companyId: string,
   id: string
 ): Promise<{ error: string | null }> {
+  const { data: existing } = await supabase
+    .from("financial_transactions")
+    .select("*")
+    .eq("company_id", companyId)
+    .eq("id", id)
+    .maybeSingle();
+
+  if (existing) {
+    const row = existing as Record<string, unknown>;
+    const { entityCode, summary } = summarizeDeletedRow(row, "financial_transactions");
+    await recordDeletion({
+      supabase,
+      companyId,
+      entityType: "financial_transactions",
+      entityId: id,
+      entityCode,
+      summary,
+      screenKey: "dre.despesas-veiculo",
+      deleteMode: "hard",
+      payload: row,
+    });
+  }
+
   const { error } = await supabase
     .from("financial_transactions")
     .delete()

@@ -30,7 +30,10 @@ export async function resolveForbiddenRedirect(
   const screenKey = screenKeyFromPath(pathname);
   if (!screenKey) return null;
 
-  if (screenKey === "configuracoes.parametros") {
+  if (
+    screenKey === "configuracoes.parametros" ||
+    screenKey === "configuracoes.historico-exclusoes"
+  ) {
     return firstAllowedPath(supabase, member.company_id, member.partner_id);
   }
 
@@ -88,7 +91,12 @@ async function firstAllowedPath(
   );
 
   for (const screen of APP_SCREENS) {
-    if (screen.key === "configuracoes.parametros") continue;
+    if (
+      screen.key === "configuracoes.parametros" ||
+      screen.key === "configuracoes.historico-exclusoes"
+    ) {
+      continue;
+    }
     if (allowed.has(screen.key)) return screen.href;
   }
   return null;

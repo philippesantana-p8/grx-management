@@ -16,6 +16,7 @@ export default function ClientesPage() {
       title="Clientes"
       description="Quem gera receita — substitui digitação livre no controle financeiro"
       table="clients"
+      auditScreenKey="cadastros.clientes"
       orderBy="name"
       columns={[
         { key: "code", label: "Código" },

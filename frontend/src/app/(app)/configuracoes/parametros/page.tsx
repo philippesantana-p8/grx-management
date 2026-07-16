@@ -110,7 +110,12 @@ export default function ParametrosPage() {
 
       const map: Record<string, PermissionRow> = {};
       for (const screen of APP_SCREENS) {
-        if (screen.key === "configuracoes.parametros") continue;
+        if (
+          screen.key === "configuracoes.parametros" ||
+          screen.key === "configuracoes.historico-exclusoes"
+        ) {
+          continue;
+        }
         map[screen.key] = {
           screen_key: screen.key,
           can_view: false,
@@ -597,7 +602,11 @@ export default function ParametrosPage() {
     );
   }
 
-  const screensByGroup = APP_SCREENS.filter((s) => s.key !== "configuracoes.parametros").reduce(
+  const screensByGroup = APP_SCREENS.filter(
+    (s) =>
+      s.key !== "configuracoes.parametros" &&
+      s.key !== "configuracoes.historico-exclusoes"
+  ).reduce(
     (acc, screen) => {
       if (!acc[screen.group]) acc[screen.group] = [];
       acc[screen.group].push(screen);

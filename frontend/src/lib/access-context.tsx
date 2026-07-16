@@ -135,7 +135,12 @@ export function AccessProvider({ children }: { children: ReactNode }) {
       canViewScreen: (screenKey: string) => {
         if (!accessReady) return false;
         if (accessMode === "full" || isAdmin) return true;
-        if (screenKey === "configuracoes.parametros") return false;
+        if (
+          screenKey === "configuracoes.parametros" ||
+          screenKey === "configuracoes.historico-exclusoes"
+        ) {
+          return false;
+        }
         return Boolean(permissionsByScreen[screenKey]?.can_view);
       },
       canEditScreen: (screenKey: string) => {

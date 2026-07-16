@@ -34,6 +34,7 @@ export default function VeiculosPage() {
       title="Veículos"
       description="Cadastro oficial da frota — foto mestre + placa normalizada automaticamente"
       table="vehicles"
+      auditScreenKey="cadastros.veiculos"
       orderBy="plate"
       columns={[
         { key: "code", label: "Código" },

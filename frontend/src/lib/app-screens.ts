@@ -109,6 +109,12 @@ export const APP_SCREENS: AppScreen[] = [
     href: "/configuracoes/parametros",
   },
   {
+    key: "configuracoes.historico-exclusoes",
+    label: "Histórico de exclusões",
+    group: "Parâmetros",
+    href: "/configuracoes/historico-exclusoes",
+  },
+  {
     key: "configuracoes.integracoes",
     label: "Integrações",
     group: "Configurações",
@@ -132,7 +138,12 @@ export function screenKeyFromPath(pathname: string): string | null {
 /** Primeira tela liberada (ordem do menu), ou null se nenhuma. */
 export function firstAllowedHref(canView: (screenKey: string) => boolean): string | null {
   for (const screen of APP_SCREENS) {
-    if (screen.key === "configuracoes.parametros") continue;
+    if (
+      screen.key === "configuracoes.parametros" ||
+      screen.key === "configuracoes.historico-exclusoes"
+    ) {
+      continue;
+    }
     if (canView(screen.key)) return screen.href;
   }
   return null;

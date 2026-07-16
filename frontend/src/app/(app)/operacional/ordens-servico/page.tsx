@@ -447,6 +447,7 @@ function OrdensServicoPageContent() {
       title="Ordem de Serviço — Transporte e Frete"
       description="Frete e Transporte — natureza do serviço vinculada às contas DRE (pátio e lava nos módulos próprios)"
       table="service_orders"
+      auditScreenKey="operacional.ordens-servico"
       orderBy="service_date"
       softDelete={false}
       transformItems={transformItems}

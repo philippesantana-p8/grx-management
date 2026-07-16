@@ -6,6 +6,7 @@ import { Alert, Badge, Loading } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { useCompany } from "@/lib/company-context";
+import { recordDeletion, summarizeDeletedRow } from "@/lib/deletion-audit";
 import { importOwnershipFromSpreadsheet, OWNERSHIP_SEED } from "@/lib/import-ownership";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -263,6 +264,26 @@ export default function ParticipacoesPage() {
 
   const handleDelete = async (id: string) => {
     if (!confirm("Excluir permanentemente este registro?")) return;
+    if (!companyId) return;
+
+    const existing = items.find((row) => row.id === id) as
+      | (VehicleOwnership & Record<string, unknown>)
+      | undefined;
+    if (existing) {
+      const row = existing as unknown as Record<string, unknown>;
+      const { entityCode, summary } = summarizeDeletedRow(row, "vehicle_ownership");
+      await recordDeletion({
+        supabase,
+        companyId,
+        entityType: "vehicle_ownership",
+        entityId: id,
+        entityCode,
+        summary: summary || `Participação ${id.slice(0, 8)}`,
+        screenKey: "cadastros.participacoes",
+        deleteMode: "hard",
+        payload: row,
+      });
+    }
 
     const { error: err } = await supabase.from("vehicle_ownership").delete().eq("id", id);
     if (err) setError(err.message);

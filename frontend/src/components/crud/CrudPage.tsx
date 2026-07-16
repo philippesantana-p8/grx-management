@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useCompany } from "@/lib/company-context";
+import { recordDeletion, summarizeDeletedRow } from "@/lib/deletion-audit";
 import { Button } from "@/components/ui/Button";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Loading, Alert } from "@/components/ui/Badge";
@@ -26,6 +27,8 @@ type CrudPageProps<T extends { id: string }> = {
   }) => ReactNode;
   orderBy?: string;
   softDelete?: boolean;
+  /** Chave de tela para o log de exclusão (ex.: cadastros.clientes). */
+  auditScreenKey?: string;
   eqFilters?: Record<string, string>;
   toolbar?: ReactNode;
   filterItem?: (item: T) => boolean;
@@ -53,6 +56,7 @@ export function CrudPage<T extends { id: string }>({
   renderForm,
   orderBy = "created_at",
   softDelete = true,
+  auditScreenKey,
   eqFilters,
   toolbar,
   filterItem,
@@ -178,6 +182,22 @@ export function CrudPage<T extends { id: string }>({
 
   const handleDelete = async (id: string) => {
     if (!confirm("Deseja excluir este registro?")) return;
+    if (!companyId) return;
+
+    const existing = items.find((row) => row.id === id) as Record<string, unknown> | undefined;
+    const { entityCode, summary } = summarizeDeletedRow(existing, table);
+    await recordDeletion({
+      supabase,
+      companyId,
+      entityType: table,
+      entityId: id,
+      entityCode,
+      summary,
+      screenKey: auditScreenKey ?? null,
+      deleteMode: softDelete ? "soft" : "hard",
+      payload: existing ?? null,
+    });
+
     const { error: err } = softDelete
       ? await supabase.from(table).update({ deleted_at: new Date().toISOString() }).eq("id", id)
       : await supabase.from(table).delete().eq("id", id);

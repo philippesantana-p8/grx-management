@@ -92,6 +92,7 @@ export default function ContasDrePage() {
       title="Contas DRE"
       description="Plano de contas gerencial — classificação e tipo derivados automaticamente nos lançamentos"
       table="chart_of_accounts"
+      auditScreenKey="cadastros.contas-dre"
       softDelete={false}
       orderBy="name"
       columns={[

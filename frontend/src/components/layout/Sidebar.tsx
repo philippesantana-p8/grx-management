@@ -56,6 +56,10 @@ const NAV: NavItem[] = [
         href: "/configuracoes/parametros",
         label: "Senha Máster - Concessão de Acessos",
       },
+      {
+        href: "/configuracoes/historico-exclusoes",
+        label: "Histórico de exclusões",
+      },
     ],
   },
   {

@@ -228,6 +228,7 @@ function MotoristasPageContent() {
         title="Motoristas"
         description="Filtre por categoria CNH e disponibilidade para oferta de transporte"
         table="drivers"
+        auditScreenKey="cadastros.motoristas"
         orderBy="name"
         transformItems={transformItems}
         filterItem={filterItem}

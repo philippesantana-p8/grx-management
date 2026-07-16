@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/client";
+import { recordDeletion } from "@/lib/deletion-audit";
 
 export type SoftDeletePartnerResult =
   | { ok: true; name: string; code: string }
@@ -49,6 +50,18 @@ export async function softDeletePartnerByCode(
       reason: `O sócio ${partner.name} é responsável operacional de ${vehicleCount} veículo(s).`,
     };
   }
+
+  await recordDeletion({
+    supabase,
+    companyId,
+    entityType: "partners",
+    entityId: partner.id as string,
+    entityCode: partner.code as string,
+    summary: partner.name as string,
+    screenKey: "cadastros.socios",
+    deleteMode: "soft",
+    payload: partner as Record<string, unknown>,
+  });
 
   const { error: deleteError } = await supabase
     .from("partners")

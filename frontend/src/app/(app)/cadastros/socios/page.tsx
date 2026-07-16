@@ -66,6 +66,7 @@ function SociosPageContent() {
         title="Sócios"
         description="Cadastro de sócios e responsáveis — nome completo, RG e CPF/CNPJ"
         table="partners"
+        auditScreenKey="cadastros.socios"
         orderBy="code"
         eqFilters={{ status: "Ativo" }}
         columns={[

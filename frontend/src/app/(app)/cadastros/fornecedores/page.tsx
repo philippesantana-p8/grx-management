@@ -16,6 +16,7 @@ export default function FornecedoresPage() {
       title="Fornecedores"
       description="Postos, oficinas, seguradoras e demais fornecedores padronizados"
       table="suppliers"
+      auditScreenKey="cadastros.fornecedores"
       orderBy="name"
       columns={[
         { key: "code", label: "Código" },

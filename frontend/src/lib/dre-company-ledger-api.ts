@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { COMPANY_LEDGER_ENTRY_SOURCE } from "@/lib/company-ledger";
+import { recordDeletion, summarizeDeletedRow } from "@/lib/deletion-audit";
 
 export type CompanyLedgerRow = {
   id: string;
@@ -147,6 +148,30 @@ export async function deleteCompanyLedgerEntry(
   companyId: string,
   id: string
 ): Promise<{ error: string | null }> {
+  const { data: existing } = await supabase
+    .from("financial_transactions")
+    .select("*")
+    .eq("company_id", companyId)
+    .eq("id", id)
+    .eq("entry_source", COMPANY_LEDGER_ENTRY_SOURCE)
+    .maybeSingle();
+
+  if (existing) {
+    const row = existing as Record<string, unknown>;
+    const { entityCode, summary } = summarizeDeletedRow(row, "financial_transactions");
+    await recordDeletion({
+      supabase,
+      companyId,
+      entityType: "financial_transactions",
+      entityId: id,
+      entityCode,
+      summary,
+      screenKey: "dre.lancamentos",
+      deleteMode: "hard",
+      payload: row,
+    });
+  }
+
   const { error } = await supabase
     .from("financial_transactions")
     .delete()
