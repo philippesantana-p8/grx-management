@@ -618,11 +618,11 @@ export default function ParametrosPage() {
   const savePermissionsButton = selectedPartnerId ? (
     <div className="flex flex-wrap items-center gap-3">
       <Button type="button" onClick={() => void savePermissions()} disabled={savingPerms}>
-        {savingPerms ? "Salvando…" : "Salvar permissões do sócio"}
+        {savingPerms ? "Salvando…" : "Salvar permissões do usuário"}
       </Button>
       <p className="text-xs text-slate-500">
-        Grava no banco as telas liberadas (Análise / Alteração / Exclusão) para o sócio
-        selecionado.
+        Clique para gravar no banco as telas liberadas (Análise / Alteração / Exclusão) do
+        usuário selecionado.
       </p>
     </div>
   ) : null;
