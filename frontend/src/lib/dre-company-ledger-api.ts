@@ -160,7 +160,7 @@ export async function deleteCompanyLedgerEntry(
   if (existing) {
     const row = existing as Record<string, unknown>;
     const { entityCode, summary } = summarizeDeletedRow(row, "financial_transactions");
-    await recordDeletion({
+    const logged = await recordDeletion({
       supabase,
       companyId,
       entityType: "financial_transactions",
@@ -172,6 +172,7 @@ export async function deleteCompanyLedgerEntry(
       deleteMode: "hard",
       payload: row,
     });
+    if (logged.error) return { error: logged.error };
   }
 
   const { error } = await supabase

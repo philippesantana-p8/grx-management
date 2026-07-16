@@ -303,7 +303,7 @@ export default function ParticipacoesPage() {
     if (existing) {
       const row = existing as unknown as Record<string, unknown>;
       const { entityCode, summary } = summarizeDeletedRow(row, "vehicle_ownership");
-      await recordDeletion({
+      const logged = await recordDeletion({
         supabase,
         companyId,
         entityType: "vehicle_ownership",
@@ -315,6 +315,11 @@ export default function ParticipacoesPage() {
         deleteMode: "hard",
         payload: row,
       });
+      if (logged.error) {
+        setDeleting(false);
+        setError(logged.error);
+        return;
+      }
     }
 
     const { error: err } = await supabase.from("vehicle_ownership").delete().eq("id", id);

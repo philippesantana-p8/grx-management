@@ -51,17 +51,19 @@ export async function softDeletePartnerByCode(
     };
   }
 
-  await recordDeletion({
+  const logged = await recordDeletion({
     supabase,
     companyId,
     entityType: "partners",
     entityId: partner.id as string,
     entityCode: partner.code as string,
     summary: partner.name as string,
+    reason: "Exclusão do sócio solicitada pelo sistema (código do cadastro)",
     screenKey: "cadastros.socios",
     deleteMode: "soft",
     payload: partner as Record<string, unknown>,
   });
+  if (logged.error) return { ok: false, reason: logged.error };
 
   const { error: deleteError } = await supabase
     .from("partners")

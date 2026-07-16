@@ -1,5 +1,41 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+/** Valida motivo de exclusão: rejeita vazio, muito curto e caracteres repetidos. */
+export function validateDeletionReason(reason: string): string | null {
+  const trimmed = reason.trim().replace(/\s+/g, " ");
+  if (trimmed.length < 8) {
+    return "Informe um motivo com pelo menos 8 caracteres.";
+  }
+
+  const letters = trimmed.replace(/[^\p{L}\p{N}]/gu, "");
+  if (letters.length < 5) {
+    return "Informe um motivo com palavras (não só símbolos ou espaços).";
+  }
+
+  if (/^(.)\1+$/iu.test(letters)) {
+    return "Não use caracteres repetidos. Descreva o motivo com uma justificativa clara.";
+  }
+
+  if (/(.)\1{4,}/iu.test(trimmed)) {
+    return "Não use a mesma letra/número várias vezes seguidas. Escreva uma justificativa coerente.";
+  }
+
+  const freq = new Map<string, number>();
+  for (const ch of letters.toLocaleLowerCase("pt-BR")) {
+    freq.set(ch, (freq.get(ch) ?? 0) + 1);
+  }
+  const uniqueCount = freq.size;
+  const maxFreq = Math.max(...freq.values());
+  if (letters.length >= 6 && uniqueCount <= 2) {
+    return "O motivo precisa ser uma justificativa coerente, não caracteres repetidos.";
+  }
+  if (letters.length >= 6 && maxFreq / letters.length >= 0.7) {
+    return "O motivo precisa ser uma justificativa coerente, não caracteres repetidos.";
+  }
+
+  return null;
+}
+
 export type DeletionAuditEvent = {
   id: string;
   company_id: string;
@@ -104,6 +140,10 @@ async function resolveActor(
 export async function recordDeletion(
   input: RecordDeletionInput
 ): Promise<{ error: string | null }> {
+  const reason = input.reason?.trim().replace(/\s+/g, " ") || "";
+  const reasonError = validateDeletionReason(reason);
+  if (reasonError) return { error: reasonError };
+
   const actor = await resolveActor(input.supabase, input.companyId);
   const { error } = await input.supabase.from("deletion_audit_events").insert({
     company_id: input.companyId,
@@ -115,7 +155,7 @@ export async function recordDeletion(
     entity_id: String(input.entityId),
     entity_code: input.entityCode ?? null,
     summary: input.summary ?? null,
-    reason: input.reason?.trim() || null,
+    reason,
     delete_mode: input.deleteMode,
     payload_json: input.payload ?? null,
   });

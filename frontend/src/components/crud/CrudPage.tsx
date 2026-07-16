@@ -230,7 +230,7 @@ export function CrudPage<T extends { id: string }>({
 
     const existing = items.find((row) => row.id === id) as Record<string, unknown> | undefined;
     const { entityCode, summary } = summarizeDeletedRow(existing, table);
-    await recordDeletion({
+    const logged = await recordDeletion({
       supabase,
       companyId,
       entityType: table,
@@ -242,6 +242,11 @@ export function CrudPage<T extends { id: string }>({
       deleteMode: softDelete ? "soft" : "hard",
       payload: existing ?? null,
     });
+    if (logged.error) {
+      setDeleting(false);
+      setError(logged.error);
+      return;
+    }
 
     const { error: err } = softDelete
       ? await supabase.from(table).update({ deleted_at: new Date().toISOString() }).eq("id", id)

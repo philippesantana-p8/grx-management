@@ -3,6 +3,7 @@
 import { useEffect, useId, useMemo, useState } from "react";
 import { Alert } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { validateDeletionReason } from "@/lib/deletion-audit";
 import { glassField } from "@/lib/liquid-glass-styles";
 
 type Props = {
@@ -48,9 +49,10 @@ export function DeleteReasonModal({
   if (!open) return null;
 
   const submit = async () => {
-    const trimmed = reason.trim();
-    if (trimmed.length < 3) {
-      setLocalError("Digite o motivo da exclusão (mínimo 3 caracteres).");
+    const trimmed = reason.trim().replace(/\s+/g, " ");
+    const validationError = validateDeletionReason(trimmed);
+    if (validationError) {
+      setLocalError(validationError);
       return;
     }
     setLocalError(null);
@@ -95,9 +97,15 @@ export function DeleteReasonModal({
             value={reason}
             disabled={confirming}
             placeholder="Ex.: lançamento duplicado · erro de conta · solicitação do sócio"
-            onChange={(e) => setReason(e.target.value)}
+            onChange={(e) => {
+              setReason(e.target.value);
+              if (localError) setLocalError(null);
+            }}
             autoFocus
           />
+          <span className="text-xs text-slate-500">
+            Use uma justificativa real. Não aceita só letras/números repetidos (ex.: aaaa, 1111).
+          </span>
         </label>
         {localError ? <p className="mt-2 text-sm text-red-600">{localError}</p> : null}
 
