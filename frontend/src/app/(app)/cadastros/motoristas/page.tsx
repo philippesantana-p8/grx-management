@@ -23,6 +23,7 @@ import {
   type DriverListRow,
 } from "@/lib/driver-filters";
 import { fetchActiveServiceOrdersByDriver } from "@/lib/driver-service-orders";
+import { useAccess } from "@/lib/access-context";
 import { useCompany } from "@/lib/company-context";
 import { DRIVERS_SEED, importDriversFromSpreadsheet } from "@/lib/import-drivers";
 import { createClient } from "@/lib/supabase/client";
@@ -104,6 +105,8 @@ function ImportDriversButton({
 
 function MotoristasPageContent() {
   const { companyId } = useCompany();
+  const { canEditScreen } = useAccess();
+  const canEdit = canEditScreen("cadastros.motoristas");
   const searchParams = useSearchParams();
   const router = useRouter();
   const autoImport = searchParams.get("importDrivers") === "1";
@@ -219,10 +222,12 @@ function MotoristasPageContent() {
 
   return (
     <div className="space-y-4">
+      {canEdit ? (
       <ImportDriversButton
         autoRun={autoImport}
         onDone={() => setRefreshKey((k) => k + 1)}
       />
+      ) : null}
       <CrudPage<DriverListRow>
         key={refreshKey}
         title="Motoristas"

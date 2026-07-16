@@ -5,6 +5,7 @@ import { CrudPage } from "@/components/crud/CrudPage";
 import { EntityForm, FormFields } from "@/components/crud/EntityForm";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { useAccess } from "@/lib/access-context";
 import { useCompany } from "@/lib/company-context";
 import { createClient } from "@/lib/supabase/client";
 import { DRE_SEED } from "@/lib/dre-seed";
@@ -83,10 +84,12 @@ function ImportDreButton({ onDone }: { onDone: () => void }) {
 
 export default function ContasDrePage() {
   const [refreshKey, setRefreshKey] = useState(0);
+  const { canEditScreen } = useAccess();
+  const canEdit = canEditScreen("cadastros.contas-dre");
 
   return (
     <div className="space-y-4">
-      <ImportDreButton onDone={() => setRefreshKey((k) => k + 1)} />
+      {canEdit ? <ImportDreButton onDone={() => setRefreshKey((k) => k + 1)} /> : null}
       <CrudPage<DreAccount>
         key={refreshKey}
       title="Contas DRE"

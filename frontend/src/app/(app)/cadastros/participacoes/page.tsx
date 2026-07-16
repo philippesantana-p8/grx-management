@@ -5,6 +5,7 @@ import { EntityForm, FormFields } from "@/components/crud/EntityForm";
 import { Alert, Badge, Loading } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
+import { useAccess } from "@/lib/access-context";
 import { useCompany } from "@/lib/company-context";
 import { recordDeletion, summarizeDeletedRow } from "@/lib/deletion-audit";
 import { importOwnershipFromSpreadsheet, OWNERSHIP_SEED } from "@/lib/import-ownership";
@@ -96,6 +97,9 @@ function formatPercent(value: number) {
 
 export default function ParticipacoesPage() {
   const { companyId, loading: companyLoading } = useCompany();
+  const { canEditScreen, canDeleteScreen } = useAccess();
+  const canEdit = canEditScreen("cadastros.participacoes");
+  const canDelete = canDeleteScreen("cadastros.participacoes");
   const supabase = createClient();
 
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
@@ -209,6 +213,10 @@ export default function ParticipacoesPage() {
 
   const handleSave = async (data: Record<string, unknown>) => {
     if (!companyId || !selectedVehicleId) return;
+    if (!canEdit) {
+      setError("Seu acesso é só visualização. Peça permissão de Alteração.");
+      return;
+    }
 
     const validationError = validateTotal(data, editing?.id);
     if (validationError) {
@@ -251,6 +259,10 @@ export default function ParticipacoesPage() {
   };
 
   const handleClose = async (id: string) => {
+    if (!canEdit) {
+      setError("Seu acesso é só visualização. Peça permissão de Alteração.");
+      return;
+    }
     if (!confirm("Encerrar esta participação societária?")) return;
 
     const { error: err } = await supabase
@@ -263,6 +275,10 @@ export default function ParticipacoesPage() {
   };
 
   const handleDelete = async (id: string) => {
+    if (!canDelete) {
+      setError("Seu acesso não inclui Exclusão nesta tela.");
+      return;
+    }
     if (!confirm("Excluir permanentemente este registro?")) return;
     if (!companyId) return;
 
@@ -305,13 +321,15 @@ export default function ParticipacoesPage() {
           </p>
         </div>
         <div className="flex flex-col items-end gap-2">
+          {canEdit ? (
           <ImportOwnershipButton
             onDone={() => {
               loadLookups();
               loadOwnerships();
             }}
           />
-          {selectedVehicleId && !isNew && !editing && (
+          ) : null}
+          {canEdit && selectedVehicleId && !isNew && !editing && (
             <Button onClick={() => { setIsNew(true); setEditing({}); }}>
               + Adicionar sócio
             </Button>
@@ -384,7 +402,13 @@ export default function ParticipacoesPage() {
             </CardBody>
           </Card>
 
-          {(isNew || editing) && (
+          {!canEdit ? (
+            <Alert variant="info">
+              Modo visualização: você pode consultar as participações, mas não alterar.
+            </Alert>
+          ) : null}
+
+          {canEdit && (isNew || editing) && (
             <Card>
               <CardHeader title={editing?.id ? "Editar participação" : "Nova participação"} />
               <CardBody>
@@ -488,7 +512,9 @@ export default function ParticipacoesPage() {
                           </Badge>
                         </td>
                         <td className="px-4 py-3">
+                          {canEdit || canDelete ? (
                           <div className="flex gap-2">
+                            {canEdit ? (
                             <Button
                               variant="ghost"
                               size="sm"
@@ -496,15 +522,21 @@ export default function ParticipacoesPage() {
                             >
                               Editar
                             </Button>
-                            {row.status === "Ativo" && (
+                            ) : null}
+                            {canEdit && row.status === "Ativo" ? (
                               <Button variant="ghost" size="sm" onClick={() => handleClose(row.id)}>
                                 Encerrar
                               </Button>
-                            )}
+                            ) : null}
+                            {canDelete ? (
                             <Button variant="ghost" size="sm" onClick={() => handleDelete(row.id)}>
                               Excluir
                             </Button>
+                            ) : null}
                           </div>
+                          ) : (
+                            <span className="text-xs text-slate-400">—</span>
+                          )}
                         </td>
                       </tr>
                     ))}

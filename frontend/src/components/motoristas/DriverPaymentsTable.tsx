@@ -38,6 +38,8 @@ type Props = {
   emptyMessage?: string;
   /** Tela de acompanhamento: foco em motorista + dados bancários, sem links externos. */
   layout?: "table" | "banking";
+  /** false = só consulta (sem marcar pago / anexar comprovante). */
+  canEdit?: boolean;
 };
 
 export function DriverPaymentsTable({
@@ -50,12 +52,17 @@ export function DriverPaymentsTable({
   onRowsChange,
   emptyMessage = "Nenhum pagamento encontrado.",
   layout = "table",
+  canEdit = true,
 }: Props) {
   const [markingId, setMarkingId] = useState<string | null>(null);
 
   const visibleRows = useMemo(() => filterDriverPaymentRows(rows, filter), [rows, filter]);
 
   const handleMarkPaid = async (row: DriverPaymentRow) => {
+    if (!canEdit) {
+      window.alert("Seu acesso é só visualização. Peça permissão de Alteração para marcar pago.");
+      return;
+    }
     if (!row.driver_assignment_pay_amount || row.driver_assignment_pay_amount <= 0) {
       window.alert(
         `OS ${row.code} não possui valor de pagamento registrado no sistema. Redesigne o motorista informando os valores.`
@@ -107,7 +114,8 @@ export function DriverPaymentsTable({
         <div className="space-y-4">
           {visibleRows.map((row) => {
             const paid = Boolean(row.driver_payment_paid_at);
-            const canMarkPaid = !paid && (row.driver_assignment_pay_amount ?? 0) > 0;
+            const canMarkPaid =
+              canEdit && !paid && (row.driver_assignment_pay_amount ?? 0) > 0;
 
             return (
               <article
@@ -176,6 +184,7 @@ export function DriverPaymentsTable({
                 </div>
 
                 <div className="mt-4 flex flex-wrap items-center gap-3">
+                  {canEdit ? (
                   <DriverPaymentProofUpload
                     companyId={companyId}
                     orderId={row.id}
@@ -191,6 +200,11 @@ export function DriverPaymentsTable({
                       )
                     }
                   />
+                  ) : row.payment_proof_count > 0 ? (
+                    <span className="text-xs text-slate-500">
+                      {row.payment_proof_count} comprovante(s)
+                    </span>
+                  ) : null}
                   {canMarkPaid ? (
                     <Button
                       type="button"
@@ -246,7 +260,8 @@ export function DriverPaymentsTable({
           <tbody>
             {visibleRows.map((row) => {
               const paid = Boolean(row.driver_payment_paid_at);
-              const canMarkPaid = !paid && (row.driver_assignment_pay_amount ?? 0) > 0;
+              const canMarkPaid =
+              canEdit && !paid && (row.driver_assignment_pay_amount ?? 0) > 0;
 
               return (
                 <tr key={row.id} className="border-b border-slate-100">
@@ -282,6 +297,7 @@ export function DriverPaymentsTable({
                     <BankingCell value={row.bank_account} />
                   </td>
                   <td className="px-3 py-2">
+                    {canEdit ? (
                     <DriverPaymentProofUpload
                       companyId={companyId}
                       orderId={row.id}
@@ -297,6 +313,11 @@ export function DriverPaymentsTable({
                         )
                       }
                     />
+                    ) : (
+                      <span className="text-xs text-slate-500">
+                        {row.payment_proof_count > 0 ? `${row.payment_proof_count}` : "—"}
+                      </span>
+                    )}
                   </td>
                   <td className="px-3 py-2">
                     {paid ? <Badge variant="success">Pago</Badge> : <Badge variant="warning">Pendente</Badge>}

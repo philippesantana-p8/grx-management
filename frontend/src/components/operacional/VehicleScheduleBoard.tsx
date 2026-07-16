@@ -34,6 +34,8 @@ type Props = {
   onSelect: (next: Selection) => void;
   /** Quando filtrado por uma placa, destaca visão manhã/tarde da semana. */
   plateFocus?: boolean;
+  /** false = só consulta (esconde CTAs de nova OS). */
+  canCreateOs?: boolean;
 };
 
 function segmentsForCell(
@@ -81,6 +83,7 @@ export function VehicleScheduleBoard({
   selection,
   onSelect,
   plateFocus = false,
+  canCreateOs = true,
 }: Props) {
   const selectedSegments = useMemo(() => {
     if (!selection) return [];
@@ -193,6 +196,7 @@ export function VehicleScheduleBoard({
                             <span className="block space-y-0.5 px-1 py-2 text-xs text-emerald-700">
                               <span className="block font-medium">Livre o dia</span>
                               <span className="block text-[0.65rem]">Manhã e tarde</span>
+                              {canCreateOs ? (
                               <Link
                                 href={newOsFromScheduleHref({
                                   vehicleId: vehicle.id,
@@ -205,6 +209,7 @@ export function VehicleScheduleBoard({
                               >
                                 Nova OS
                               </Link>
+                              ) : null}
                             </span>
                           ) : (
                             <div className="space-y-1">
@@ -312,15 +317,18 @@ export function VehicleScheduleBoard({
                       slot={slot}
                       vehicleId={selectedVehicle.id}
                       dayKey={selection.dayKey}
+                      canCreateOs={canCreateOs}
                     />
                   ))}
                 </ul>
               )}
+              {canCreateOs ? (
               <p className="mt-2 text-xs text-slate-500">
                 Clique em <strong>Nova OS neste horário</strong> para abrir o cadastro já com placa, data
                 e janela. Se a manhã for SP → fora e a saída for à tarde, a tarde fica ocupada até a
                 saída da OS.
               </p>
+              ) : null}
             </section>
           </div>
 
@@ -362,10 +370,12 @@ function FreeSlotRow({
   slot,
   vehicleId,
   dayKey,
+  canCreateOs = true,
 }: {
   slot: FreeSlot;
   vehicleId: string;
   dayKey: string;
+  canCreateOs?: boolean;
 }) {
   const href = newOsFromScheduleHref({
     vehicleId,
@@ -378,9 +388,11 @@ function FreeSlotRow({
       <span className="text-sm font-medium text-emerald-900">
         {formatMinutes(slot.startMin)} – {formatMinutes(slot.endMin)}
       </span>
+      {canCreateOs ? (
       <Link href={href} className={glassAction("brand", true)}>
         Nova OS neste horário
       </Link>
+      ) : null}
     </li>
   );
 }

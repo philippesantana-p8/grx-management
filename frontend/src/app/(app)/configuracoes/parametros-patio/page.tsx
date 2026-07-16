@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, Badge, Loading } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { GlassSelect } from "@/components/ui/GlassSelect";
+import { useAccess } from "@/lib/access-context";
 import { useCompany } from "@/lib/company-context";
 import { nextCode } from "@/lib/codes";
 import { glassField, glassFilterPanel } from "@/lib/liquid-glass-styles";
@@ -30,6 +31,9 @@ function dayBefore(isoDate: string): string {
 
 export default function ParametrosPatioPage() {
   const { companyId } = useCompany();
+  const { canEditScreen, canDeleteScreen } = useAccess();
+  const canEdit = canEditScreen("configuracoes.parametros-patio");
+  const canDelete = canDeleteScreen("configuracoes.parametros-patio");
   const supabase = useMemo(() => createClient(), []);
   const [types, setTypes] = useState<PatioVehicleType[]>([]);
   const [prices, setPrices] = useState<PatioPriceRow[]>([]);
@@ -110,6 +114,10 @@ export default function ParametrosPatioPage() {
   }
 
   const saveType = async () => {
+    if (!canEdit) {
+      setError("Seu acesso é só visualização. Peça permissão de Alteração.");
+      return;
+    }
     if (!companyId || !typeForm.name.trim()) {
       setError("Informe o nome do porte.");
       return;
@@ -137,6 +145,10 @@ export default function ParametrosPatioPage() {
   };
 
   const savePrice = async () => {
+    if (!canEdit) {
+      setError("Seu acesso é só visualização. Peça permissão de Alteração.");
+      return;
+    }
     if (!companyId) return;
     if (!priceForm.vehicle_type_id || !priceForm.service_name || priceForm.price === "") {
       setError("Preencha porte, serviço e valor.");
@@ -199,6 +211,10 @@ export default function ParametrosPatioPage() {
   };
 
   const saveValidUntil = async (id: string, validUntil: string) => {
+    if (!canEdit) {
+      setError("Seu acesso é só visualização. Peça permissão de Alteração.");
+      return;
+    }
     const row = prices.find((p) => p.id === id);
     if (!row) return;
     if (validUntil && validUntil < row.valid_from) {
@@ -218,6 +234,10 @@ export default function ParametrosPatioPage() {
   };
 
   const deactivatePrice = async (id: string) => {
+    if (!canDelete && !canEdit) {
+      setError("Seu acesso não permite inativar preços.");
+      return;
+    }
     if (!confirm("Inativar este preço? Informe Data fim e cadastre um novo para 2027 (ou outra data)."))
       return;
     const today = new Date().toISOString().slice(0, 10);
@@ -246,10 +266,16 @@ export default function ParametrosPatioPage() {
 
       {error ? <Alert variant="error">{error}</Alert> : null}
       {msg ? <Alert variant="info">{msg}</Alert> : null}
+      {!canEdit ? (
+        <Alert variant="info">
+          Modo visualização: você pode consultar portes e preços, mas não alterar.
+        </Alert>
+      ) : null}
       {loading ? <Loading /> : null}
 
       <section className={`space-y-4 ${glassFilterPanel()}`}>
         <h2 className="text-sm font-semibold text-slate-900">Portes / tipos de veículo</h2>
+        {canEdit ? (
         <div className="grid gap-3 sm:grid-cols-3">
           <label className="block space-y-1">
             <span className="text-sm font-medium text-slate-700">Nome do porte</span>
@@ -279,9 +305,12 @@ export default function ParametrosPatioPage() {
             />
           </label>
         </div>
+        ) : null}
+        {canEdit ? (
         <Button type="button" disabled={saving} onClick={() => void saveType()}>
           + Porte
         </Button>
+        ) : null}
         <div className="overflow-x-auto">
           <table className="min-w-full text-left text-sm">
             <thead className="text-xs uppercase text-slate-500">
@@ -322,6 +351,7 @@ export default function ParametrosPatioPage() {
           Exemplo inicial: 1ª hora R$ 10 e demais R$ 5 — na ordem de estacionamento escolha cobrança{" "}
           <strong>Rotativo</strong>.
         </p>
+        {canEdit ? (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <GlassSelect
             label="Modalidade"
@@ -398,9 +428,12 @@ export default function ParametrosPatioPage() {
             <span className="text-xs text-slate-500">Vazio = vigência aberta até cadastrar a próxima.</span>
           </label>
         </div>
+        ) : null}
+        {canEdit ? (
         <Button type="button" disabled={saving} onClick={() => void savePrice()}>
           + Novo preço (vigência)
         </Button>
+        ) : null}
 
         <div className="overflow-x-auto">
           <table className="min-w-full text-left text-sm">
@@ -429,6 +462,7 @@ export default function ParametrosPatioPage() {
                   <td className="px-2 py-2">{p.billing_unit}</td>
                   <td className="px-2 py-2 whitespace-nowrap">{p.valid_from}</td>
                   <td className="px-2 py-2">
+                    {canEdit ? (
                     <input
                       type="date"
                       className={`${glassField(false)} min-w-[9.5rem]`}
@@ -436,12 +470,15 @@ export default function ParametrosPatioPage() {
                       title="Data fim da vigência"
                       onChange={(e) => void saveValidUntil(p.id, e.target.value)}
                     />
+                    ) : (
+                      <span>{p.valid_until ?? "—"}</span>
+                    )}
                   </td>
                   <td className="px-2 py-2">
                     <Badge variant={p.status === "Ativo" ? "success" : "default"}>{p.status}</Badge>
                   </td>
                   <td className="px-2 py-2">
-                    {p.status === "Ativo" ? (
+                    {canEdit && p.status === "Ativo" ? (
                       <Button type="button" variant="ghost" onClick={() => void deactivatePrice(p.id)}>
                         Inativar
                       </Button>

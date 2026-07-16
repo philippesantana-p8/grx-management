@@ -13,6 +13,7 @@ import {
   fetchVehicleOrdersForSelect,
   type DreVehicleExpenseRow,
 } from "@/lib/dre-vehicle-expenses-api";
+import { useAccess } from "@/lib/access-context";
 import { useCompany } from "@/lib/company-context";
 import { glassField, glassFilterPanel, glassStatCard } from "@/lib/liquid-glass-styles";
 import { createClient } from "@/lib/supabase/client";
@@ -31,6 +32,9 @@ function formatDate(value: string): string {
 
 export default function DreDespesasVeiculoPage() {
   const { companyId } = useCompany();
+  const { canEditScreen, canDeleteScreen } = useAccess();
+  const canEdit = canEditScreen("dre.despesas-veiculo");
+  const canDelete = canDeleteScreen("dre.despesas-veiculo");
   const supabase = useMemo(() => createClient(), []);
   const now = new Date();
 
@@ -144,6 +148,10 @@ export default function DreDespesasVeiculoPage() {
 
   const submit = async () => {
     if (!companyId) return;
+    if (!canEdit) {
+      setError("Seu acesso é só visualização. Peça permissão de Alteração para lançar.");
+      return;
+    }
     setSaving(true);
     setError(null);
     setMsg(null);
@@ -173,6 +181,10 @@ export default function DreDespesasVeiculoPage() {
 
   const remove = async (id: string) => {
     if (!companyId) return;
+    if (!canDelete) {
+      setError("Seu acesso não inclui Exclusão nesta tela.");
+      return;
+    }
     if (!window.confirm("Excluir este lançamento do DRE do veículo?")) return;
     const result = await deleteVehicleExpense(supabase, companyId, id);
     if (result.error) {
@@ -227,6 +239,11 @@ export default function DreDespesasVeiculoPage() {
 
         {error ? <Alert variant="error">{error}</Alert> : null}
         {msg ? <Alert variant="info">{msg}</Alert> : null}
+        {!canEdit ? (
+          <Alert variant="info">
+            Modo visualização: você pode consultar as despesas, mas não criar nem alterar.
+          </Alert>
+        ) : null}
 
         {vehicleId ? (
           <div className="grid gap-3 sm:grid-cols-3">
@@ -283,6 +300,7 @@ export default function DreDespesasVeiculoPage() {
           </div>
         ) : null}
 
+        {canEdit ? (
         <section className={`space-y-4 p-4 ${glassFilterPanel()}`}>
           <div>
             <h2 className="text-sm font-semibold text-slate-900">Novo lançamento</h2>
@@ -374,6 +392,7 @@ export default function DreDespesasVeiculoPage() {
             {saving ? "Salvando…" : "Lançar despesa no DRE"}
           </Button>
         </section>
+        ) : null}
 
         <section className="space-y-3">
           <h2 className="text-sm font-semibold text-slate-900">Lançamentos do período</h2>
@@ -409,9 +428,11 @@ export default function DreDespesasVeiculoPage() {
                         {formatCurrency(row.amount)}
                       </td>
                       <td className="px-3 py-2 text-right">
-                        <Button type="button" variant="ghost" onClick={() => void remove(row.id)}>
-                          Excluir
-                        </Button>
+                        {canDelete ? (
+                          <Button type="button" variant="ghost" onClick={() => void remove(row.id)}>
+                            Excluir
+                          </Button>
+                        ) : null}
                       </td>
                     </tr>
                   ))}

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useAccess } from "@/lib/access-context";
 import { useCompany } from "@/lib/company-context";
 import { recordDeletion, summarizeDeletedRow } from "@/lib/deletion-audit";
 import { Button } from "@/components/ui/Button";
@@ -71,6 +72,9 @@ export function CrudPage<T extends { id: string }>({
   initialNewDraft = null,
 }: CrudPageProps<T>) {
   const { companyId, loading: companyLoading } = useCompany();
+  const { canEditScreen, canDeleteScreen, loading: accessLoading } = useAccess();
+  const screenCanEdit = auditScreenKey ? canEditScreen(auditScreenKey) : true;
+  const screenCanDelete = auditScreenKey ? canDeleteScreen(auditScreenKey) : true;
   const [items, setItems] = useState<T[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -124,10 +128,15 @@ export function CrudPage<T extends { id: string }>({
   }, [companyId, load, refreshKey]);
 
   useEffect(() => {
-    if (!initialEditId || loading) return;
+    if (!initialEditId || loading || accessLoading) return;
     if (openedEditIdRef.current === initialEditId) return;
     const row = items.find((item) => item.id === initialEditId);
     if (!row) return;
+    if (!screenCanEdit) {
+      setError("Seu acesso é só visualização. Peça permissão de Alteração para editar.");
+      openedEditIdRef.current = initialEditId;
+      return;
+    }
     if (canEditRow && !canEditRow(row)) {
       setError(editBlockedReason?.(row) ?? "Esta OS não pode ser editada no momento.");
       openedEditIdRef.current = initialEditId;
@@ -136,18 +145,34 @@ export function CrudPage<T extends { id: string }>({
     setEditing(row);
     setIsNew(false);
     openedEditIdRef.current = initialEditId;
-  }, [initialEditId, items, loading, canEditRow, editBlockedReason]);
+  }, [
+    initialEditId,
+    items,
+    loading,
+    accessLoading,
+    screenCanEdit,
+    canEditRow,
+    editBlockedReason,
+  ]);
 
   useEffect(() => {
-    if (initialEditId || !initialNewDraft || loading) return;
+    if (initialEditId || !initialNewDraft || loading || accessLoading) return;
     if (openedNewDraftRef.current) return;
+    if (!screenCanEdit) {
+      openedNewDraftRef.current = true;
+      return;
+    }
     setEditing({ ...initialNewDraft });
     setIsNew(true);
     openedNewDraftRef.current = true;
-  }, [initialEditId, initialNewDraft, loading]);
+  }, [initialEditId, initialNewDraft, loading, accessLoading, screenCanEdit]);
 
   const handleSave = async (data: Record<string, unknown>): Promise<string | null> => {
     if (!companyId) return null;
+    if (!screenCanEdit) {
+      setError("Seu acesso é só visualização. Peça permissão de Alteração para salvar.");
+      return null;
+    }
     setSaving(true);
     setError(null);
 
@@ -183,6 +208,10 @@ export function CrudPage<T extends { id: string }>({
   const handleDelete = async (id: string) => {
     if (!confirm("Deseja excluir este registro?")) return;
     if (!companyId) return;
+    if (!screenCanDelete) {
+      setError("Seu acesso não inclui Exclusão nesta tela.");
+      return;
+    }
 
     const existing = items.find((row) => row.id === id) as Record<string, unknown> | undefined;
     const { entityCode, summary } = summarizeDeletedRow(existing, table);
@@ -216,18 +245,23 @@ export function CrudPage<T extends { id: string }>({
           <h1 className="text-xl font-bold text-slate-900 sm:text-2xl">{title}</h1>
           {description && <p className="mt-1 text-sm text-slate-500">{description}</p>}
         </div>
-        {!isNew && !editing && (
+        {!isNew && !editing && screenCanEdit ? (
           <Button className="w-full sm:w-auto" onClick={() => { setIsNew(true); setEditing({}); }}>
             + Novo
           </Button>
-        )}
+        ) : null}
       </div>
 
       {error && <Alert variant="error">{error}</Alert>}
+      {!accessLoading && auditScreenKey && !screenCanEdit ? (
+        <Alert variant="info">
+          Modo visualização: você pode consultar os registros, mas não criar nem alterar.
+        </Alert>
+      ) : null}
 
       {toolbar}
 
-      {(isNew || editing) && (
+      {(isNew || editing) && screenCanEdit && (
         <div ref={formPanelRef} id="crud-form-panel" className="relative z-20 scroll-mt-20">
           <Card key={formPanelKey} className="overflow-visible">
             <CardHeader title={editing?.id ? "Editar" : "Novo registro"} />
@@ -267,14 +301,20 @@ export function CrudPage<T extends { id: string }>({
               </thead>
               <tbody>
                 {visibleItems.map((row) => {
-                  const canEdit = canEditRow?.(row) ?? true;
-                  const editTitle = canEdit
-                    ? undefined
-                    : (editBlockedReason?.(row) ?? "Edição indisponível para este registro.");
-                  const canDelete = canDeleteRow?.(row) ?? true;
-                  const deleteTitle = canDelete
-                    ? undefined
-                    : (deleteBlockedReason?.(row) ?? "Exclusão indisponível para este registro.");
+                  const canEdit = screenCanEdit && (canEditRow?.(row) ?? true);
+                  const editTitle = !screenCanEdit
+                    ? "Somente visualização"
+                    : canEdit
+                      ? undefined
+                      : (editBlockedReason?.(row) ?? "Edição indisponível para este registro.");
+                  const canDelete = screenCanDelete && (canDeleteRow?.(row) ?? true);
+                  const deleteTitle = !screenCanDelete
+                    ? "Sem permissão de exclusão"
+                    : canDelete
+                      ? undefined
+                      : (deleteBlockedReason?.(row) ?? "Exclusão indisponível para este registro.");
+                  const showActions =
+                    screenCanEdit || screenCanDelete || Boolean(renderRowActions);
 
                   return (
                   <tr key={row.id} className="border-b border-slate-50 hover:bg-slate-50/50">
@@ -286,8 +326,10 @@ export function CrudPage<T extends { id: string }>({
                       </td>
                     ))}
                     <td className="sticky right-0 bg-white/95 px-3 py-3 backdrop-blur-sm sm:static sm:bg-transparent sm:px-4 sm:backdrop-blur-none">
+                      {showActions ? (
                       <div className="flex flex-wrap gap-2">
-                        {renderRowActions?.(row)}
+                        {screenCanEdit ? renderRowActions?.(row) : null}
+                        {screenCanEdit ? (
                         <Button
                           variant="ghost"
                           size="sm"
@@ -301,6 +343,8 @@ export function CrudPage<T extends { id: string }>({
                         >
                           Editar
                         </Button>
+                        ) : null}
+                        {screenCanDelete ? (
                         <Button
                           variant="ghost"
                           size="sm"
@@ -313,7 +357,11 @@ export function CrudPage<T extends { id: string }>({
                         >
                           Excluir
                         </Button>
+                        ) : null}
                       </div>
+                      ) : (
+                        <span className="text-xs text-slate-400">—</span>
+                      )}
                     </td>
                   </tr>
                   );

@@ -7,6 +7,7 @@ import { Loading } from "@/components/ui/Badge";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { fetchDreDriverExpenses } from "@/lib/dre-driver-expenses-api";
 import { fetchDriverPaymentRows, summarizeDriverPayments } from "@/lib/driver-payments-api";
+import { useAccess } from "@/lib/access-context";
 import { useCompany } from "@/lib/company-context";
 import { createClient } from "@/lib/supabase/client";
 import { formatCurrency } from "@/lib/utils";
@@ -21,6 +22,8 @@ function formatDate(value: string): string {
 
 export default function DreDespesasMotoristaPage() {
   const { companyId } = useCompany();
+  const { canEditScreen } = useAccess();
+  const canEdit = canEditScreen("dre.despesas-motorista");
   const supabase = useMemo(() => createClient(), []);
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
@@ -164,6 +167,7 @@ export default function DreDespesasMotoristaPage() {
               supabase={supabase}
               rows={pendingPayments}
               filter="all"
+              canEdit={canEdit}
               onRowsChange={(next) => {
                 setAllPayments((current) => {
                   const paidIds = new Set(

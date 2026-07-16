@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, Badge, Loading } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { GlassSelect } from "@/components/ui/GlassSelect";
+import { useAccess } from "@/lib/access-context";
 import { useCompany } from "@/lib/company-context";
 import { nextCode } from "@/lib/codes";
 import {
@@ -20,6 +21,8 @@ import { formatKmRate } from "@/lib/transport-van-estimate";
 
 export default function ParametrosFretePage() {
   const { companyId } = useCompany();
+  const { canEditScreen } = useAccess();
+  const canEdit = canEditScreen("configuracoes.parametros-frete");
   const supabase = useMemo(() => createClient(), []);
   const [rows, setRows] = useState<FreightRateRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -54,6 +57,10 @@ export default function ParametrosFretePage() {
 
   const save = async () => {
     if (!companyId) return;
+    if (!canEdit) {
+      setError("Seu acesso é só visualização. Peça permissão de Alteração.");
+      return;
+    }
     const rate = Number(form.rate_per_km);
     const roundTrip = Number(form.round_trip_from_km);
     if (!rate || rate <= 0) {
@@ -90,6 +97,10 @@ export default function ParametrosFretePage() {
   };
 
   const deactivate = async (id: string) => {
+    if (!canEdit) {
+      setError("Seu acesso é só visualização. Peça permissão de Alteração.");
+      return;
+    }
     if (!confirm("Inativar esta tarifa?")) return;
     const { error: updError } = await supabase
       .from("freight_rate_tables")
@@ -113,8 +124,14 @@ export default function ParametrosFretePage() {
 
       {error ? <Alert variant="error">{error}</Alert> : null}
       {msg ? <Alert variant="info">{msg}</Alert> : null}
+      {!canEdit ? (
+        <Alert variant="info">
+          Modo visualização: você pode consultar as tarifas, mas não alterar.
+        </Alert>
+      ) : null}
       {loading ? <Loading /> : null}
 
+      {canEdit ? (
       <section className={`space-y-4 ${glassFilterPanel()}`}>
         <h2 className="text-sm font-semibold text-slate-900">Nova tarifa (vigência)</h2>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -188,6 +205,7 @@ export default function ParametrosFretePage() {
           + Nova tarifa
         </Button>
       </section>
+      ) : null}
 
       <section className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
         <table className="min-w-full text-left text-sm">
@@ -220,7 +238,7 @@ export default function ParametrosFretePage() {
                   <Badge variant={row.status === "Ativo" ? "success" : "default"}>{row.status}</Badge>
                 </td>
                 <td className="px-3 py-2">
-                  {row.status === "Ativo" ? (
+                  {canEdit && row.status === "Ativo" ? (
                     <Button type="button" variant="ghost" onClick={() => void deactivate(row.id)}>
                       Inativar
                     </Button>

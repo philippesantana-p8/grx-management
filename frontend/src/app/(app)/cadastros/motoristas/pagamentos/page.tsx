@@ -5,11 +5,14 @@ import { DriverPaymentsTable } from "@/components/motoristas/DriverPaymentsTable
 import { Loading } from "@/components/ui/Badge";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { fetchDriverPaymentRows, type DriverPaymentFilter } from "@/lib/driver-payments-api";
+import { useAccess } from "@/lib/access-context";
 import { useCompany } from "@/lib/company-context";
 import { createClient } from "@/lib/supabase/client";
 
 export default function MotoristasPagamentosPage() {
   const { companyId } = useCompany();
+  const { canEditScreen } = useAccess();
+  const canEdit = canEditScreen("cadastros.motoristas");
   const supabase = useMemo(() => createClient(), []);
   const [rows, setRows] = useState<Awaited<ReturnType<typeof fetchDriverPaymentRows>>["rows"]>([]);
   const [loading, setLoading] = useState(true);
@@ -65,6 +68,7 @@ export default function MotoristasPagamentosPage() {
             filter={filter}
             layout="banking"
             showFilterTabs
+            canEdit={canEdit}
             onFilterChange={setFilter}
             onRowsChange={setRows}
             emptyMessage="Nenhum pagamento pendente. Após o motorista confirmar a designação (ou concluir o frete), a OS aparecerá aqui com os dados para pagamento."

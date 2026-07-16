@@ -14,6 +14,7 @@ import {
   validatePartnerDocument,
   validatePartnerRg,
 } from "@/lib/br-documents";
+import { useAccess } from "@/lib/access-context";
 import { nextCode } from "@/lib/codes";
 import { useCompany } from "@/lib/company-context";
 import { glassField } from "@/lib/liquid-glass-styles";
@@ -23,6 +24,8 @@ import { PARTNER_TYPES, STATUS_OPTIONS } from "@/types/database";
 
 function SociosPageContent() {
   const { companyId, loading: companyLoading } = useCompany();
+  const { canDeleteScreen, loading: accessLoading } = useAccess();
+  const canDelete = canDeleteScreen("cadastros.socios");
   const searchParams = useSearchParams();
   const router = useRouter();
   const [refreshKey, setRefreshKey] = useState(0);
@@ -31,11 +34,16 @@ function SociosPageContent() {
 
   useEffect(() => {
     const deleteCode = searchParams.get("deleteCode");
-    if (!deleteCode || companyLoading || !companyId) return;
+    if (!deleteCode || companyLoading || accessLoading || !companyId) return;
 
     let cancelled = false;
 
     (async () => {
+      if (!canDelete) {
+        router.replace("/cadastros/socios");
+        setActionError("Seu acesso não inclui Exclusão nesta tela.");
+        return;
+      }
       const result = await softDeletePartnerByCode(companyId, deleteCode);
       if (cancelled) return;
 
@@ -54,7 +62,7 @@ function SociosPageContent() {
     return () => {
       cancelled = true;
     };
-  }, [companyId, companyLoading, router, searchParams]);
+  }, [accessLoading, canDelete, companyId, companyLoading, router, searchParams]);
 
   return (
     <div className="space-y-4">

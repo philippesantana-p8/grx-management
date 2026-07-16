@@ -9,6 +9,7 @@ import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { GlassSelect } from "@/components/ui/GlassSelect";
 import { fetchVehicleScheduleData } from "@/lib/vehicle-schedule-api";
 import { formatWeekRangeLabel, newOsFromScheduleHref, toDayKey } from "@/lib/vehicle-schedule";
+import { useAccess } from "@/lib/access-context";
 import { useCompany } from "@/lib/company-context";
 import { glassField, glassFilterPanel } from "@/lib/liquid-glass-styles";
 import { createClient } from "@/lib/supabase/client";
@@ -16,6 +17,8 @@ import { SERVICE_ORDER_TYPES, SERVICE_ORDER_TYPE_LABELS } from "@/types/database
 
 export default function AgendaVeiculosPage() {
   const { companyId } = useCompany();
+  const { canEditScreen } = useAccess();
+  const canCreateOs = canEditScreen("operacional.ordens-servico");
   const supabase = useMemo(() => createClient(), []);
   const [weekAnchor, setWeekAnchor] = useState(() => new Date());
   const [vehicleId, setVehicleId] = useState("");
@@ -190,6 +193,7 @@ export default function AgendaVeiculosPage() {
               Limpar placa
             </Button>
           ) : null}
+          {canCreateOs ? (
           <Link
             href={
               vehicleId
@@ -206,6 +210,7 @@ export default function AgendaVeiculosPage() {
           >
             <span className="relative z-10">+ Nova OS</span>
           </Link>
+          ) : null}
         </div>
 
         {selectedPlateLabel ? (
@@ -228,6 +233,7 @@ export default function AgendaVeiculosPage() {
             selection={selection}
             onSelect={setSelection}
             plateFocus={Boolean(vehicleId)}
+            canCreateOs={canCreateOs}
           />
         )}
 
