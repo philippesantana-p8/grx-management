@@ -142,6 +142,37 @@ body {
   border-color: rgba(255, 255, 255, 0.22);
 }
 
+/* Azul-marinho liquid glass — ações de destaque (ex.: Exportar Excel) */
+.liquid-glass-btn--navy {
+  color: #ffffff;
+  font-weight: 600;
+  background: linear-gradient(
+    145deg,
+    rgba(30, 58, 138, 0.92) 0%,
+    rgba(30, 64, 175, 0.95) 45%,
+    rgba(23, 37, 84, 0.94) 100%
+  );
+  border-color: rgba(255, 255, 255, 0.28);
+  box-shadow:
+    0 8px 24px rgba(30, 58, 138, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.12);
+}
+
+.liquid-glass-btn--navy:hover:not(:disabled) {
+  color: #ffffff;
+  background: linear-gradient(
+    145deg,
+    rgba(37, 99, 235, 0.95) 0%,
+    rgba(30, 64, 175, 0.98) 45%,
+    rgba(30, 58, 138, 0.96) 100%
+  );
+  box-shadow:
+    0 12px 28px rgba(30, 58, 138, 0.42),
+    inset 0 1px 0 rgba(255, 255, 255, 0.42),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.1);
+}
+
 .liquid-glass-btn--ghost {
   color: #475569;
   background: rgba(255, 255, 255, 0.08);
@@ -167,6 +198,10 @@ body {
 
   .liquid-glass-btn--secondary {
     background: linear-gradient(145deg, #ffffff 0%, #f1f5f9 100%);
+  }
+
+  .liquid-glass-btn--navy {
+    background: linear-gradient(145deg, #1e3a8a 0%, #1e40af 50%, #172554 100%);
   }
 }
 
