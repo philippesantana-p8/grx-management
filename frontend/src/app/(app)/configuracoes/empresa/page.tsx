@@ -153,14 +153,13 @@ export default function EmpresaConfigPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">Empresa</h1>
-        <p className="mt-1 text-sm text-slate-600">
-          Nome e logo do cliente (ex.: GRX). Aparecem no header, voucher do motorista e proposta.
-        </p>
-      </div>
-
       <Card>
+        <div className="border-b border-slate-100 px-6 py-4">
+          <h1 className="text-2xl font-bold text-slate-900">Empresa</h1>
+          <p className="mt-1 text-sm text-slate-500">
+            Nome e logo do cliente (ex.: GRX). Aparecem no header, voucher do motorista e proposta.
+          </p>
+        </div>
         <CardHeader
           title="Dados cadastrais"
           description="Razão social, nome fantasia e CNPJ"
