@@ -1041,25 +1041,24 @@ body {
   }
 }
 
+/* Badge da empresa — liquid glass, à esquerda */
 .app-header-company {
-  padding: 0.5rem 0.875rem;
-  border-radius: 0.75rem;
-  background: linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%);
-  border: 1px solid rgba(15, 23, 42, 0.08);
-  box-shadow:
-    0 4px 10px rgba(15, 23, 42, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 1),
-    inset 0 -1px 0 rgba(15, 23, 42, 0.05);
+  margin-left: 0;
+  padding: 0.5rem 0.95rem;
+  border-radius: 0.875rem;
+  text-align: left;
+  cursor: default;
+}
+
+.app-header-company .app-header-company-label,
+.app-header-company .app-header-company-name {
+  position: relative;
+  z-index: 1;
 }
 
 /* Header da área de conteúdo — tudo à esquerda da partição do sistema */
 .app-header-brand-row {
   justify-content: flex-start;
-}
-
-.app-header-company {
-  margin-left: 0;
-  text-align: left;
 }
 
 .app-header-company-label {

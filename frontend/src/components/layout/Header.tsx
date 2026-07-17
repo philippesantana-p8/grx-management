@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { clearMasterSession } from "@/lib/master-password";
 
-const COMPANY_NAME = "GRX Logistics Transport";
+const COMPANY_NAME = "GRX Transportes e Logística";
 
 type HeaderProps = {
   onMenuClick?: () => void;
@@ -36,7 +36,11 @@ export function Header({ onMenuClick }: HeaderProps) {
             <span />
           </span>
         </button>
-        <div className="app-header-company min-w-0 text-left">
+        <div
+          className="app-header-company liquid-glass-btn liquid-glass-btn--secondary min-w-0 text-left"
+          role="status"
+          aria-label={`Empresa ${COMPANY_NAME}`}
+        >
           <p className="app-header-company-label">Empresa</p>
           <p className="app-header-company-name truncate">{COMPANY_NAME}</p>
         </div>
