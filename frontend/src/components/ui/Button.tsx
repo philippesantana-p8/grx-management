@@ -2,7 +2,7 @@ import { cn } from "@/lib/utils";
 import type { ButtonHTMLAttributes } from "react";
 
 type Props = ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: "primary" | "secondary" | "danger" | "ghost" | "navy";
+  variant?: "primary" | "secondary" | "danger" | "ghost";
   size?: "sm" | "md";
 };
 
@@ -21,7 +21,6 @@ export function Button({
         variant === "secondary" && "liquid-glass-btn--secondary",
         variant === "danger" && "liquid-glass-btn--danger",
         variant === "ghost" && "liquid-glass-btn--ghost",
-        variant === "navy" && "liquid-glass-btn--navy",
         className
       )}
       {...props}

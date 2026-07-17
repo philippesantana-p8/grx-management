@@ -365,8 +365,6 @@ export default function DashboardPage() {
             <div className="flex items-end">
               <Button
                 type="button"
-                variant="navy"
-                className="min-w-[10.5rem] px-5 py-2.5 text-sm font-semibold tracking-wide text-white shadow-lg"
                 disabled={exporting || loading || !dateFrom || !dateTo}
                 onClick={() => void handleExportExcel()}
               >

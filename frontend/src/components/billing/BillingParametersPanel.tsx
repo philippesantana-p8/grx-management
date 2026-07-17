@@ -188,19 +188,9 @@ export function BillingParametersPanel() {
           </label>
         </div>
 
-        <div className="flex flex-wrap gap-3">
-          <Button type="button" onClick={() => void save(false)} disabled={saving || loading}>
-            {saving ? "Salvando…" : "Salvar parâmetros PSCS"}
-          </Button>
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={() => void save(true)}
-            disabled={saving || loading}
-          >
-            Salvar e sincronizar valor no Asaas
-          </Button>
-        </div>
+        <Button type="button" onClick={() => void save(true)} disabled={saving || loading}>
+          {saving ? "Salvando…" : "Salvar parâmetros PSCS"}
+        </Button>
       </CardBody>
     </Card>
   );
