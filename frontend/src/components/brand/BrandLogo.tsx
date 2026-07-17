@@ -25,18 +25,18 @@ const sizes = {
   proposal: { width: 240, height: 96 },
 };
 
-/** Proporção real do grx-logo-mark.png (570×491). */
+/** Proporção do pscs-logo-mark.png (994×485). */
 const markSizes = {
-  sm: { width: 168, height: 145 },
-  md: { width: 220, height: 190 },
-  lg: { width: 280, height: 241 },
-  proposal: { width: 240, height: 207 },
+  sm: { width: 168, height: 82 },
+  md: { width: 220, height: 107 },
+  lg: { width: 280, height: 137 },
+  proposal: { width: 240, height: 117 },
 };
 
-/** Logo com placa branca (voucher, proposta, login). */
+/** Logo da empresa adquirente (ex.: GRX) — voucher, proposta, e-mail. */
 const BRAND_LOGO_SRC = "/grx-logo.png?v=3";
-/** Marca GRX + tagline, fundo transparente (menu cinza do sistema). */
-const BRAND_LOGO_MARK_SRC = "/grx-logo-mark.png?v=5";
+/** Logo do sistema PSCS Systems 3D — menu lateral / chrome do produto. */
+const SYSTEM_LOGO_MARK_SRC = "/pscs-logo-mark.png?v=1";
 
 const MARK_DEPTH_LAYERS = [4, 3, 2, 1] as const;
 
@@ -100,17 +100,17 @@ export function BrandLogo({
                 key={depth}
                 dim={markDim}
                 depth={depth}
-                src={BRAND_LOGO_MARK_SRC}
+                src={SYSTEM_LOGO_MARK_SRC}
                 unoptimized
                 className="brand-logo-mark-depth"
               />
             ))}
             <LogoImage
               dim={markDim}
-              src={BRAND_LOGO_MARK_SRC}
+              src={SYSTEM_LOGO_MARK_SRC}
               priority
               unoptimized
-              alt="GRX Transportes e Logística"
+              alt="PSCS Systems"
               ariaHidden={false}
               className={cn("brand-logo-mark-image", imageClassName)}
             />

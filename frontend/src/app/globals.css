@@ -825,6 +825,27 @@ body {
   transform: perspective(720px) rotateY(-12deg) rotateX(8deg);
 }
 
+/* Login / auth — PSCS 3D sobre fundo claro */
+.brand-logo-mark--auth {
+  max-width: 17.5rem;
+}
+
+.brand-logo-mark--auth .brand-logo-mark-3d-stage {
+  transform: perspective(880px) rotateY(-8deg) rotateX(5deg);
+}
+
+.brand-logo-mark--auth .brand-logo-mark-image {
+  filter:
+    drop-shadow(-1px -1px 1px rgba(255, 255, 255, 0.65))
+    drop-shadow(2px 3px 0 rgba(15, 23, 42, 0.18))
+    drop-shadow(5px 8px 14px rgba(15, 23, 42, 0.22));
+}
+
+.brand-logo-mark--auth .brand-logo-mark-depth {
+  opacity: calc(0.28 - (var(--depth) * 0.05));
+  filter: brightness(0.35) saturate(0);
+}
+
 .brand-logo-mark-stack {
   position: relative;
   display: grid;

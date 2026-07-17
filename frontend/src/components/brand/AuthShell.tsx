@@ -6,9 +6,9 @@ export function AuthShell({ children }: { children: ReactNode }) {
     <div className="flex min-h-screen flex-col items-center justify-center bg-white p-4">
       <div className="mb-8">
         <BrandLogo
-          variant="plaque3d"
-          plaqueSurface="page"
+          variant="mark"
           size="lg"
+          className="brand-logo-mark--auth"
           caption="Gestão financeira e operacional"
           captionTone="on-light"
         />
