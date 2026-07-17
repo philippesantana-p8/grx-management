@@ -28,12 +28,6 @@ export function BillingParametersPanel() {
   const [testAmount, setTestAmount] = useState("1.00");
   const [monthlyAmount, setMonthlyAmount] = useState("800.00");
   const [billingDay, setBillingDay] = useState("10");
-  const [payerName, setPayerName] = useState("");
-  const [payerEmail, setPayerEmail] = useState("");
-  const [payerCpf, setPayerCpf] = useState("");
-  const [payerPhone, setPayerPhone] = useState("");
-  const [postalCode, setPostalCode] = useState("");
-  const [addressNumber, setAddressNumber] = useState("");
   const [status, setStatus] = useState("inactive");
   const [cardLast4, setCardLast4] = useState<string | null>(null);
 
@@ -42,12 +36,6 @@ export function BillingParametersPanel() {
     setTestAmount(String(settings.test_amount ?? 1));
     setMonthlyAmount(String(settings.monthly_amount ?? 800));
     setBillingDay(String(settings.billing_day ?? 10));
-    setPayerName(settings.payer_name ?? "");
-    setPayerEmail(settings.payer_email ?? "");
-    setPayerCpf(settings.payer_cpf_cnpj ?? "");
-    setPayerPhone(settings.payer_phone ?? "");
-    setPostalCode(settings.payer_postal_code ?? "");
-    setAddressNumber(settings.payer_address_number ?? "");
     setStatus(settings.subscription_status);
     setCardLast4(settings.card_last4);
     if (payload) {
@@ -88,12 +76,6 @@ export function BillingParametersPanel() {
           test_amount: Number(testAmount),
           monthly_amount: Number(monthlyAmount),
           billing_day: Number(billingDay),
-          payer_name: payerName,
-          payer_email: payerEmail,
-          payer_cpf_cnpj: payerCpf,
-          payer_phone: payerPhone,
-          payer_postal_code: postalCode,
-          payer_address_number: addressNumber,
           sync_subscription_value: syncSubscriptionValue,
         }),
       });
@@ -103,7 +85,7 @@ export function BillingParametersPanel() {
       setMsg(
         payload.syncNote ||
           payload.warning ||
-          "Parâmetros de mensalidade salvos. Cadastre ou atualize o cartão na seção abaixo."
+          "Parâmetros PSCS salvos (modo/valor/dia). O cliente usa o termo e o cartão abaixo."
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Falha ao salvar.");
@@ -118,13 +100,18 @@ export function BillingParametersPanel() {
   return (
     <Card>
       <CardHeader
-        title="Valor e dia da cobrança"
-        description="Defina valor de teste (Felipe) e valor de produção (Rafael). O cartão fica nesta mesma tela, abaixo. Número e CVV nunca ficam gravados no GRX."
+        title="Parâmetros PSCS (somente operador)"
+        description="Área exclusiva da PSCS: modo teste/produção, valores e dia de cobrança. O cliente (Rafael) não usa este bloco — ele só vê o termo, o aceite e o cartão."
       />
       <CardBody className="space-y-4">
         {loading ? <p className="text-sm text-slate-500">Carregando…</p> : null}
         {error ? <Alert variant="error">{error}</Alert> : null}
         {msg ? <Alert variant="info">{msg}</Alert> : null}
+
+        <Alert variant="info">
+          Este bloco é da central PSCS. Dados do titular e cartão ficam na seção do cliente, abaixo
+          (após o termo).
+        </Alert>
 
         {!asaasConfigured ? (
           <Alert variant="warning">
@@ -147,8 +134,8 @@ export function BillingParametersPanel() {
               value={chargeMode}
               onChange={(e) => setChargeMode(e.target.value as "test" | "production")}
             >
-              <option value="test">Teste (valor irrisório)</option>
-              <option value="production">Produção (mensalidade Rafael)</option>
+              <option value="test">Teste (valor irrisório — Felipe)</option>
+              <option value="production">Produção (licença Rafael)</option>
             </select>
           </label>
 
@@ -165,7 +152,7 @@ export function BillingParametersPanel() {
           </label>
 
           <label className="block space-y-1">
-            <span className="text-sm font-medium text-slate-700">Mensalidade produção (R$)</span>
+            <span className="text-sm font-medium text-slate-700">Licença produção (R$)</span>
             <input
               type="number"
               min="0.01"
@@ -201,46 +188,9 @@ export function BillingParametersPanel() {
           </label>
         </div>
 
-        <h4 className="text-sm font-semibold text-slate-800">Dados do pagador (titular)</h4>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="block space-y-1">
-            <span className="text-sm font-medium text-slate-700">Nome</span>
-            <input className={glassField()} value={payerName} onChange={(e) => setPayerName(e.target.value)} />
-          </label>
-          <label className="block space-y-1">
-            <span className="text-sm font-medium text-slate-700">E-mail</span>
-            <input
-              type="email"
-              className={glassField()}
-              value={payerEmail}
-              onChange={(e) => setPayerEmail(e.target.value)}
-            />
-          </label>
-          <label className="block space-y-1">
-            <span className="text-sm font-medium text-slate-700">CPF/CNPJ</span>
-            <input className={glassField()} value={payerCpf} onChange={(e) => setPayerCpf(e.target.value)} />
-          </label>
-          <label className="block space-y-1">
-            <span className="text-sm font-medium text-slate-700">Telefone</span>
-            <input className={glassField()} value={payerPhone} onChange={(e) => setPayerPhone(e.target.value)} />
-          </label>
-          <label className="block space-y-1">
-            <span className="text-sm font-medium text-slate-700">CEP</span>
-            <input className={glassField()} value={postalCode} onChange={(e) => setPostalCode(e.target.value)} />
-          </label>
-          <label className="block space-y-1">
-            <span className="text-sm font-medium text-slate-700">Nº endereço</span>
-            <input
-              className={glassField()}
-              value={addressNumber}
-              onChange={(e) => setAddressNumber(e.target.value)}
-            />
-          </label>
-        </div>
-
         <div className="flex flex-wrap gap-3">
           <Button type="button" onClick={() => void save(false)} disabled={saving || loading}>
-            {saving ? "Salvando…" : "Salvar parâmetros de mensalidade"}
+            {saving ? "Salvando…" : "Salvar parâmetros PSCS"}
           </Button>
           <Button
             type="button"
@@ -250,12 +200,6 @@ export function BillingParametersPanel() {
           >
             Salvar e sincronizar valor no Asaas
           </Button>
-          <a
-            href="#cadastro-cartao"
-            className="inline-flex items-center text-sm font-medium text-brand-700 underline-offset-2 hover:underline"
-          >
-            Ir para cadastro do cartão ↓
-          </a>
         </div>
       </CardBody>
     </Card>
