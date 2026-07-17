@@ -51,7 +51,7 @@ Regra Cursor espelhada: `.cursor/rules/deploy-prod-and-dev.mdc`.
 
 - Mensalidade sugerida de referência: **mínimo ~R$ 800/mês** (proposta comercial mais ampla já citada ~R$ 2.500 conforme escopo de suporte).
 - Módulo de **mensalidade com cartão** via **Asaas** (não guardar número/CVV no banco).
-- Telas: **Parâmetros** (valor teste vs produção) + **Configurações → Mensalidade** (cartão).
+- Telas: valor teste/produção + cartão em **Configurações → Renovação da licença** (rota `/configuracoes/mensalidade`).
 - **Pausado:** criação da conta Asaas sandbox — aguardar decisão do Felipe (ele cria ou o operador cria). Retomar depois.
 - Env necessários (quando retomar): `ASAAS_API_KEY`, `ASAAS_ENV`, `ASAAS_WEBHOOK_TOKEN`, `SUPABASE_SERVICE_ROLE_KEY`.
 - SQL billing: `apply-037-company-billing.sql`.
@@ -68,8 +68,8 @@ Regra Cursor espelhada: `.cursor/rules/deploy-prod-and-dev.mdc`.
 | Foto veículo | Foto mestre em Cadastros → Veículos (`vehicles.photo_storage_path`, bucket `company-attachments`). Na OS/voucher Frete/Transporte: preview **somente leitura** (sem upload na OS). SQL: `apply-045-vehicle-photo.sql`. |
 | Dashboard 3D | Navegação por produto (Geral / Frete-Transporte / Estacionamento / Lava). Geral: 3 pizzas (receita, despesa, societário). Filtros: período preset + **De/Até** (data), placa/sócio/%. **Exportar Excel** (abas Resumo / Frete Transporte / Estacionamento / Lava / Despesas / Receitas; **inclui DEMO** por enquanto para teste — depois omitir). Lib: `dashboard-export.ts` + exceljs. Base DEMO via RPC `seed_dashboard_demo` (Senha Máster). SQL: `apply-047-dashboard-demo-volume.sql` + `reset-dashboard-demo.sql`. |
 | Sócios | RG / CPF / CNPJ + validações BR. |
-| Menu / nomes | Operacional: **Agenda da Frota** acima de **Ordem de Serviço — Transporte e Frete**. DRE com iniciais maiúsculas (Empresa, Motorista/Ajudante, Veículo). Ordem dos blocos: Cadastros → **Parâmetros** → **Configurações** (Integrações + Mensalidade). Sem ✕ ao lado do logo no desktop (só no menu mobile). |
-| Parâmetros | **Senha Máster - Concessão de Acessos** = só permissões por sócio (sem bloco Asaas/mensalidade). Cobrança/valores/cartão em **Configurações → Mensalidade**. **Análise/Alteração/Exclusão** enforçados nas telas. Exclusão pede motivo obrigatório. **Histórico de exclusões** — admin; SQL `apply-048` + `apply-049`. |
+| Menu / nomes | Operacional: **Agenda da Frota** acima de **Ordem de Serviço — Transporte e Frete**. DRE com iniciais maiúsculas (Empresa, Motorista/Ajudante, Veículo). Ordem dos blocos: Cadastros → **Parâmetros** → **Configurações** (Integrações + **Renovação da licença**). Sem ✕ ao lado do logo no desktop (só no menu mobile). |
+| Parâmetros | **Senha Máster - Concessão de Acessos** = só permissões por sócio (sem bloco Asaas/mensalidade). Cobrança/valores/cartão em **Configurações → Renovação da licença**. **Análise/Alteração/Exclusão** enforçados nas telas. Exclusão pede motivo obrigatório. **Histórico de exclusões** — admin; SQL `apply-048` + `apply-049`. |
 | Auth | Cadastro/login e-mail + reset de senha. |
 | DRE motorista | Pagamentos + lançamento automático Motorista/Ajudante. |
 | DRE veículo | Aba **Despesas do veículo** por placa (pedágio, combustível, pneu, oficina, outros). Anti-duplicata: mesma **data + OS + conta DRE**. SQL: `apply-038-vehicle-expenses.sql`. |

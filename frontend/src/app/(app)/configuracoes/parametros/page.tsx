@@ -632,7 +632,7 @@ export default function ParametrosPage() {
       <Card>
         <CardHeader
           title="Senha Máster - Concessão de Acessos"
-          description="Somente parametrização de acessos por sócio. Valores e cartão de mensalidade ficam em Configurações → Mensalidade."
+          description="Somente parametrização de acessos por sócio. Valores e cartão da licença ficam em Configurações → Renovação da licença."
         />
         <CardBody className="space-y-4">
           {error && <Alert variant="error">{error}</Alert>}
@@ -640,7 +640,7 @@ export default function ParametrosPage() {
           <Alert variant="info">
             Acesso master liberado nesta sessão. Esta tela não inclui cobrança Asaas — use{" "}
             <Link href="/configuracoes/mensalidade" className="font-medium underline">
-              Mensalidade
+              Renovação da licença
             </Link>
             .
           </Alert>

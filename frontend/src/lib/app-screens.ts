@@ -122,7 +122,7 @@ export const APP_SCREENS: AppScreen[] = [
   },
   {
     key: "configuracoes.mensalidade",
-    label: "Mensalidade",
+    label: "Renovação da licença",
     group: "Configurações",
     href: "/configuracoes/mensalidade",
   },

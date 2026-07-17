@@ -131,10 +131,10 @@ export default function MensalidadePage() {
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Mensalidade</h1>
+        <h1 className="text-2xl font-bold text-slate-900">Renovação da licença</h1>
         <p className="mt-1 text-sm text-slate-500">
-          Parâmetros de cobrança PSCS (valor teste/produção) e cadastro do cartão do cliente para a
-          mensalidade recorrente.
+          Parâmetros de cobrança PSCS (valor teste/produção) e cadastro do cartão para renovar a
+          licença do sistema (mensalidade recorrente).
         </p>
       </div>
 
