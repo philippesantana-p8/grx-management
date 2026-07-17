@@ -273,7 +273,7 @@ export default function MensalidadePage() {
             {settings?.next_due_date ? <p>Próximo vencimento: {settings.next_due_date}</p> : null}
             {settings?.last_error ? <Alert variant="error">{settings.last_error}</Alert> : null}
             {active ? (
-              <Button type="button" onClick={() => void cancel()} disabled={canceling}>
+              <Button type="button" variant="ghost" onClick={() => void cancel()} disabled={canceling}>
                 {canceling ? "Cancelando…" : "Cancelar assinatura"}
               </Button>
             ) : null}
