@@ -144,12 +144,12 @@ export function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
 
       <aside
         className={cn(
-          "sidebar-shell fixed inset-y-0 left-0 z-50 flex w-[min(18rem,88vw)] flex-col border-r border-white/10 text-white transition-transform duration-200 ease-out lg:static lg:z-auto lg:w-64 lg:translate-x-0 lg:shrink-0",
+          "sidebar-shell fixed inset-y-0 left-0 z-50 flex w-[min(20.5rem,92vw)] flex-col border-r border-white/10 text-white transition-transform duration-200 ease-out lg:static lg:z-auto lg:w-80 lg:translate-x-0 lg:shrink-0",
           mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         )}
         aria-label="Menu principal"
       >
-        <div className="sidebar-brand-zone flex items-center justify-between gap-2">
+        <div className="sidebar-brand-zone">
           <Link href={homeHref} className="brand-logo-link" onClick={onClose}>
             <BrandLogo variant="mark" size="sm" className="brand-logo-mark--sidebar" />
           </Link>

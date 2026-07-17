@@ -25,12 +25,12 @@ const sizes = {
   proposal: { width: 240, height: 96 },
 };
 
-/** Proporção do pscs-logo-mark.png (1259×522) — sm menor no menu. */
+/** Proporção do pscs-logo-mark.png — sm legível no menu largo. */
 const markSizes = {
-  sm: { width: 132, height: 55 },
-  md: { width: 180, height: 75 },
-  lg: { width: 220, height: 91 },
-  proposal: { width: 200, height: 83 },
+  sm: { width: 168, height: 70 },
+  md: { width: 200, height: 83 },
+  lg: { width: 240, height: 100 },
+  proposal: { width: 220, height: 91 },
 };
 
 /** Logo da empresa adquirente (ex.: GRX) — voucher, proposta, e-mail. */

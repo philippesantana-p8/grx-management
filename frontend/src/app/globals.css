@@ -774,13 +774,20 @@ body {
 /* ── Brand logo 3D plaque ── */
 
 .sidebar-brand-zone {
-  padding: 0.75rem 1rem 0.625rem;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.875rem 1.25rem 0.75rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.14);
   background: transparent;
+  overflow: visible;
 }
 
 .brand-logo-link {
-  display: block;
+  display: flex;
+  justify-content: center;
+  width: 100%;
   border-radius: 0.625rem;
   transition: transform 0.18s ease;
   background: transparent;
@@ -822,11 +829,14 @@ body {
 }
 
 .brand-logo-mark--sidebar {
-  max-width: 8.25rem;
+  width: 100%;
+  max-width: 14.5rem;
+  margin-inline: auto;
 }
 
 .brand-logo-mark--sidebar .brand-logo-mark-3d-stage {
-  transform: perspective(720px) rotateY(-12deg) rotateX(8deg);
+  /* Inclinação mais suave para não cortar Systems nas bordas */
+  transform: perspective(900px) rotateY(-6deg) rotateX(4deg);
 }
 
 /* Login / auth — PSCS 3D sobre fundo claro */
@@ -894,7 +904,7 @@ body {
 }
 
 .brand-logo-link:hover .brand-logo-mark--sidebar .brand-logo-mark-3d-stage {
-  transform: perspective(720px) rotateY(-9deg) rotateX(6deg);
+  transform: perspective(900px) rotateY(-4deg) rotateX(3deg);
 }
 
 .brand-logo-link:hover .brand-logo-mark-image {
@@ -1042,12 +1052,23 @@ body {
     inset 0 -1px 0 rgba(15, 23, 42, 0.05);
 }
 
-/* Logo da empresa no header — só o emblema, sem fundo amarelo/placa */
+/* Linha da marca no header: centraliza GRX no espaço à esquerda do Sair */
+.app-header-brand-row {
+  justify-content: flex-start;
+}
+
+@media (min-width: 1024px) {
+  .app-header-brand-row {
+    justify-content: center;
+  }
+}
+
+/* Logo da empresa no header — só o emblema, centralizado, sem fundo */
 .app-header-company-mark {
   display: flex;
   align-items: center;
   justify-content: center;
-  max-width: min(14.5rem, 58vw);
+  max-width: min(15.5rem, 62vw);
   padding: 0;
   border-radius: 0;
   background: transparent;
@@ -1059,8 +1080,9 @@ body {
   display: block;
   width: 100%;
   height: auto;
-  max-height: 3.75rem;
+  max-height: 4rem;
   object-fit: contain;
+  margin-inline: auto;
   filter: drop-shadow(0 1px 2px rgba(15, 23, 42, 0.18));
 }
 
@@ -1177,6 +1199,10 @@ body {
 
 .sidebar-close-btn {
   display: none;
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  z-index: 2;
   align-items: center;
   justify-content: center;
   width: 2.5rem;

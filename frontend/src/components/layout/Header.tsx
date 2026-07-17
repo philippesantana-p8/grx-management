@@ -29,7 +29,7 @@ export function Header({ onMenuClick }: HeaderProps) {
 
   return (
     <header className="app-shell-header app-header-shell sticky top-0 z-30">
-      <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
+      <div className="app-header-brand-row flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
         <button
           type="button"
           className="app-header-menu-btn lg:hidden"
