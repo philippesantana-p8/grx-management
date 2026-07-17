@@ -280,7 +280,8 @@ export default function DashboardPage() {
         from: dateFrom,
         to: dateTo,
         filters,
-        includeDemo: false,
+        // Mantém DEMO/fictício no Excel enquanto o Rafael testa o fechamento.
+        includeDemo: true,
       });
       if (result.error) {
         setError(result.error);
@@ -292,10 +293,7 @@ export default function DashboardPage() {
           counts?.parking ?? 0
         }, lava ${counts?.lava ?? 0}, despesas ${counts?.expenses ?? 0}, receitas ${
           counts?.revenues ?? 0
-        }.` +
-          (counts?.demoExcluded
-            ? ` ${counts.demoExcluded} lançamento(s) DEMO omitido(s).`
-            : "")
+        }. Dados DEMO/fictícios incluídos para teste.`
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Falha ao exportar Excel.");
