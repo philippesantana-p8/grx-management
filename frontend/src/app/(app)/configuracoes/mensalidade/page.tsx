@@ -1,12 +1,18 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { BillingParametersPanel } from "@/components/billing/BillingParametersPanel";
 import { Alert, Loading } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { glassField } from "@/lib/liquid-glass-styles";
 import { formatBRL, SUBSCRIPTION_STATUS_LABELS } from "@/lib/billing";
+import {
+  formatTermsAcceptedAt,
+  LICENSE_TERMS_PARAGRAPHS,
+  LICENSE_TERMS_TITLE,
+  LICENSE_TERMS_VERSION,
+} from "@/lib/license-terms";
 import type { CompanyBillingSettings } from "@/types/database";
 
 type StatusPayload = {
@@ -21,9 +27,11 @@ export default function MensalidadePage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [canceling, setCanceling] = useState(false);
+  const [accepting, setAccepting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [payload, setPayload] = useState<StatusPayload | null>(null);
+  const [termsChecked, setTermsChecked] = useState(false);
 
   const [holderName, setHolderName] = useState("");
   const [number, setNumber] = useState("");
@@ -54,6 +62,10 @@ export default function MensalidadePage() {
       setPostalCode(status.settings.payer_postal_code ?? "");
       setAddressNumber(status.settings.payer_address_number ?? "");
       setHolderName(status.settings.card_holder_name ?? status.settings.payer_name ?? "");
+      const alreadyAccepted =
+        status.settings.terms_version === LICENSE_TERMS_VERSION &&
+        Boolean(status.settings.terms_accepted_at);
+      setTermsChecked(alreadyAccepted);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao carregar.");
     } finally {
@@ -65,7 +77,46 @@ export default function MensalidadePage() {
     void load();
   }, [load]);
 
+  const termsRegistered = useMemo(() => {
+    const settings = payload?.settings;
+    return (
+      settings?.terms_version === LICENSE_TERMS_VERSION && Boolean(settings.terms_accepted_at)
+    );
+  }, [payload?.settings]);
+
+  const registerAcceptance = async () => {
+    if (!termsChecked) {
+      setError("Marque “Li e concordo com o termo” para registrar o aceite.");
+      return;
+    }
+    setAccepting(true);
+    setError(null);
+    setMsg(null);
+    try {
+      const response = await fetch("/api/billing/accept-terms", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          accepted: true,
+          termsVersion: LICENSE_TERMS_VERSION,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error ?? "Falha ao registrar aceite.");
+      setMsg(data.message ?? "Aceite registrado.");
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Falha ao registrar aceite.");
+    } finally {
+      setAccepting(false);
+    }
+  };
+
   const subscribe = async () => {
+    if (!termsRegistered) {
+      setError("Registre o aceite do termo antes de cadastrar o cartão.");
+      return;
+    }
     setSaving(true);
     setError(null);
     setMsg(null);
@@ -74,6 +125,8 @@ export default function MensalidadePage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          termsAccepted: true,
+          termsVersion: LICENSE_TERMS_VERSION,
           card: {
             holderName,
             number,
@@ -133,8 +186,8 @@ export default function MensalidadePage() {
       <div>
         <h1 className="text-2xl font-bold text-slate-900">Renovação da licença</h1>
         <p className="mt-1 text-sm text-slate-500">
-          Parâmetros de cobrança PSCS (valor teste/produção) e cadastro do cartão para renovar a
-          licença do sistema (mensalidade recorrente).
+          Leia e registre o termo de responsabilidade. Só depois cadastre o cartão para a
+          renovação mensal da licença.
         </p>
       </div>
 
@@ -143,154 +196,241 @@ export default function MensalidadePage() {
 
       <BillingParametersPanel />
 
-      <div id="cadastro-cartao">
       <Card>
         <CardHeader
-          title="Situação"
-          description={
-            payload
-              ? `Cobrança atual: ${payload.chargeAmountLabel} · modo ${
-                  settings?.charge_mode === "test" ? "teste" : "produção"
-                } · Asaas ${payload.asaas.configured ? payload.asaas.env : "não configurado"}`
-              : undefined
-          }
-        />
-        <CardBody className="space-y-2 text-sm text-slate-700">
-          <p>
-            Status:{" "}
-            <strong>
-              {settings
-                ? SUBSCRIPTION_STATUS_LABELS[settings.subscription_status] ??
-                  settings.subscription_status
-                : "—"}
-            </strong>
-          </p>
-          {settings?.card_last4 ? (
-            <p>
-              Cartão: {settings.card_brand || "Cartão"} **** {settings.card_last4}
-              {settings.card_holder_name ? ` · ${settings.card_holder_name}` : ""}
-            </p>
-          ) : (
-            <p>Nenhum cartão ativo.</p>
-          )}
-          {settings?.next_due_date ? <p>Próximo vencimento: {settings.next_due_date}</p> : null}
-          {settings?.last_error ? <Alert variant="error">{settings.last_error}</Alert> : null}
-          {active ? (
-            <Button type="button" variant="ghost" onClick={() => void cancel()} disabled={canceling}>
-              {canceling ? "Cancelando…" : "Cancelar assinatura"}
-            </Button>
-          ) : null}
-        </CardBody>
-      </Card>
-
-      <Card>
-        <CardHeader
-          title="Cartão de crédito"
-          description={`Será cobrado ${payload?.chargeAmountLabel ?? formatBRL(1)} na recorrência mensal. Use cartão de teste no sandbox Asaas ou o cartão do Felipe no valor irrisório.`}
+          title={LICENSE_TERMS_TITLE}
+          description={`Versão ${LICENSE_TERMS_VERSION} · renovação mensal · reajuste IGPM após 12 meses`}
         />
         <CardBody className="space-y-4">
-          {!payload?.asaas.configured ? (
-            <Alert variant="warning">
-              Configure <code>ASAAS_API_KEY</code> no servidor antes de testar a cobrança real.
+          <div className="max-h-64 space-y-3 overflow-y-auto rounded-lg border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm leading-relaxed text-slate-700">
+            {LICENSE_TERMS_PARAGRAPHS.map((paragraph, index) => (
+              <p key={`terms-p-${index}`}>{paragraph}</p>
+            ))}
+          </div>
+
+          <label className="flex items-start gap-3 rounded-lg border border-slate-200 bg-white px-3 py-3 text-sm text-slate-800">
+            <input
+              type="checkbox"
+              className="mt-1 h-4 w-4 accent-brand-700"
+              checked={termsChecked}
+              onChange={(e) => setTermsChecked(e.target.checked)}
+            />
+            <span>
+              Li e concordo com o termo de responsabilidade e com a renovação mensal da licença
+              (versão {LICENSE_TERMS_VERSION}).
+            </span>
+          </label>
+
+          {termsRegistered ? (
+            <Alert variant="info">
+              Aceite registrado em{" "}
+              <strong>{formatTermsAcceptedAt(settings?.terms_accepted_at)}</strong>
+              {settings?.terms_version ? ` · ${settings.terms_version}` : ""}. Você já pode
+              cadastrar o cartão abaixo.
             </Alert>
-          ) : null}
-
-          <div className="grid gap-3 sm:grid-cols-2">
-            <label className="block space-y-1 sm:col-span-2">
-              <span className="text-sm font-medium text-slate-700">Nome no cartão</span>
-              <input className={glassField()} value={holderName} onChange={(e) => setHolderName(e.target.value)} />
-            </label>
-            <label className="block space-y-1 sm:col-span-2">
-              <span className="text-sm font-medium text-slate-700">Número do cartão</span>
-              <input
-                className={glassField()}
-                inputMode="numeric"
-                autoComplete="cc-number"
-                value={number}
-                onChange={(e) => setNumber(e.target.value)}
-                placeholder="**** **** **** ****"
-              />
-            </label>
-            <label className="block space-y-1">
-              <span className="text-sm font-medium text-slate-700">Mês</span>
-              <input
-                className={glassField()}
-                inputMode="numeric"
-                placeholder="MM"
-                maxLength={2}
-                value={expiryMonth}
-                onChange={(e) => setExpiryMonth(e.target.value)}
-              />
-            </label>
-            <label className="block space-y-1">
-              <span className="text-sm font-medium text-slate-700">Ano</span>
-              <input
-                className={glassField()}
-                inputMode="numeric"
-                placeholder="AAAA"
-                maxLength={4}
-                value={expiryYear}
-                onChange={(e) => setExpiryYear(e.target.value)}
-              />
-            </label>
-            <label className="block space-y-1">
-              <span className="text-sm font-medium text-slate-700">CVV</span>
-              <input
-                className={glassField()}
-                inputMode="numeric"
-                autoComplete="cc-csc"
-                maxLength={4}
-                value={ccv}
-                onChange={(e) => setCcv(e.target.value)}
-              />
-            </label>
-          </div>
-
-          <h3 className="text-sm font-semibold text-slate-800">Titular / cobrança</h3>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <label className="block space-y-1">
-              <span className="text-sm font-medium text-slate-700">Nome</span>
-              <input className={glassField()} value={payerName} onChange={(e) => setPayerName(e.target.value)} />
-            </label>
-            <label className="block space-y-1">
-              <span className="text-sm font-medium text-slate-700">E-mail</span>
-              <input
-                type="email"
-                className={glassField()}
-                value={payerEmail}
-                onChange={(e) => setPayerEmail(e.target.value)}
-              />
-            </label>
-            <label className="block space-y-1">
-              <span className="text-sm font-medium text-slate-700">CPF/CNPJ</span>
-              <input className={glassField()} value={payerCpf} onChange={(e) => setPayerCpf(e.target.value)} />
-            </label>
-            <label className="block space-y-1">
-              <span className="text-sm font-medium text-slate-700">Telefone</span>
-              <input className={glassField()} value={payerPhone} onChange={(e) => setPayerPhone(e.target.value)} />
-            </label>
-            <label className="block space-y-1">
-              <span className="text-sm font-medium text-slate-700">CEP</span>
-              <input className={glassField()} value={postalCode} onChange={(e) => setPostalCode(e.target.value)} />
-            </label>
-            <label className="block space-y-1">
-              <span className="text-sm font-medium text-slate-700">Nº endereço</span>
-              <input
-                className={glassField()}
-                value={addressNumber}
-                onChange={(e) => setAddressNumber(e.target.value)}
-              />
-            </label>
-          </div>
-
-          <Button type="button" onClick={() => void subscribe()} disabled={saving || !payload?.asaas.configured}>
-            {saving ? "Processando…" : active ? "Trocar cartão / recriar assinatura" : "Ativar mensalidade no cartão"}
-          </Button>
-          <p className="text-xs text-slate-500">
-            Os dados do cartão vão direto ao Asaas e não são salvos no banco do GRX (apenas final **** e bandeira).
-          </p>
+          ) : (
+            <Button
+              type="button"
+              variant="navy"
+              disabled={accepting || !termsChecked}
+              onClick={() => void registerAcceptance()}
+            >
+              {accepting ? "Registrando aceite…" : "Registrar aceite e liberar cartão"}
+            </Button>
+          )}
         </CardBody>
       </Card>
+
+      <div id="cadastro-cartao">
+        <Card>
+          <CardHeader
+            title="Situação"
+            description={
+              payload
+                ? `Cobrança atual: ${payload.chargeAmountLabel} · modo ${
+                    settings?.charge_mode === "test" ? "teste" : "produção"
+                  } · Asaas ${payload.asaas.configured ? payload.asaas.env : "não configurado"}`
+                : undefined
+            }
+          />
+          <CardBody className="space-y-2 text-sm text-slate-700">
+            <p>
+              Status:{" "}
+              <strong>
+                {settings
+                  ? SUBSCRIPTION_STATUS_LABELS[settings.subscription_status] ??
+                    settings.subscription_status
+                  : "—"}
+              </strong>
+            </p>
+            {settings?.card_last4 ? (
+              <p>
+                Cartão: {settings.card_brand || "Cartão"} **** {settings.card_last4}
+                {settings.card_holder_name ? ` · ${settings.card_holder_name}` : ""}
+              </p>
+            ) : (
+              <p>Nenhum cartão ativo.</p>
+            )}
+            {settings?.next_due_date ? <p>Próximo vencimento: {settings.next_due_date}</p> : null}
+            {settings?.last_error ? <Alert variant="error">{settings.last_error}</Alert> : null}
+            {active ? (
+              <Button type="button" variant="ghost" onClick={() => void cancel()} disabled={canceling}>
+                {canceling ? "Cancelando…" : "Cancelar assinatura"}
+              </Button>
+            ) : null}
+          </CardBody>
+        </Card>
+
+        <Card className="mt-6">
+          <CardHeader
+            title="Cartão de crédito"
+            description={
+              termsRegistered
+                ? `Será cobrado ${payload?.chargeAmountLabel ?? formatBRL(1)} na recorrência mensal da licença.`
+                : "Disponível somente após registrar o aceite do termo acima."
+            }
+          />
+          <CardBody className="space-y-4">
+            {!termsRegistered ? (
+              <Alert variant="warning">
+                Registre o aceite do termo de responsabilidade antes de informar os dados do
+                cartão.
+              </Alert>
+            ) : null}
+
+            {!payload?.asaas.configured ? (
+              <Alert variant="warning">
+                Configure <code>ASAAS_API_KEY</code> no servidor antes de testar a cobrança real.
+              </Alert>
+            ) : null}
+
+            <fieldset disabled={!termsRegistered} className="space-y-4 disabled:opacity-50">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="block space-y-1 sm:col-span-2">
+                  <span className="text-sm font-medium text-slate-700">Nome no cartão</span>
+                  <input
+                    className={glassField()}
+                    value={holderName}
+                    onChange={(e) => setHolderName(e.target.value)}
+                  />
+                </label>
+                <label className="block space-y-1 sm:col-span-2">
+                  <span className="text-sm font-medium text-slate-700">Número do cartão</span>
+                  <input
+                    className={glassField()}
+                    inputMode="numeric"
+                    autoComplete="cc-number"
+                    value={number}
+                    onChange={(e) => setNumber(e.target.value)}
+                    placeholder="**** **** **** ****"
+                  />
+                </label>
+                <label className="block space-y-1">
+                  <span className="text-sm font-medium text-slate-700">Mês</span>
+                  <input
+                    className={glassField()}
+                    inputMode="numeric"
+                    placeholder="MM"
+                    maxLength={2}
+                    value={expiryMonth}
+                    onChange={(e) => setExpiryMonth(e.target.value)}
+                  />
+                </label>
+                <label className="block space-y-1">
+                  <span className="text-sm font-medium text-slate-700">Ano</span>
+                  <input
+                    className={glassField()}
+                    inputMode="numeric"
+                    placeholder="AAAA"
+                    maxLength={4}
+                    value={expiryYear}
+                    onChange={(e) => setExpiryYear(e.target.value)}
+                  />
+                </label>
+                <label className="block space-y-1">
+                  <span className="text-sm font-medium text-slate-700">CVV</span>
+                  <input
+                    className={glassField()}
+                    inputMode="numeric"
+                    autoComplete="cc-csc"
+                    maxLength={4}
+                    value={ccv}
+                    onChange={(e) => setCcv(e.target.value)}
+                  />
+                </label>
+              </div>
+
+              <h3 className="text-sm font-semibold text-slate-800">Titular / cobrança</h3>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="block space-y-1">
+                  <span className="text-sm font-medium text-slate-700">Nome</span>
+                  <input
+                    className={glassField()}
+                    value={payerName}
+                    onChange={(e) => setPayerName(e.target.value)}
+                  />
+                </label>
+                <label className="block space-y-1">
+                  <span className="text-sm font-medium text-slate-700">E-mail</span>
+                  <input
+                    type="email"
+                    className={glassField()}
+                    value={payerEmail}
+                    onChange={(e) => setPayerEmail(e.target.value)}
+                  />
+                </label>
+                <label className="block space-y-1">
+                  <span className="text-sm font-medium text-slate-700">CPF/CNPJ</span>
+                  <input
+                    className={glassField()}
+                    value={payerCpf}
+                    onChange={(e) => setPayerCpf(e.target.value)}
+                  />
+                </label>
+                <label className="block space-y-1">
+                  <span className="text-sm font-medium text-slate-700">Telefone</span>
+                  <input
+                    className={glassField()}
+                    value={payerPhone}
+                    onChange={(e) => setPayerPhone(e.target.value)}
+                  />
+                </label>
+                <label className="block space-y-1">
+                  <span className="text-sm font-medium text-slate-700">CEP</span>
+                  <input
+                    className={glassField()}
+                    value={postalCode}
+                    onChange={(e) => setPostalCode(e.target.value)}
+                  />
+                </label>
+                <label className="block space-y-1">
+                  <span className="text-sm font-medium text-slate-700">Nº endereço</span>
+                  <input
+                    className={glassField()}
+                    value={addressNumber}
+                    onChange={(e) => setAddressNumber(e.target.value)}
+                  />
+                </label>
+              </div>
+
+              <Button
+                type="button"
+                onClick={() => void subscribe()}
+                disabled={saving || !payload?.asaas.configured || !termsRegistered}
+              >
+                {saving
+                  ? "Processando…"
+                  : active
+                    ? "Trocar cartão / recriar assinatura"
+                    : "Ativar mensalidade no cartão"}
+              </Button>
+              <p className="text-xs text-slate-500">
+                Os dados do cartão vão direto ao Asaas e não são salvos no banco do GRX (apenas
+                final **** e bandeira).
+              </p>
+            </fieldset>
+          </CardBody>
+        </Card>
       </div>
     </div>
   );

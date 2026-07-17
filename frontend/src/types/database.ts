@@ -26,6 +26,10 @@ export type CompanyBillingSettings = {
   card_holder_name: string | null;
   next_due_date: string | null;
   last_error: string | null;
+  terms_version: string | null;
+  terms_accepted_at: string | null;
+  terms_accepted_by: string | null;
+  terms_accepted_ip: string | null;
 };
 
 export type Partner = {

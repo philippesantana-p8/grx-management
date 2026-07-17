@@ -53,6 +53,10 @@ export function defaultBillingRow(companyId: string): CompanyBillingSettings {
     card_holder_name: null,
     next_due_date: null,
     last_error: null,
+    terms_version: null,
+    terms_accepted_at: null,
+    terms_accepted_by: null,
+    terms_accepted_ip: null,
   };
 }
 
@@ -67,5 +71,5 @@ export async function loadBillingSettings(
     .maybeSingle();
 
   if (error || !data) return defaultBillingRow(companyId);
-  return data as CompanyBillingSettings;
+  return { ...defaultBillingRow(companyId), ...(data as CompanyBillingSettings) };
 }

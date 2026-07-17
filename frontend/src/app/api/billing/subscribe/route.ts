@@ -9,6 +9,7 @@ import {
 } from "@/lib/asaas";
 import { nextBillingDueDate, resolveChargeAmount } from "@/lib/billing";
 import { loadBillingSettings, requireCompanyMember } from "@/lib/billing-server";
+import { LICENSE_TERMS_VERSION } from "@/lib/license-terms";
 
 export const runtime = "nodejs";
 
@@ -28,6 +29,8 @@ type Body = {
     postalCode?: string;
     addressNumber?: string;
   };
+  termsAccepted?: boolean;
+  termsVersion?: string;
 };
 
 function clientIp(request: Request): string {
@@ -58,6 +61,23 @@ export async function POST(request: Request) {
   }
 
   const settings = await loadBillingSettings(auth.supabase, auth.membership.company_id);
+
+  const termsVersionOk =
+    body.termsVersion === LICENSE_TERMS_VERSION ||
+    settings.terms_version === LICENSE_TERMS_VERSION;
+  const termsAcceptedOk =
+    Boolean(body.termsAccepted) ||
+    (settings.terms_version === LICENSE_TERMS_VERSION && Boolean(settings.terms_accepted_at));
+
+  if (!termsAcceptedOk || !termsVersionOk) {
+    return NextResponse.json(
+      {
+        error:
+          "Registre o aceite do termo de responsabilidade antes de cadastrar o cartão.",
+      },
+      { status: 400 }
+    );
+  }
 
   const payerName = (body.payer?.name || settings.payer_name || body.card.holderName).trim();
   const payerEmail = (body.payer?.email || settings.payer_email || auth.user.email || "").trim();
@@ -148,6 +168,10 @@ export async function POST(request: Request) {
           card_holder_name: body.card.holderName.trim(),
           next_due_date: subscription.nextDueDate ?? nextDueDate,
           last_error: null,
+          terms_version: LICENSE_TERMS_VERSION,
+          terms_accepted_at: settings.terms_accepted_at ?? new Date().toISOString(),
+          terms_accepted_by: settings.terms_accepted_by ?? auth.user.id,
+          terms_accepted_ip: settings.terms_accepted_ip ?? clientIp(request),
           updated_by: auth.user.id,
         },
         { onConflict: "company_id" }
