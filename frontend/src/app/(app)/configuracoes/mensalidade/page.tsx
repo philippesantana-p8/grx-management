@@ -202,9 +202,11 @@ export default function MensalidadePage() {
           description={`Versão ${LICENSE_TERMS_VERSION} · renovação mensal · reajuste IGPM após 12 meses`}
         />
         <CardBody className="space-y-4">
-          <div className="max-h-64 space-y-3 overflow-y-auto rounded-lg border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm leading-relaxed text-slate-700">
+          <div className="max-h-72 space-y-3.5 overflow-y-auto rounded-lg border border-slate-200 bg-slate-50/80 px-5 py-4 text-sm leading-7 text-slate-700 [text-align:justify] [text-justify:inter-word] hyphens-auto">
             {LICENSE_TERMS_PARAGRAPHS.map((paragraph, index) => (
-              <p key={`terms-p-${index}`}>{paragraph}</p>
+              <p key={`terms-p-${index}`} lang="pt-BR" className="text-pretty">
+                {paragraph}
+              </p>
             ))}
           </div>
 
