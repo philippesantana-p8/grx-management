@@ -86,7 +86,7 @@ export async function getCompanyLogoUrl(
   return getAttachmentSignedUrl(storagePath, 60 * 60 * 6);
 }
 
-/** Fallback estático quando a empresa ainda não enviou logo. */
+/** Fallback estático quando a empresa ainda não enviou logo (mesmo do voucher). */
 export const DEFAULT_COMPANY_LOGO_SRC = "/grx-logo.png?v=3";
 
 export function companyDisplayName(company: {
@@ -96,4 +96,30 @@ export function companyDisplayName(company: {
   const trade = company?.trade_name?.trim();
   const name = company?.name?.trim();
   return trade || name || "Empresa";
+}
+
+/** Grava o logo atual do voucher (`/grx-logo.png`) no Storage da company. */
+export async function adoptDefaultCompanyLogo(params: {
+  companyId: string;
+  previousPath?: string | null;
+}): Promise<{ path: string | null; error: string | null }> {
+  try {
+    const response = await fetch(DEFAULT_COMPANY_LOGO_SRC);
+    if (!response.ok) {
+      return { path: null, error: "Não foi possível carregar o logo padrão do voucher." };
+    }
+    const blob = await response.blob();
+    const type = blob.type || "image/png";
+    const file = new File([blob], "grx-logo.png", { type });
+    return uploadCompanyLogo({
+      companyId: params.companyId,
+      file,
+      previousPath: params.previousPath,
+    });
+  } catch (err) {
+    return {
+      path: null,
+      error: err instanceof Error ? err.message : "Falha ao gravar o logo padrão.",
+    };
+  }
 }

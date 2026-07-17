@@ -7,6 +7,8 @@ import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { useCompany } from "@/lib/company-context";
 import {
+  adoptDefaultCompanyLogo,
+  DEFAULT_COMPANY_LOGO_SRC,
   getCompanyLogoUrl,
   removeCompanyLogo,
   uploadCompanyLogo,
@@ -120,6 +122,27 @@ export default function EmpresaConfigPage() {
     await refresh();
   };
 
+  const handleAdoptVoucherLogo = async () => {
+    if (!companyId) return;
+    setUploading(true);
+    setError(null);
+    setMessage(null);
+    const { path, error: adoptError } = await adoptDefaultCompanyLogo({
+      companyId,
+      previousPath: logoPath,
+    });
+    setUploading(false);
+    if (adoptError || !path) {
+      setError(adoptError ?? "Falha ao gravar o logo do voucher.");
+      return;
+    }
+    setLogoPath(path);
+    setMessage("Logo do voucher (GRX) gravado na empresa. Já vale para voucher e proposta.");
+    await refresh();
+  };
+
+  const previewSrc = logoUrl || DEFAULT_COMPANY_LOGO_SRC;
+
   if (companyLoading) {
     return <Loading />;
   }
@@ -172,29 +195,30 @@ export default function EmpresaConfigPage() {
       <Card>
         <CardHeader
           title="Logo da empresa"
-          description="PNG ou JPG com fundo transparente, se possível. Usado no voucher e na proposta."
+          description="O logo atual do voucher (GRX) já aparece abaixo. Você pode gravá-lo na empresa ou enviar outro arquivo."
         />
         <CardBody className="space-y-4">
           <div className="flex flex-wrap items-center gap-4">
             <div className="flex h-28 w-44 items-center justify-center rounded-xl border border-slate-200 bg-white p-3">
-              {logoUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={logoUrl}
-                  alt="Logo da empresa"
-                  className="max-h-full max-w-full object-contain"
-                />
-              ) : (
-                <span className="text-center text-xs text-slate-500">
-                  Nenhum logo enviado
-                  <br />
-                  (usa padrão temporário)
-                </span>
-              )}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={previewSrc}
+                alt="Logo da empresa"
+                className="max-h-full max-w-full object-contain"
+              />
             </div>
             <div className="flex flex-col gap-2">
+              {!logoPath ? (
+                <Button
+                  type="button"
+                  disabled={uploading}
+                  onClick={() => void handleAdoptVoucherLogo()}
+                >
+                  {uploading ? "Gravando..." : "Usar logo do voucher (GRX)"}
+                </Button>
+              ) : null}
               <label className="liquid-glass-btn liquid-glass-btn--secondary inline-flex cursor-pointer items-center justify-center px-4 py-2 text-sm font-semibold">
-                {uploading ? "Enviando..." : "Enviar logo"}
+                {uploading ? "Enviando..." : "Enviar outro logo"}
                 <input
                   type="file"
                   accept="image/jpeg,image/png,image/webp,image/heic,.jpg,.jpeg,.png,.webp"
@@ -212,7 +236,11 @@ export default function EmpresaConfigPage() {
                 >
                   Remover logo
                 </Button>
-              ) : null}
+              ) : (
+                <p className="text-xs text-slate-500">
+                  Pré-visualização = logo atual do voucher. Clique em gravar para registrar na empresa.
+                </p>
+              )}
             </div>
           </div>
           <p className="text-xs text-slate-500">JPG, PNG ou WEBP · máx. 5 MB · bucket company-attachments</p>
