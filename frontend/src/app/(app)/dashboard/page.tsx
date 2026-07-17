@@ -17,6 +17,7 @@ import {
   resetDashboardDemo,
   seedDashboardDemo,
 } from "@/lib/dashboard-api";
+import { exportDashboardExcel } from "@/lib/dashboard-export";
 import type {
   DashboardFilters,
   DashboardPeriodKey,
@@ -176,6 +177,7 @@ export default function DashboardPage() {
   const [snapshot, setSnapshot] = useState<DashboardSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [authUserId, setAuthUserId] = useState<string | null>(null);
@@ -266,6 +268,42 @@ export default function DashboardPage() {
     await load();
   };
 
+  const handleExportExcel = async () => {
+    if (!companyId || !dateFrom || !dateTo) return;
+    setExporting(true);
+    setError(null);
+    setMsg(null);
+    try {
+      const result = await exportDashboardExcel({
+        supabase,
+        companyId,
+        from: dateFrom,
+        to: dateTo,
+        filters,
+        includeDemo: false,
+      });
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+      const counts = result.rowCounts;
+      setMsg(
+        `Excel gerado (${result.filename}): OS ${counts?.freteOs ?? 0}, estacionamento ${
+          counts?.parking ?? 0
+        }, lava ${counts?.lava ?? 0}, despesas ${counts?.expenses ?? 0}, receitas ${
+          counts?.revenues ?? 0
+        }.` +
+          (counts?.demoExcluded
+            ? ` ${counts.demoExcluded} lançamento(s) DEMO omitido(s).`
+            : "")
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Falha ao exportar Excel.");
+    } finally {
+      setExporting(false);
+    }
+  };
+
   if (!companyId) return <Loading />;
 
   const plateOptions = [
@@ -326,6 +364,16 @@ export default function DashboardPage() {
                 onChange={(e) => applyCustomDate("to", e.target.value)}
               />
             </label>
+            <div className="flex items-end">
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={exporting || loading || !dateFrom || !dateTo}
+                onClick={() => void handleExportExcel()}
+              >
+                {exporting ? "Gerando Excel…" : "Exportar Excel"}
+              </Button>
+            </div>
           </div>
           {masterUnlocked ? (
             <div className="flex flex-wrap gap-2">

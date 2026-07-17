@@ -6,11 +6,13 @@
     "dev": "next dev -p 3002",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test:dashboard-excel": "node scripts/test-dashboard-excel-export.mjs && npx tsx scripts/test-dashboard-excel-export.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.6.1",
     "@supabase/supabase-js": "^2.49.8",
+    "exceljs": "^4.4.0",
     "next": "^15.3.3",
     "pdfjs-dist": "^6.1.200",
     "qrcode": "^1.5.4",
@@ -21,6 +23,7 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.1",
     "@tailwindcss/postcss": "^4.1.8",
+    "@types/exceljs": "^0.5.3",
     "@types/node": "^22.15.21",
     "@types/qrcode": "^1.5.6",
     "@types/react": "^19.1.6",
