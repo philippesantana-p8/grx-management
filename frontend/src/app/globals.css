@@ -839,25 +839,30 @@ body {
   transform: perspective(900px) rotateY(-6deg) rotateX(4deg);
 }
 
-/* Login / auth — PSCS 3D sobre fundo claro */
+/* Login / auth — logo branco vira preto no fundo claro (paleta P&B Philippe) */
 .brand-logo-mark--auth {
-  max-width: 13.5rem;
+  max-width: 16rem;
 }
 
 .brand-logo-mark--auth .brand-logo-mark-3d-stage {
-  transform: perspective(880px) rotateY(-8deg) rotateX(5deg);
+  transform: none;
 }
 
 .brand-logo-mark--auth .brand-logo-mark-image {
-  filter:
-    drop-shadow(-1px -1px 1px rgba(255, 255, 255, 0.65))
-    drop-shadow(2px 3px 0 rgba(15, 23, 42, 0.18))
-    drop-shadow(5px 8px 14px rgba(15, 23, 42, 0.22));
+  filter: invert(1) drop-shadow(0 2px 8px rgba(15, 23, 42, 0.18));
 }
 
 .brand-logo-mark--auth .brand-logo-mark-depth {
-  opacity: calc(0.28 - (var(--depth) * 0.05));
-  filter: brightness(0.35) saturate(0);
+  display: none;
+}
+
+/* Sidebar escura — marca branca limpa, sem exagero 3D antigo */
+.brand-logo-mark--sidebar .brand-logo-mark-image {
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.45));
+}
+
+.brand-logo-mark--sidebar .brand-logo-mark-depth {
+  opacity: calc(0.35 - (var(--depth) * 0.06));
 }
 
 .brand-logo-mark-stack {
