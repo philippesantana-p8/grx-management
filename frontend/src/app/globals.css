@@ -821,13 +821,17 @@ body {
   transition: transform 0.22s ease;
 }
 
+.brand-logo-mark--sidebar {
+  max-width: 8.25rem;
+}
+
 .brand-logo-mark--sidebar .brand-logo-mark-3d-stage {
   transform: perspective(720px) rotateY(-12deg) rotateX(8deg);
 }
 
 /* Login / auth — PSCS 3D sobre fundo claro */
 .brand-logo-mark--auth {
-  max-width: 17.5rem;
+  max-width: 13.5rem;
 }
 
 .brand-logo-mark--auth .brand-logo-mark-3d-stage {
@@ -1043,8 +1047,8 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  max-width: min(10.5rem, 46vw);
-  padding: 0.2rem 0.55rem;
+  max-width: min(14.5rem, 58vw);
+  padding: 0.3rem 0.75rem;
   border-radius: 999px;
   background: linear-gradient(180deg, #fde68a 0%, #fbbf24 55%, #f59e0b 100%);
   border: 1px solid rgba(180, 83, 9, 0.35);
@@ -1057,9 +1061,9 @@ body {
   display: block;
   width: 100%;
   height: auto;
-  max-height: 2.75rem;
+  max-height: 3.75rem;
   object-fit: contain;
-  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.28));
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.22));
 }
 
 .app-header-company-label {
