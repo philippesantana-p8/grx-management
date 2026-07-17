@@ -1095,7 +1095,6 @@ body {
 .app-header-company .app-header-company-name {
   position: relative;
   z-index: 1;
-  color: #ffffff;
   font-weight: 700;
 }
 
@@ -1109,8 +1108,8 @@ body {
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: #ffffff;
-  text-shadow: 0 1px 1px rgba(15, 23, 42, 0.35);
+  color: #ff3b5c;
+  text-shadow: 0 1px 1px rgba(15, 23, 42, 0.4);
 }
 
 .app-header-company-name {
