@@ -3,7 +3,7 @@
 Versão: 1.0  
 Data: 07/07/2026  
 Status: Pronto para deploy  
-Repositório: [philippesantana-p8/grx-management](https://github.com/philippesantana-p8/grx-management.git)
+Repositório: [PSCS-INFORMATICA-LTDA/logistics-ai-erp](https://github.com/PSCS-INFORMATICA-LTDA/logistics-ai-erp.git)
 
 ---
 
@@ -80,7 +80,7 @@ Verifique no Supabase que o bucket de anexos (migration `008_storage_attachments
 ### 3.1 Importar o projeto
 
 1. Acesse [vercel.com/new](https://vercel.com/new)
-2. Importe `philippesantana-p8/grx-management`
+2. Importe `PSCS-INFORMATICA-LTDA/logistics-ai-erp`
 3. Em **Root Directory**, clique em **Edit** e selecione **`frontend`**
 4. Framework Preset: **Next.js** (detectado automaticamente)
 

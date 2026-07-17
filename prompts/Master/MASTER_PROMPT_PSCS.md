@@ -25,7 +25,7 @@ O sistema nascido como **GRX Management** deve ser tratado como **ERP / framewor
 - Mesmo **repositório**, **schema** (`company_id`) e **stack** para novos clientes (ex.: Comfort).
 - **Não** refazer do zero: onboarding + white-label + módulos.
 - Stack típica: **Next.js (frontend)** + **Supabase (Postgres/Auth/RLS)** + **Vercel**.
-- Repo de referência: `grx-management` (GitHub: philippesantana-p8/grx-management).
+- Repo de referência: `logistics-ai-erp` (GitHub: [PSCS-INFORMATICA-LTDA/logistics-ai-erp](https://github.com/PSCS-INFORMATICA-LTDA/logistics-ai-erp)).
 - Produção: https://grx-management.vercel.app — branch principal: `main`.
 
 ### Modelos de entrega para outro cliente
