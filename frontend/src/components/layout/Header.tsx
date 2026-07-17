@@ -39,7 +39,7 @@ export function Header({ onMenuClick }: HeaderProps) {
           </span>
         </button>
         <div
-          className="app-header-company liquid-glass-btn liquid-glass-btn--secondary min-w-0 text-left"
+          className="app-header-company liquid-glass-btn min-w-0 text-left"
           role="status"
           aria-label={`Empresa ${companyName}`}
         >

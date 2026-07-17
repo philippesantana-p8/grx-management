@@ -1054,19 +1054,49 @@ body {
   }
 }
 
-/* Badge da empresa — liquid glass, à esquerda */
+/* Badge da empresa — liquid glass azul, texto branco negrito */
 .app-header-company {
   margin-left: 0;
   padding: 0.5rem 0.95rem;
   border-radius: 0.875rem;
   text-align: left;
   cursor: default;
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.35);
+  background: linear-gradient(
+    145deg,
+    rgba(37, 99, 235, 0.92) 0%,
+    rgba(29, 78, 216, 0.94) 48%,
+    rgba(30, 64, 175, 0.96) 100%
+  );
+  box-shadow:
+    0 8px 22px rgba(30, 64, 175, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.42),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.12);
+}
+
+.app-header-company:hover {
+  transform: none;
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.42);
+  background: linear-gradient(
+    145deg,
+    rgba(59, 130, 246, 0.95) 0%,
+    rgba(37, 99, 235, 0.96) 48%,
+    rgba(30, 64, 175, 0.98) 100%
+  );
+  box-shadow:
+    0 10px 26px rgba(30, 64, 175, 0.38),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.1);
 }
 
 .app-header-company .app-header-company-label,
 .app-header-company .app-header-company-name {
   position: relative;
   z-index: 1;
+  color: #ffffff;
+  font-weight: 700;
 }
 
 /* Header da área de conteúdo — tudo à esquerda da partição do sistema */
@@ -1076,10 +1106,11 @@ body {
 
 .app-header-company-label {
   font-size: 0.625rem;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: #d0001f;
+  color: #ffffff;
+  text-shadow: 0 1px 1px rgba(15, 23, 42, 0.35);
 }
 
 .app-header-company-name {
@@ -1087,8 +1118,9 @@ body {
   font-size: 1rem;
   font-weight: 700;
   line-height: 1.25;
-  color: #0f172a;
+  color: #ffffff;
   letter-spacing: 0.01em;
+  text-shadow: 0 1px 1px rgba(15, 23, 42, 0.28);
 }
 
 /* Sair — vermelho liquid glass (padrão primary do sistema) */
