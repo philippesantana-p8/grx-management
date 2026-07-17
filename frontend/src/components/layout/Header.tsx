@@ -1,13 +1,9 @@
 "use client";
 
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useCompany } from "@/lib/company-context";
 import { clearMasterSession } from "@/lib/master-password";
-
-/** Logo da empresa adquirente no header (sem fundo). */
-const COMPANY_MARK_SRC = "/grx-company-mark.png?v=4";
 
 type HeaderProps = {
   onMenuClick?: () => void;
@@ -18,7 +14,11 @@ export function Header({ onMenuClick }: HeaderProps) {
   const router = useRouter();
   const supabase = createClient();
 
-  const companyName = company?.trade_name || company?.name || "Empresa";
+  const rawName = (company?.trade_name || company?.name || "").trim();
+  const companyName =
+    !rawName || /^grx\b/i.test(rawName)
+      ? "GRX Transport Logistics"
+      : rawName;
 
   const handleLogout = async () => {
     clearMasterSession();
@@ -42,16 +42,9 @@ export function Header({ onMenuClick }: HeaderProps) {
             <span />
           </span>
         </button>
-        <div className="app-header-company-mark min-w-0" title={companyName}>
-          <Image
-            src={COMPANY_MARK_SRC}
-            alt={companyName}
-            width={606}
-            height={522}
-            unoptimized
-            priority
-            className="app-header-company-mark-image"
-          />
+        <div className="app-header-company min-w-0" title={companyName}>
+          <p className="app-header-company-label">Empresa</p>
+          <p className="app-header-company-name truncate">{companyName}</p>
         </div>
       </div>
       <button type="button" className="app-header-btn shrink-0" onClick={handleLogout}>

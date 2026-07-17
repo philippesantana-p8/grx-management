@@ -1091,10 +1091,11 @@ body {
 
 .app-header-company-name {
   margin-top: 0.125rem;
-  font-size: 0.875rem;
-  font-weight: 600;
+  font-size: 1rem;
+  font-weight: 700;
   line-height: 1.25;
   color: #0f172a;
+  letter-spacing: 0.01em;
 }
 
 /* Sair — vermelho liquid glass (padrão primary do sistema) */
