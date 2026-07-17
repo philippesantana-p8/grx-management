@@ -25,18 +25,18 @@ const sizes = {
   proposal: { width: 240, height: 96 },
 };
 
-/** Proporção do pscs-logo-mark.png (994×485). */
+/** Proporção do pscs-logo-mark.png (1259×522). */
 const markSizes = {
-  sm: { width: 168, height: 82 },
-  md: { width: 220, height: 107 },
-  lg: { width: 280, height: 137 },
-  proposal: { width: 240, height: 117 },
+  sm: { width: 176, height: 73 },
+  md: { width: 228, height: 95 },
+  lg: { width: 288, height: 119 },
+  proposal: { width: 248, height: 103 },
 };
 
 /** Logo da empresa adquirente (ex.: GRX) — voucher, proposta, e-mail. */
 const BRAND_LOGO_SRC = "/grx-logo.png?v=3";
 /** Logo do sistema PSCS Systems 3D — menu lateral / chrome do produto. */
-const SYSTEM_LOGO_MARK_SRC = "/pscs-logo-mark.png?v=1";
+const SYSTEM_LOGO_MARK_SRC = "/pscs-logo-mark.png?v=2";
 
 const MARK_DEPTH_LAYERS = [4, 3, 2, 1] as const;
 
