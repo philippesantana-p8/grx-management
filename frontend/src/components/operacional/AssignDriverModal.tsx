@@ -472,9 +472,9 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
       if (!payDetails) return;
 
       const phoneLabel =
-        formatWhatsAppPhoneDisplay(
-          sharePayload?.whatsappLinks.phoneDigits
-        ) || driver.phone.trim();
+        formatWhatsAppPhoneDisplay(sharePayload?.whatsappLinks.phoneDigits) ||
+        driver.phone?.trim() ||
+        "o motorista";
       const confirmed = window.confirm(
         `${buildShareConfirmMessage(driver, payDetails)}\n\nWhatsApp abrirá no chat de ${phoneLabel}.`
       );
