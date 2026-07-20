@@ -721,11 +721,15 @@ export type WhatsAppShareLinks = {
   message: string;
   /** Protocolo nativo — exige WhatsApp como app padrão do link WHATSAPP no Windows. */
   desktopHref: string;
-  /** Link Meta — costuma funcionar melhor com WhatsApp da Microsoft Store. */
+  /** Link Meta — fallback se o protocolo nativo falhar. */
   storeAppHref: string;
   mobileHref: string;
   /** Melhor opção conforme o sistema. */
   primaryHref: string;
+  /** Dígitos E.164 sem + (ex.: 5511983481803). Null = sem chat direto. */
+  phoneDigits: string | null;
+  /** True quando o link abre o chat da pessoa cadastrada (não depende de Ctrl+V). */
+  opensDirectChat: boolean;
 };
 
 export function buildWhatsAppShareLinks(
@@ -735,25 +739,33 @@ export function buildWhatsAppShareLinks(
 ): WhatsAppShareLinks {
   const skipPhone = options?.omitPhone || isDemoSeedWhatsAppPhone(phone);
   const normalized = skipPhone ? null : phone ? formatPhoneForWhatsApp(phone) : null;
+  const opensDirectChat = Boolean(normalized);
   const messageForShare = formatWhatsAppShareMessage(text);
   const plainMessage = plainTextForWhatsAppUrl(messageForShare);
   const urlText = truncateTextForWhatsAppUrl(plainMessage);
   const encodedText = encodeURIComponent(urlText);
-  const desktopParams = normalized
-    ? `phone=${normalized}&text=${encodedText}`
-    : `text=${encodedText}`;
 
-  const mobileBase = normalized ? `https://wa.me/${normalized}` : "https://wa.me/";
-  const storeAppHref = normalized
-    ? `https://api.whatsapp.com/send?phone=${normalized}&text=${encodedText}`
-    : `https://api.whatsapp.com/send?text=${encodedText}`;
+  // Sem telefone válido não montamos link “solto” — evita abrir chat errado / colar no contato errado.
+  const emptyHref = "";
+  if (!normalized) {
+    return {
+      message: messageForShare,
+      desktopHref: emptyHref,
+      storeAppHref: emptyHref,
+      mobileHref: emptyHref,
+      primaryHref: emptyHref,
+      phoneDigits: null,
+      opensDirectChat: false,
+    };
+  }
 
+  const desktopParams = `phone=${normalized}&text=${encodedText}`;
+  const storeAppHref = `https://api.whatsapp.com/send?phone=${normalized}&text=${encodedText}`;
   // Formato oficial: whatsapp://send?phone=… (sem barra extra após send).
   const desktopHref = `whatsapp://send?${desktopParams}`;
-  const mobileHref = `${mobileBase}?text=${encodedText}`;
+  const mobileHref = `https://wa.me/${normalized}?text=${encodedText}`;
 
-  // Desktop: protocolo nativo foca o WhatsApp já aberto no PC (evita nova aba Web).
-  // Fallback Web fica em storeAppHref para o utilizador clicar se o protocolo falhar.
+  // Desktop: protocolo nativo abre o app no chat do telefone cadastrado.
   const primaryHref = isMobileWhatsAppDevice() ? mobileHref : desktopHref;
 
   return {
@@ -762,7 +774,23 @@ export function buildWhatsAppShareLinks(
     storeAppHref,
     mobileHref,
     primaryHref,
+    phoneDigits: normalized,
+    opensDirectChat,
   };
+}
+
+/** Formata dígitos WhatsApp para exibição (ex.: (11) 98348-1803). */
+export function formatWhatsAppPhoneDisplay(phoneDigits: string | null | undefined): string {
+  if (!phoneDigits) return "";
+  const d = phoneDigits.replace(/\D/g, "");
+  const local = d.startsWith("55") && d.length >= 12 ? d.slice(2) : d;
+  if (local.length === 11) {
+    return `(${local.slice(0, 2)}) ${local.slice(2, 7)}-${local.slice(7)}`;
+  }
+  if (local.length === 10) {
+    return `(${local.slice(0, 2)}) ${local.slice(2, 6)}-${local.slice(6)}`;
+  }
+  return local;
 }
 
 export function isWhatsAppNativeHref(href: string): boolean {
@@ -885,6 +913,9 @@ export function openWhatsAppDesktopSync(
   phone?: string | null
 ): WhatsAppShareResult {
   const links = buildWhatsAppShareLinks(text, phone);
+  if (!links.opensDirectChat || !links.primaryHref) {
+    return { copied: false, mode: "clipboard-only" };
+  }
 
   if (isMobileWhatsAppDevice()) {
     window.open(links.mobileHref, "_blank", "noopener,noreferrer");
@@ -902,23 +933,20 @@ export async function shareViaWhatsAppPrepared(
   options?: { preOpenedWindow?: Window | null; copiedHint?: string; skipCopy?: boolean }
 ): Promise<WhatsAppShareResult> {
   const links = buildWhatsAppShareLinks(urlText, phone);
-  const copied = options?.skipCopy
-    ? true
-    : copyTextToClipboardSync(clipboardText) || (await copyTextToClipboard(clipboardText));
-  openWhatsAppShareHref(links.primaryHref, options?.preOpenedWindow ?? null);
 
-  if (copied) {
-    if (options?.copiedHint) {
-      window.alert(options.copiedHint);
-    }
-    return { copied: true, mode: "desktop-app" };
+  if (!links.opensDirectChat || !links.primaryHref) {
+    window.alert(
+      "Cadastre o telefone do destinatário (cliente ou motorista) para abrir o WhatsApp direto no chat certo.\n\nSem telefone, a mensagem não é enviada — evita risco de ir para a pessoa errada."
+    );
+    return { copied: false, mode: "clipboard-only" };
   }
 
-  window.alert(
-    "Não foi possível copiar automaticamente.\n\nCopie a mensagem exibida em seguida e cole no WhatsApp."
-  );
-  window.prompt("Copie a mensagem:", clipboardText);
-  return { copied: false, mode: "clipboard-only" };
+  // Com telefone na URL, NÃO usar área de transferência: o app abre no chat certo com o texto.
+  openWhatsAppShareHref(links.primaryHref, options?.preOpenedWindow ?? null);
+  if (options?.copiedHint) {
+    window.alert(options.copiedHint);
+  }
+  return { copied: false, mode: "desktop-app" };
 }
 
 /**

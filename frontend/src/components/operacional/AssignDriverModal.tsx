@@ -24,6 +24,7 @@ import {
 } from "@/lib/service-order-driver-assignment";
 import {
   copyTextToClipboardSync,
+  formatWhatsAppPhoneDisplay,
   launchPreparedEmailShare,
   openWhatsAppShareHref,
 } from "@/lib/service-order-proposal";
@@ -422,20 +423,19 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
       : `Registrar envio da designação da ${orderDetails.code} para ${driver.name}?\n\n${payLines}\n\nO link ficará ativo para o motorista aceitar ou recusar. Se fechar o WhatsApp sem enviar, use «Cancelar designação» na lista da OS.`;
   };
 
-  const preOpenShareWindow = (): Window | null => {
-    try {
-      return window.open("about:blank", "_blank");
-    } catch {
-      return null;
-    }
-  };
-
   const launchDriverWhatsAppShare = (
     payload: DriverAssignmentSharePayload,
     preOpened?: Window | null
   ) => {
-    copyTextToClipboardSync(payload.whatsappMessage);
-    openWhatsAppShareHref(payload.whatsappLinks.primaryHref, preOpened ?? null);
+    const links = payload.whatsappLinks;
+    if (!links.opensDirectChat || !links.primaryHref) {
+      window.alert(
+        "Cadastre o telefone do motorista para o WhatsApp abrir direto no contato certo.\n\nSem telefone não enviamos — evita mensagem na pessoa errada."
+      );
+      return;
+    }
+    // Não copiar para área de transferência: o link já inclui phone + texto no chat do motorista.
+    openWhatsAppShareHref(links.primaryHref, preOpened ?? null);
   };
 
   const launchDriverEmailShare = (payload: DriverAssignmentSharePayload) => {
@@ -450,20 +450,17 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
     return true;
   };
 
-  const handleDriverWhatsAppMouseDown = (
-    event: React.MouseEvent,
-    payload: DriverAssignmentSharePayload | null
-  ) => {
-    event.stopPropagation();
-    if (payload) {
-      copyTextToClipboardSync(payload.whatsappMessage);
-    }
-  };
-
   const handleDriverWhatsAppClick = (event: React.MouseEvent, driver: DriverListRow) => {
     event.preventDefault();
     event.stopPropagation();
-    if (!driver.phone?.trim() || saving) return;
+    if (!driver.phone?.trim() || saving) {
+      if (!driver.phone?.trim()) {
+        window.alert(
+          "Cadastre o telefone deste motorista para o WhatsApp abrir direto no contato dele."
+        );
+      }
+      return;
+    }
 
     void (async () => {
       if (sharePayload && selectedId === driver.id) {
@@ -474,19 +471,21 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
       const payDetails = resolvePayDetails();
       if (!payDetails) return;
 
-      const confirmed = window.confirm(buildShareConfirmMessage(driver, payDetails));
+      const phoneLabel =
+        formatWhatsAppPhoneDisplay(
+          sharePayload?.whatsappLinks.phoneDigits
+        ) || driver.phone.trim();
+      const confirmed = window.confirm(
+        `${buildShareConfirmMessage(driver, payDetails)}\n\nWhatsApp abrirá no chat de ${phoneLabel}.`
+      );
       if (!confirmed) return;
 
-      const popup = preOpenShareWindow();
       const payload = await registerAssignmentShareForDriver(driver, payDetails, {
         notifySent: false,
       });
-      if (!payload) {
-        popup?.close();
-        return;
-      }
+      if (!payload) return;
 
-      launchDriverWhatsAppShare(payload, popup);
+      launchDriverWhatsAppShare(payload);
       onAssignmentSent?.(driver.id, driver.name);
     })();
   };
@@ -528,13 +527,13 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
     })();
   };
 
-  const handleWhatsAppShareMouseDown = () => {
-    if (!sharePayload) return;
-    copyTextToClipboardSync(sharePayload.whatsappMessage);
-  };
-
   const handleWhatsAppShareClick = () => {
-    if (!sharePayload || !selectedDriver?.phone?.trim()) return;
+    if (!sharePayload || !selectedDriver?.phone?.trim()) {
+      window.alert(
+        "Cadastre o telefone do motorista para o WhatsApp abrir direto no contato certo."
+      );
+      return;
+    }
     launchDriverWhatsAppShare(sharePayload);
   };
 
@@ -643,19 +642,30 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
               {selectedDriver?.phone?.trim() ? (
                 <button
                   type="button"
-                  title="Enviar designação por WhatsApp"
-                  aria-label="Enviar designação por WhatsApp"
+                  title={`WhatsApp para ${
+                    formatWhatsAppPhoneDisplay(sharePayload.whatsappLinks.phoneDigits) ||
+                    selectedDriver.phone
+                  }`}
+                  aria-label={`Enviar designação no WhatsApp para ${selectedDriver.name}`}
                   disabled={saving}
                   className={cn(
                     secondaryActionClass,
                     "w-full border-green-300 bg-green-50 text-green-900 hover:bg-green-100"
                   )}
-                  onMouseDown={handleWhatsAppShareMouseDown}
                   onClick={handleWhatsAppShareClick}
                 >
                   <WhatsAppIcon className="h-5 w-5" />
+                  <span className="text-sm font-medium">
+                    WhatsApp{" "}
+                    {formatWhatsAppPhoneDisplay(sharePayload.whatsappLinks.phoneDigits) ||
+                      selectedDriver.phone}
+                  </span>
                 </button>
-              ) : null}
+              ) : (
+                <p className="text-sm text-amber-800">
+                  Cadastre o telefone do motorista para abrir o WhatsApp direto no contato dele.
+                </p>
+              )}
               {sharePayload.emailBundle ? (
                 <button
                   type="button"
@@ -780,12 +790,6 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
                                 ? "border-red-300 bg-white text-red-800 hover:bg-red-50"
                                 : "border-green-300 bg-green-50 text-green-800 hover:bg-green-100"
                             )}
-                            onMouseDown={(event) =>
-                              handleDriverWhatsAppMouseDown(
-                                event,
-                                sharePayload && selectedId === driver.id ? sharePayload : null
-                              )
-                            }
                             onClick={(event) => handleDriverWhatsAppClick(event, driver)}
                           >
                             <WhatsAppIcon className="h-4 w-4" />

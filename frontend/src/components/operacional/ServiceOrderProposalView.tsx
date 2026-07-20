@@ -20,10 +20,11 @@ import {
   buildProposalEmailBody,
   buildWhatsAppProposalText,
   buildWhatsAppShareLinks,
-  copyTextToClipboardSync,
+  formatPhoneForWhatsApp,
   formatServiceDate,
+  formatWhatsAppPhoneDisplay,
+  isDemoSeedWhatsAppPhone,
   isLocalhostPublicProposalUrl,
-  isWindowsWhatsAppDesktop,
   launchProposalEmailShareSync,
   resolveClientProposalShareUrl,
   resolveProposalAcceptanceTestUrl,
@@ -119,21 +120,26 @@ export function ServiceOrderProposalView({
     return buildWhatsAppShareLinks(message, order.phone);
   }, [publicToken, order, context]);
 
-  const whatsappHref = whatsappShare?.primaryHref ?? null;
+  const clientPhoneOk =
+    Boolean(formatPhoneForWhatsApp(order.phone)) && !isDemoSeedWhatsAppPhone(order.phone);
+  const whatsappHref =
+    whatsappShare?.opensDirectChat && whatsappShare.primaryHref
+      ? whatsappShare.primaryHref
+      : null;
+  const clientPhoneLabel = formatWhatsAppPhoneDisplay(whatsappShare?.phoneDigits);
 
   const shareIconBase = "h-10 w-10 shrink-0 p-0";
 
-  const handleWhatsAppAnchorMouseDown = () => {
-    if (!whatsappShare) return;
-    copyTextToClipboardSync(whatsappShare.message);
+  const handleWhatsAppAnchorClick = () => {
+    if (!whatsappShare?.opensDirectChat || !clientPhoneLabel) return;
+    setWhatsappHint(
+      `Abrindo o WhatsApp no chat de ${clientPhoneLabel} (telefone do cliente na OS). A mensagem já vai nesse contato — não use Ctrl+V.`
+    );
   };
 
-  const handleWhatsAppAnchorClick = () => {
-    if (!whatsappShare) return;
+  const handleWhatsAppMissingPhone = () => {
     setWhatsappHint(
-      isWindowsWhatsAppDesktop()
-        ? "Mensagem copiada. O sistema tenta abrir o WhatsApp do PC (app já aberto). Se abrir o Web, use o link «abrir no WhatsApp Web» abaixo ou Ctrl+V no app."
-        : "Mensagem copiada. Confira o chat do cliente e pressione Enter."
+      "Cadastre o telefone do cliente na OS (ou no cadastro) para o WhatsApp abrir direto no contato certo. Sem telefone não enviamos — evita mensagem na pessoa errada."
     );
   };
 
@@ -281,18 +287,35 @@ export function ServiceOrderProposalView({
                 {...(whatsappHref.startsWith("whatsapp://")
                   ? {}
                   : { target: "_blank", rel: "noopener noreferrer" })}
-                title="Enviar no WhatsApp"
-                aria-label="Enviar proposta no WhatsApp"
+                title={
+                  clientPhoneLabel
+                    ? `WhatsApp para ${clientPhoneLabel}`
+                    : "Enviar no WhatsApp"
+                }
+                aria-label={
+                  clientPhoneLabel
+                    ? `Enviar proposta no WhatsApp para ${clientPhoneLabel}`
+                    : "Enviar proposta no WhatsApp"
+                }
                 className={cn(
                   glassAction("green", true),
                   shareIconBase,
                   markingSent && "pointer-events-none opacity-50"
                 )}
-                onMouseDown={handleWhatsAppAnchorMouseDown}
                 onClick={handleWhatsAppAnchorClick}
               >
                 <WhatsAppIcon className="h-5 w-5" />
               </a>
+            ) : !clientPhoneOk ? (
+              <button
+                type="button"
+                title="Cadastre o telefone do cliente para abrir o WhatsApp no contato certo"
+                aria-label="WhatsApp indisponível — telefone do cliente não cadastrado"
+                className={cn(glassAction("green", true), shareIconBase, "opacity-50")}
+                onClick={handleWhatsAppMissingPhone}
+              >
+                <WhatsAppIcon className="h-5 w-5" />
+              </button>
             ) : (
               <button
                 type="button"
@@ -345,13 +368,11 @@ export function ServiceOrderProposalView({
             </p>
           )}
 
-          {whatsappShare && (
+          {whatsappShare?.opensDirectChat && clientPhoneLabel ? (
             <p className="proposal-toolbar mb-4 text-xs text-slate-500 print:hidden">
-              WhatsApp: mensagem copiada ao clicar. A prévia do link (logo 3D) atualiza em conversas novas — o
-              WhatsApp guarda cache da imagem antiga por alguns dias.
-              {whatsappShare.storeAppHref &&
-              whatsappHref &&
-              whatsappHref !== whatsappShare.storeAppHref ? (
+              WhatsApp abre o <strong>app</strong> no chat de <strong>{clientPhoneLabel}</strong> (cliente
+              da OS), com a mensagem já nesse contato — sem colar no chat errado.
+              {whatsappShare.storeAppHref && whatsappHref !== whatsappShare.storeAppHref ? (
                 <>
                   {" "}
                   Se o app não abrir,{" "}
@@ -361,11 +382,16 @@ export function ServiceOrderProposalView({
                     rel="noopener noreferrer"
                     className="font-medium text-brand-700 underline"
                   >
-                    abrir no WhatsApp Web
+                    mesmo número no WhatsApp Web
                   </a>
                   .
                 </>
               ) : null}
+            </p>
+          ) : (
+            <p className="proposal-toolbar mb-4 text-xs text-amber-800 print:hidden">
+              Para enviar pelo WhatsApp, informe o telefone do cliente na OS. Assim o app abre direto no
+              contato certo.
             </p>
           )}
 
