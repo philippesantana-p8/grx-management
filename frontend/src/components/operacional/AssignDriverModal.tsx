@@ -28,6 +28,7 @@ import {
   launchPreparedEmailShare,
   openWhatsAppShareHref,
 } from "@/lib/service-order-proposal";
+import { glassAction } from "@/lib/liquid-glass-styles";
 import { createClient } from "@/lib/supabase/client";
 import { cn, formatCurrency } from "@/lib/utils";
 import type { Driver, ServiceOrder } from "@/types/database";
@@ -119,8 +120,7 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
   const [driverPayInput, setDriverPayInput] = useState("");
   const [assistantPayInput, setAssistantPayInput] = useState("");
 
-  const secondaryActionClass =
-    "inline-flex items-center justify-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50";
+  const shareIconBase = "h-10 w-10 shrink-0 p-0";
   const companyName = company?.trade_name || company?.name || "GRX Transportes e Logística";
   const selectedDriver = drivers.find((d) => d.id === selectedId);
   const rejectedDriverIds = orderDetails.driver_assignment_rejected_driver_ids ?? [];
@@ -639,48 +639,85 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
                 ou na lista do motorista para enviar.
               </p>
               <p className="break-all text-xs text-slate-500">{sharePayload.assignmentUrl}</p>
-              {selectedDriver?.phone?.trim() ? (
-                <button
-                  type="button"
-                  title={`WhatsApp para ${
-                    formatWhatsAppPhoneDisplay(sharePayload.whatsappLinks.phoneDigits) ||
-                    selectedDriver.phone
-                  }`}
-                  aria-label={`Enviar designação no WhatsApp para ${selectedDriver.name}`}
-                  disabled={saving}
-                  className={cn(
-                    secondaryActionClass,
-                    "w-full border-green-300 bg-green-50 text-green-900 hover:bg-green-100"
-                  )}
-                  onClick={handleWhatsAppShareClick}
-                >
-                  <WhatsAppIcon className="h-5 w-5" />
-                  <span className="text-sm font-medium">
-                    WhatsApp{" "}
-                    {formatWhatsAppPhoneDisplay(sharePayload.whatsappLinks.phoneDigits) ||
-                      selectedDriver.phone}
-                  </span>
-                </button>
+              <div className="flex flex-wrap items-center gap-2">
+                {sharePayload.whatsappLinks.opensDirectChat &&
+                sharePayload.whatsappLinks.primaryHref ? (
+                  <a
+                    href={sharePayload.whatsappLinks.primaryHref}
+                    {...(sharePayload.whatsappLinks.primaryHref.startsWith("whatsapp://")
+                      ? {}
+                      : { target: "_blank", rel: "noopener noreferrer" })}
+                    title={`WhatsApp para ${
+                      formatWhatsAppPhoneDisplay(sharePayload.whatsappLinks.phoneDigits) ||
+                      selectedDriver?.phone ||
+                      "motorista"
+                    }`}
+                    aria-label={`Enviar designação no WhatsApp para ${shareDriverName}`}
+                    className={cn(
+                      glassAction("green", true),
+                      shareIconBase,
+                      saving && "pointer-events-none opacity-50"
+                    )}
+                    onClick={() => onAssignmentSent?.(selectedId ?? "", shareDriverName)}
+                  >
+                    <WhatsAppIcon className="h-5 w-5" />
+                  </a>
+                ) : (
+                  <button
+                    type="button"
+                    title="Cadastre o telefone do motorista para abrir o WhatsApp no contato certo"
+                    aria-label="WhatsApp indisponível — telefone do motorista não cadastrado"
+                    className={cn(glassAction("green", true), shareIconBase, "opacity-50")}
+                    onClick={handleWhatsAppShareClick}
+                  >
+                    <WhatsAppIcon className="h-5 w-5" />
+                  </button>
+                )}
+                {sharePayload.emailBundle ? (
+                  <button
+                    type="button"
+                    title="Enviar designação por e-mail"
+                    aria-label="Enviar designação por e-mail"
+                    disabled={saving}
+                    className={cn(glassAction("sky", true), shareIconBase)}
+                    onClick={handleEmailShareClick}
+                  >
+                    <MailIcon className="h-5 w-5" />
+                  </button>
+                ) : null}
+              </div>
+              {sharePayload.whatsappLinks.opensDirectChat &&
+              sharePayload.whatsappLinks.phoneDigits ? (
+                <p className="text-xs text-slate-500">
+                  WhatsApp abre o <strong>app</strong> no chat de{" "}
+                  <strong>
+                    {formatWhatsAppPhoneDisplay(sharePayload.whatsappLinks.phoneDigits)}
+                  </strong>{" "}
+                  (motorista), com a mensagem já nesse contato — igual ao fluxo do cliente.
+                  {sharePayload.whatsappLinks.storeAppHref &&
+                  sharePayload.whatsappLinks.primaryHref !==
+                    sharePayload.whatsappLinks.storeAppHref ? (
+                    <>
+                      {" "}
+                      Se o app não abrir,{" "}
+                      <a
+                        href={sharePayload.whatsappLinks.storeAppHref}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-medium text-brand-700 underline"
+                      >
+                        mesmo número no WhatsApp Web
+                      </a>
+                      .
+                    </>
+                  ) : null}
+                </p>
               ) : (
                 <p className="text-sm text-amber-800">
                   Cadastre o telefone do motorista para abrir o WhatsApp direto no contato dele.
                 </p>
               )}
-              {sharePayload.emailBundle ? (
-                <button
-                  type="button"
-                  title="Enviar designação por e-mail"
-                  aria-label="Enviar designação por e-mail"
-                  disabled={saving}
-                  className={cn(
-                    secondaryActionClass,
-                    "w-full border-sky-300 bg-sky-50 text-sky-900 hover:bg-sky-100"
-                  )}
-                  onClick={handleEmailShareClick}
-                >
-                  <MailIcon className="h-5 w-5" />
-                </button>
-              ) : null}            </div>
+            </div>
           ) : loading ? (
             <Loading />
           ) : error ? (
@@ -779,22 +816,39 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
                             type="button"
                             title={
                               refused
-                                ? "Reenviar designação por WhatsApp"
-                                : "Enviar designação por WhatsApp"
+                                ? `Reenviar designação por WhatsApp (${driver.phone})`
+                                : `WhatsApp para ${driver.phone}`
                             }
                             aria-label={`WhatsApp — ${driver.name}`}
                             disabled={saving || (!available && !refused)}
                             className={cn(
-                              "rounded-lg border p-2 disabled:opacity-50",
-                              refused
-                                ? "border-red-300 bg-white text-red-800 hover:bg-red-50"
-                                : "border-green-300 bg-green-50 text-green-800 hover:bg-green-100"
+                              glassAction("green", true),
+                              "h-9 w-9 shrink-0 p-0 disabled:opacity-50"
                             )}
                             onClick={(event) => handleDriverWhatsAppClick(event, driver)}
                           >
                             <WhatsAppIcon className="h-4 w-4" />
                           </button>
-                        ) : null}
+                        ) : (
+                          <button
+                            type="button"
+                            title="Cadastre o telefone do motorista"
+                            aria-label={`WhatsApp indisponível — ${driver.name} sem telefone`}
+                            className={cn(
+                              glassAction("green", true),
+                              "h-9 w-9 shrink-0 p-0 opacity-50"
+                            )}
+                            onClick={(event) => {
+                              event.preventDefault();
+                              event.stopPropagation();
+                              window.alert(
+                                "Cadastre o telefone deste motorista para o WhatsApp abrir direto no contato dele."
+                              );
+                            }}
+                          >
+                            <WhatsAppIcon className="h-4 w-4" />
+                          </button>
+                        )}
                         {driver.email ? (
                           <button
                             type="button"
@@ -806,16 +860,11 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
                             aria-label={`E-mail — ${driver.name}`}
                             disabled={saving || (!available && !refused)}
                             className={cn(
-                              "rounded-lg border p-2 disabled:opacity-50",
-                              refused
-                                ? "border-red-300 bg-white text-red-800 hover:bg-red-50"
-                                : "border-sky-300 bg-sky-50 text-sky-800 hover:bg-sky-100"
+                              glassAction("sky", true),
+                              "h-9 w-9 shrink-0 p-0 disabled:opacity-50"
                             )}
                             onMouseDown={(event) =>
-                              handleDriverEmailMouseDown(
-                                event,
-                                sharePayload && selectedId === driver.id ? sharePayload : null
-                              )
+                              handleDriverEmailMouseDown(event, null)
                             }
                             onClick={(event) => handleDriverEmailClick(event, driver)}
                           >
