@@ -35,37 +35,51 @@ export default function AgendaVeiculosPage() {
     if (!companyId) return;
     setLoading(true);
     setError(null);
+    try {
+      const { data: allVehicles, error: vehiclesError } = await supabase
+        .from("vehicles")
+        .select("id, plate, plate_display")
+        .eq("company_id", companyId)
+        .is("deleted_at", null)
+        .neq("status", "Inativo")
+        .order("plate");
 
-    const { data: allVehicles } = await supabase
-      .from("vehicles")
-      .select("id, plate, plate_display")
-      .eq("company_id", companyId)
-      .is("deleted_at", null)
-      .neq("status", "Inativo")
-      .order("plate");
+      if (vehiclesError) {
+        setError(vehiclesError.message);
+        setFilterVehicles([]);
+        setVehicles([]);
+        setSegments([]);
+        return;
+      }
 
-    setFilterVehicles(
-      (allVehicles ?? []).map((v) => ({
-        value: v.id as string,
-        label: ((v.plate_display as string) || (v.plate as string) || "").toUpperCase(),
-      }))
-    );
+      setFilterVehicles(
+        (allVehicles ?? []).map((v) => ({
+          value: v.id as string,
+          label: ((v.plate_display as string) || (v.plate as string) || "").toUpperCase(),
+        }))
+      );
 
-    const result = await fetchVehicleScheduleData(supabase, companyId, weekAnchor, {
-      vehicleId: vehicleId || null,
-      serviceType: serviceType || null,
-    });
-    if (result.error) {
-      setError(result.error);
+      const result = await fetchVehicleScheduleData(supabase, companyId, weekAnchor, {
+        vehicleId: vehicleId || null,
+        serviceType: serviceType || null,
+      });
+      if (result.error) {
+        setError(result.error);
+        setVehicles([]);
+        setSegments([]);
+        setWeekKeys(result.weekKeys);
+      } else {
+        setVehicles(result.vehicles);
+        setSegments(result.segments);
+        setWeekKeys(result.weekKeys);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Não foi possível carregar a agenda da frota.");
       setVehicles([]);
       setSegments([]);
-      setWeekKeys(result.weekKeys);
-    } else {
-      setVehicles(result.vehicles);
-      setSegments(result.segments);
-      setWeekKeys(result.weekKeys);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, [companyId, serviceType, supabase, vehicleId, weekAnchor]);
 
   useEffect(() => {

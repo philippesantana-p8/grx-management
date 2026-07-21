@@ -59,25 +59,35 @@ export default function EstacionamentoPage() {
     if (!companyId) return;
     setLoading(true);
     setError(null);
-    await seedPatioDefaults(supabase, companyId);
-    const [tRes, eRes] = await Promise.all([
-      listPatioVehicleTypes(supabase, companyId, true),
-      supabase
-        .from("parking_entries")
-        .select("*")
-        .eq("company_id", companyId)
-        .order("entry_date", { ascending: false })
-        .limit(100),
-    ]);
-    if (tRes.error || eRes.error) setError(tRes.error ?? eRes.error?.message ?? null);
-    setTypes(tRes.rows);
-    setRows((eRes.data as ParkingEntryRow[]) ?? []);
-    if (!form.vehicle_type_id && tRes.rows[0]) {
-      const first = tRes.rows.find((r) => allowsParking(r.usage_category));
-      if (first) setForm((f) => ({ ...f, vehicle_type_id: first.id }));
+    try {
+      // Seed não pode travar a tela se o RPC demorar/falhar.
+      await Promise.race([
+        seedPatioDefaults(supabase, companyId),
+        new Promise<null>((resolve) => window.setTimeout(() => resolve(null), 6000)),
+      ]);
+      const [tRes, eRes] = await Promise.all([
+        listPatioVehicleTypes(supabase, companyId, true),
+        supabase
+          .from("parking_entries")
+          .select("*")
+          .eq("company_id", companyId)
+          .order("entry_date", { ascending: false })
+          .limit(100),
+      ]);
+      if (tRes.error || eRes.error) setError(tRes.error ?? eRes.error?.message ?? null);
+      setTypes(tRes.rows);
+      setRows((eRes.data as ParkingEntryRow[]) ?? []);
+      setForm((f) => {
+        if (f.vehicle_type_id) return f;
+        const first = tRes.rows.find((r) => allowsParking(r.usage_category));
+        return first ? { ...f, vehicle_type_id: first.id } : f;
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Não foi possível carregar o estacionamento.");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
-  }, [companyId, supabase, form.vehicle_type_id]);
+  }, [companyId, supabase]);
 
   useEffect(() => {
     void load();

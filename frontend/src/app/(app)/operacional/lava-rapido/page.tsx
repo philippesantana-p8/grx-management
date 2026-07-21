@@ -70,25 +70,34 @@ export default function LavaRapidoPage() {
     if (!companyId) return;
     setLoading(true);
     setError(null);
-    await seedPatioDefaults(supabase, companyId);
-    const [tRes, wRes] = await Promise.all([
-      listPatioVehicleTypes(supabase, companyId, true),
-      supabase
-        .from("car_wash_services")
-        .select("*")
-        .eq("company_id", companyId)
-        .order("service_date", { ascending: false })
-        .limit(100),
-    ]);
-    if (tRes.error || wRes.error) setError(tRes.error ?? wRes.error?.message ?? null);
-    setTypes(tRes.rows);
-    setRows((wRes.data as CarWashServiceRow[]) ?? []);
-    if (!form.vehicle_type_id && tRes.rows[0]) {
-      const first = tRes.rows.find((r) => allowsWash(r.usage_category));
-      if (first) setForm((f) => ({ ...f, vehicle_type_id: first.id }));
+    try {
+      await Promise.race([
+        seedPatioDefaults(supabase, companyId),
+        new Promise<null>((resolve) => window.setTimeout(() => resolve(null), 6000)),
+      ]);
+      const [tRes, wRes] = await Promise.all([
+        listPatioVehicleTypes(supabase, companyId, true),
+        supabase
+          .from("car_wash_services")
+          .select("*")
+          .eq("company_id", companyId)
+          .order("service_date", { ascending: false })
+          .limit(100),
+      ]);
+      if (tRes.error || wRes.error) setError(tRes.error ?? wRes.error?.message ?? null);
+      setTypes(tRes.rows);
+      setRows((wRes.data as CarWashServiceRow[]) ?? []);
+      setForm((f) => {
+        if (f.vehicle_type_id) return f;
+        const first = tRes.rows.find((r) => allowsWash(r.usage_category));
+        return first ? { ...f, vehicle_type_id: first.id } : f;
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Não foi possível carregar o lava-rápido.");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
-  }, [companyId, supabase, form.vehicle_type_id]);
+  }, [companyId, supabase]);
 
   useEffect(() => {
     void load();
