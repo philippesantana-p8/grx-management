@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MailIcon, WhatsAppIcon } from "@/components/icons/ShareIcons";
+import { WhatsAppAppAnchor } from "@/components/operacional/WhatsAppAppAnchor";
 import { Button } from "@/components/ui/Button";
 import { Loading } from "@/components/ui/Badge";
 import { Input } from "@/components/ui/Input";
@@ -561,16 +562,15 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
     })();
   };
 
-  const handleWhatsAppShareClick = (event?: React.MouseEvent) => {
-    event?.preventDefault();
-    event?.stopPropagation();
+  const handleWhatsAppShareOpen = () => {
     if (!sharePayload || !selectedDriver?.phone?.trim()) {
       window.alert(
         "Cadastre o telefone do motorista para o WhatsApp abrir direto no contato certo."
       );
       return;
     }
-    launchDriverWhatsAppShare(sharePayload, selectedId, shareDriverName);
+    // Clique nativo do WhatsAppAppAnchor abre o app; só atualizamos a lista.
+    notifyAssignmentSentOnce(selectedId, shareDriverName);
   };
 
   const handleEmailShareClick = () => {
@@ -679,10 +679,10 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
               <p className="break-all text-xs text-slate-500">{sharePayload.assignmentUrl}</p>
               <div className="flex flex-wrap items-center gap-2">
                 {sharePayload.whatsappLinks.opensDirectChat &&
-                sharePayload.whatsappLinks.desktopHref ? (
-                  <a
-                    href={sharePayload.whatsappLinks.desktopHref}
-                    title={`WhatsApp para ${
+                sharePayload.whatsappLinks.primaryHref ? (
+                  <WhatsAppAppAnchor
+                    href={sharePayload.whatsappLinks.primaryHref}
+                    title={`WhatsApp app — ${
                       formatWhatsAppPhoneDisplay(sharePayload.whatsappLinks.phoneDigits) ||
                       selectedDriver?.phone ||
                       "motorista"
@@ -693,11 +693,11 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
                       "inline-flex h-11 items-center gap-2 px-4 text-sm font-semibold",
                       saving && "pointer-events-none opacity-50"
                     )}
-                    onClick={handleWhatsAppShareClick}
+                    onOpen={handleWhatsAppShareOpen}
                   >
                     <WhatsAppIcon className="h-5 w-5" />
                     Abrir WhatsApp
-                  </a>
+                  </WhatsAppAppAnchor>
                 ) : (
                   <button
                     type="button"
@@ -707,7 +707,11 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
                       glassAction("green", true),
                       "inline-flex h-11 items-center gap-2 px-4 text-sm font-semibold opacity-50"
                     )}
-                    onClick={handleWhatsAppShareClick}
+                    onClick={() =>
+                      window.alert(
+                        "Cadastre o telefone do motorista para o WhatsApp abrir direto no contato certo."
+                      )
+                    }
                   >
                     <WhatsAppIcon className="h-5 w-5" />
                     Abrir WhatsApp

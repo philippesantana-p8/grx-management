@@ -195,16 +195,17 @@ export function buildDriverAssignmentWhatsAppUrlText(
   companyName: string,
   driverName: string,
   assignmentUrl: string,
-  payDetails: DriverAssignmentPayDetails
+  _payDetails: DriverAssignmentPayDetails
 ): string {
-  return buildDriverAssignmentWhatsAppText(
-    order,
-    companyName,
-    driverName,
-    assignmentUrl,
-    payDetails,
-    { compact: true }
-  );
+  // Texto curto para whatsapp:// no Windows (URL longa → app abre vazio ou o Chrome foge para Web).
+  const firstName = driverName.trim().split(/\s+/)[0] || "motorista";
+  return [
+    `Olá, ${firstName}, tudo bem?`,
+    `Segue a designação da OS ${order.code} (${companyName}) para confirmar:`,
+    assignmentUrl.trim(),
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
 export function buildDriverAssignmentEmailBody(

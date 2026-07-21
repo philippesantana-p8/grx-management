@@ -828,8 +828,9 @@ export function openWhatsAppShareHref(href: string, targetWindow?: Window | null
  * Abre o WhatsApp no chat do telefone cadastrado (com a mensagem na URL).
  * Só chamar a partir de clique do utilizador — nunca logo após `await`.
  *
- * No PC (inclui Windows): só o app via `whatsapp://` — mesmo fluxo da proposta ao cliente.
- * Não abre WhatsApp Web / api.whatsapp.com (aba lenta e fora do app já aberto).
+ * Preferir WhatsAppAppAnchor com href=desktopHref (clique nativo no anchor).
+ * Esta função é fallback para botões: simula anchor whatsapp:// via click() —
+ * sem location.href e sem api.whatsapp.com / Web.
  */
 export function openWhatsAppPreferApp(links: WhatsAppShareLinks): boolean {
   if (!links.opensDirectChat || !links.phoneDigits) return false;
@@ -934,17 +935,10 @@ export type WhatsAppShareResult = {
 };
 
 function launchCustomProtocol(url: string) {
-  // location.href no gesto do clique é o caminho mais estável no Windows para
-  // focar o WhatsApp Desktop já aberto no chat (phone+text), sem aba Web.
-  try {
-    window.location.href = url;
-    return;
-  } catch {
-    /* fallback abaixo */
-  }
+  // Mesmo mecanismo do anchor whatsapp://: clique sintético sem target=_blank
+  // e sem location.href (location.href / _blank no Chrome costumam ir para WhatsApp Web).
   const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.rel = "noopener noreferrer";
+  anchor.setAttribute("href", url);
   anchor.style.display = "none";
   document.body.appendChild(anchor);
   anchor.click();
