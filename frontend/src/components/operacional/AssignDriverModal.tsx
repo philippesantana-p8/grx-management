@@ -723,8 +723,9 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
                   {formatWhatsAppPhoneDisplay(sharePayload.whatsappLinks.phoneDigits) ||
                     "telefone cadastrado"}
                 </strong>
-                . Se o app só abrir a tela inicial: bandeja → WhatsApp → <strong>Sair</strong>, e
-                clique de novo no verde.
+                . No Windows: bandeja → WhatsApp → <strong>Sair</strong>, depois o botão verde.
+                Não use WhatsApp Web — abre no chat errado e corta o texto. Se a caixa vier vazia,
+                Ctrl+V.
               </p>
             </div>
           ) : loading ? (

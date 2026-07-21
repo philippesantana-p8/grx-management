@@ -751,14 +751,20 @@ export type WhatsAppShareLinks = {
   opensDirectChat: boolean;
 };
 
-/** Ponte /abrir-whatsapp#phone=&text= — navegação completa antes do protocolo. */
+/**
+ * Ponte /abrir-whatsapp#phone=&text=&full=
+ * `text` = curto para whatsapp:// (Windows corta URL longa).
+ * `full` = mensagem completa só para copiar (Ctrl+V) — nunca HTTPS/Web.
+ */
 export function buildWhatsAppDesktopBridgeHref(
   phoneDigits: string,
-  text?: string | null
+  text?: string | null,
+  fullMessage?: string | null
 ): string {
   const params = new URLSearchParams();
   params.set("phone", phoneDigits.replace(/\D/g, ""));
   if (text?.trim()) params.set("text", text.trim());
+  if (fullMessage?.trim()) params.set("full", fullMessage.trim());
   return `/abrir-whatsapp#${params.toString()}`;
 }
 
@@ -798,16 +804,25 @@ export function buildWhatsAppShareLinks(
   // PC: protocolo oficial do app (sem barra após send — no Desktop o send/? falha com frequência).
   const desktopHref = `whatsapp://send?phone=${normalized}&text=${encodedNativeText}`;
   const desktopChatOnlyHref = `whatsapp://send?phone=${normalized}`;
-  const desktopBridgeHref = buildWhatsAppDesktopBridgeHref(normalized, nativeText);
-  const desktopChatOnlyBridgeHref = buildWhatsAppDesktopBridgeHref(normalized);
+  // Ponte: texto curto no protocolo + mensagem completa no hash (clipboard).
+  const desktopBridgeHref = buildWhatsAppDesktopBridgeHref(
+    normalized,
+    nativeText,
+    messageForShare
+  );
+  const desktopChatOnlyBridgeHref = buildWhatsAppDesktopBridgeHref(
+    normalized,
+    null,
+    messageForShare
+  );
   const mobileHref = `https://wa.me/${normalized}?text=${encodedText}`;
 
-  // Mobile = wa.me. Windows = ponte /abrir-whatsapp (o Desktop aberto ignora whatsapp:// direto).
-  // Outros desktops = protocolo nativo. Nunca primaryHref HTTPS no PC.
+  // Mobile = wa.me. Windows = ponte /abrir-whatsapp (nunca HTTPS no PC — vira Web).
+  // Outros desktops = protocolo nativo.
   const primaryHref = isMobileWhatsAppDevice()
     ? mobileHref
     : isWindowsWhatsAppDesktop()
-      ? desktopBridgeHref
+      ? desktopChatOnlyBridgeHref
       : desktopHref;
 
   return {
