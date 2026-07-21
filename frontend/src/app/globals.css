@@ -1109,7 +1109,7 @@ body {
   }
 }
 
-/* Badge da empresa — liquid glass azul, texto branco negrito */
+/* Badge da empresa — liquid glass preto, nome branco, rótulo vermelho */
 .app-header-company {
   margin-left: 0;
   padding: 0.5rem 0.95rem;
@@ -1117,33 +1117,33 @@ body {
   text-align: left;
   cursor: default;
   color: #ffffff;
-  border-color: rgba(255, 255, 255, 0.35);
+  border-color: rgba(208, 0, 31, 0.55);
   background: linear-gradient(
     145deg,
-    rgba(37, 99, 235, 0.92) 0%,
-    rgba(29, 78, 216, 0.94) 48%,
-    rgba(30, 64, 175, 0.96) 100%
+    rgba(24, 24, 27, 0.96) 0%,
+    rgba(9, 9, 11, 0.98) 48%,
+    rgba(0, 0, 0, 0.98) 100%
   );
   box-shadow:
-    0 8px 22px rgba(30, 64, 175, 0.32),
-    inset 0 1px 0 rgba(255, 255, 255, 0.42),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.12);
+    0 8px 22px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    inset 0 -1px 0 rgba(208, 0, 31, 0.35);
 }
 
 .app-header-company:hover {
   transform: none;
   color: #ffffff;
-  border-color: rgba(255, 255, 255, 0.42);
+  border-color: rgba(208, 0, 31, 0.7);
   background: linear-gradient(
     145deg,
-    rgba(59, 130, 246, 0.95) 0%,
-    rgba(37, 99, 235, 0.96) 48%,
-    rgba(30, 64, 175, 0.98) 100%
+    rgba(39, 39, 42, 0.98) 0%,
+    rgba(24, 24, 27, 0.98) 48%,
+    rgba(0, 0, 0, 1) 100%
   );
   box-shadow:
-    0 10px 26px rgba(30, 64, 175, 0.38),
-    inset 0 1px 0 rgba(255, 255, 255, 0.5),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.1);
+    0 10px 26px rgba(0, 0, 0, 0.42),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    inset 0 -1px 0 rgba(208, 0, 31, 0.45);
 }
 
 .app-header-company .app-header-company-label,
@@ -1163,8 +1163,8 @@ body {
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: #ff3b5c;
-  text-shadow: 0 1px 1px rgba(15, 23, 42, 0.4);
+  color: #ff2d55;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.55);
 }
 
 .app-header-company-name {
@@ -1174,7 +1174,7 @@ body {
   line-height: 1.25;
   color: #ffffff;
   letter-spacing: 0.01em;
-  text-shadow: 0 1px 1px rgba(15, 23, 42, 0.28);
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.45);
 }
 
 /* Sair — vermelho liquid glass (padrão primary do sistema) */
