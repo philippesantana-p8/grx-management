@@ -448,24 +448,21 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
       : `Registrar envio da designação da ${orderDetails.code} para ${driver.name}?\n\n${payLines}\n\nO link ficará ativo para o motorista aceitar ou recusar. Se fechar o WhatsApp sem enviar, use «Cancelar designação» na lista da OS.`;
   };
 
-  const copyAssignmentForDriver = (
+  const launchDriverWhatsAppShare = (
     payload: DriverAssignmentSharePayload,
     driverId?: string,
     driverName?: string
   ) => {
-    const name = driverName || shareDriverName || "motorista";
-    const phoneLabel =
-      formatWhatsAppPhoneDisplay(payload.whatsappLinks.phoneDigits) ||
-      "o telefone cadastrado";
-    const text = payload.whatsappLinks.message || payload.assignmentUrl;
-    const ok = copyTextToClipboardSync(text);
-    notifyAssignmentSentOnce(driverId, name);
-    window.alert(
-      ok
-        ? `Mensagem copiada para ${name} (${phoneLabel}).\n\nAbra o WhatsApp do PC nesse contato e cole (Ctrl+V).\nO motorista responde Aceitar/Recusar pelo link — sem abrir WhatsApp Web.`
-        : `Copie e envie este link no WhatsApp do motorista:\n\n${payload.assignmentUrl}`
-    );
-    return ok;
+    const links = payload.whatsappLinks;
+    if (!links.opensDirectChat || !links.desktopHref?.startsWith("whatsapp://")) {
+      window.alert(
+        "Cadastre o telefone do motorista para o WhatsApp abrir no app, no contato certo."
+      );
+      return false;
+    }
+    const opened = openWhatsAppPreferApp(links);
+    if (opened) notifyAssignmentSentOnce(driverId, driverName);
+    return opened;
   };
 
   const launchDriverEmailShare = (payload: DriverAssignmentSharePayload) => {
@@ -507,7 +504,7 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
         driver.phone?.trim() ||
         "o motorista";
       const confirmed = window.confirm(
-        `${buildShareConfirmMessage(driver, payDetails)}\n\nEm seguida clique em «Abrir WhatsApp» para o chat de ${phoneLabel}.`
+        `${buildShareConfirmMessage(driver, payDetails)}\n\nEm seguida clique em WhatsApp para o chat de ${phoneLabel}.`
       );
       if (!confirmed) return;
 
