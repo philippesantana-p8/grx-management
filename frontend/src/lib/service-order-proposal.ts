@@ -802,8 +802,13 @@ export function buildWhatsAppShareLinks(
   const desktopChatOnlyBridgeHref = buildWhatsAppDesktopBridgeHref(normalized);
   const mobileHref = `https://wa.me/${normalized}?text=${encodedText}`;
 
-  // Desktop = app; mobile = wa.me. Nunca primaryHref HTTPS no PC.
-  const primaryHref = isMobileWhatsAppDevice() ? mobileHref : desktopHref;
+  // Mobile = wa.me. Windows = ponte /abrir-whatsapp (o Desktop aberto ignora whatsapp:// direto).
+  // Outros desktops = protocolo nativo. Nunca primaryHref HTTPS no PC.
+  const primaryHref = isMobileWhatsAppDevice()
+    ? mobileHref
+    : isWindowsWhatsAppDesktop()
+      ? desktopBridgeHref
+      : desktopHref;
 
   return {
     message: messageForShare,

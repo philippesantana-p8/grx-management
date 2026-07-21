@@ -547,6 +547,7 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
   // Isso atualizava a lista, o CrudPage ia para Loading, o modal sumia e o
   // navegador cancelava o whatsapp:// — nada abria (nem app, nem Web).
 
+  // Windows: ponte /abrir-whatsapp — o Desktop aberto ignora whatsapp:// e fica na tela inicial.
   const whatsappOpenHref =
     sharePayload?.whatsappLinks.opensDirectChat && sharePayload.whatsappLinks.primaryHref
       ? sharePayload.whatsappLinks.primaryHref
@@ -652,9 +653,9 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
           {sharePayload ? (
             <div className="space-y-4">
               <p className="text-sm text-emerald-800">
-                Designação registrada para <strong>{shareDriverName}</strong>. Agora clique no
-                botão verde abaixo — é o único clique que abre o app WhatsApp no chat do motorista
-                (mesmo fluxo da proposta ao cliente).
+                Designação registrada para <strong>{shareDriverName}</strong>. Clique em{" "}
+                <strong>Abrir WhatsApp</strong> — no Windows abre uma página intermediária e, nela,
+                o botão verde que entrega o chat no app.
               </p>
               <textarea
                 readOnly
@@ -663,7 +664,8 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
                 value={sharePayload.whatsappMessage || sharePayload.whatsappLinks.message}
               />
               <div className="flex flex-col gap-2">
-                {whatsappOpenHref.startsWith("whatsapp://") ? (
+                {whatsappOpenHref.startsWith("whatsapp://") ||
+                whatsappOpenHref.startsWith("/abrir-whatsapp") ? (
                   <WhatsAppAppAnchor
                     id="assign-driver-whatsapp-open"
                     href={whatsappOpenHref}
@@ -716,13 +718,13 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
                 ) : null}
               </div>
               <p className="text-xs text-slate-600">
-                Abre o <strong>app do PC</strong> no chat de{" "}
+                Chat de{" "}
                 <strong>
                   {formatWhatsAppPhoneDisplay(sharePayload.whatsappLinks.phoneDigits) ||
                     "telefone cadastrado"}
                 </strong>
-                , com a mensagem e o link da designação. Se o WhatsApp só voltar à tela inicial,
-                saia do app pela bandeja e clique de novo em «Abrir WhatsApp».
+                . Se o app só abrir a tela inicial: bandeja → WhatsApp → <strong>Sair</strong>, e
+                clique de novo no verde.
               </p>
             </div>
           ) : loading ? (
