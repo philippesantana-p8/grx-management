@@ -902,6 +902,64 @@ export function shareWhatsAppDesktopChat(links: WhatsAppShareLinks): boolean {
   return openWhatsAppPreferApp(links);
 }
 
+export type DesktopWhatsAppSendResult = {
+  copied: boolean;
+  mode: "share" | "protocol" | "clipboard-only" | "cancelled";
+};
+
+/**
+ * Caminho realista no Windows/Chrome:
+ * 1) copia a mensagem completa
+ * 2) tenta o painel Compartilhar do Windows (costuma listar o WhatsApp Desktop)
+ * 3) se não der, tenta whatsapp://send?phone= (sem HTTPS/Web)
+ */
+export async function sendWhatsAppDesktopMessage(input: {
+  message: string;
+  phoneDigits: string;
+  title?: string;
+}): Promise<DesktopWhatsAppSendResult> {
+  const phone = input.phoneDigits.replace(/\D/g, "");
+  const message = input.message.trim();
+  const copied = message ? copyTextToClipboardSync(message) : false;
+
+  if (!phone || phone.length < 10) {
+    return { copied, mode: "clipboard-only" };
+  }
+
+  if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
+    try {
+      await navigator.share({
+        title: input.title?.trim() || "WhatsApp",
+        text: message,
+      });
+      return { copied, mode: "share" };
+    } catch (err) {
+      const name = err instanceof DOMException ? err.name : "";
+      if (name === "AbortError") {
+        return { copied, mode: "cancelled" };
+      }
+      // Continua para o protocolo nativo.
+    }
+  }
+
+  const href = `whatsapp://send?phone=${phone}`;
+  try {
+    window.location.href = href;
+  } catch {
+    try {
+      const anchor = document.createElement("a");
+      anchor.href = href;
+      anchor.style.display = "none";
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+    } catch {
+      return { copied, mode: "clipboard-only" };
+    }
+  }
+  return { copied, mode: "protocol" };
+}
+
 export function openExternalUrl(url: string, targetWindow?: Window | null): void {
   if (targetWindow && !targetWindow.closed) {
     targetWindow.location.href = url;

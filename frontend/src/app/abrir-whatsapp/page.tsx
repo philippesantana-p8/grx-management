@@ -1,25 +1,24 @@
 "use client";
 
-import { useEffect, useState, type MouseEvent } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   copyTextToClipboardSync,
   formatWhatsAppPhoneDisplay,
+  sendWhatsAppDesktopMessage,
 } from "@/lib/service-order-proposal";
 
 /**
- * Ponte Windows — só protocolo do app (whatsapp://). Nunca api.whatsapp.com / Web:
- * isso abre o chat errado e manda texto truncado.
+ * Envio Windows: Compartilhar do sistema + cópia da mensagem.
+ * Não usa WhatsApp Web (abre chat errado / corta texto).
  */
 export default function AbrirWhatsAppPage() {
   const [phone, setPhone] = useState("");
-  const [shortText, setShortText] = useState("");
   const [fullMessage, setFullMessage] = useState("");
-  const [chatOnlyHref, setChatOnlyHref] = useState<string | null>(null);
-  const [withTextHref, setWithTextHref] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [tried, setTried] = useState(false);
 
   useEffect(() => {
     const raw = window.location.hash.replace(/^#/, "");
@@ -34,139 +33,107 @@ export default function AbrirWhatsAppPage() {
     }
 
     setPhone(phoneDigits);
-    setShortText(text);
     setFullMessage(full);
-    setChatOnlyHref(`whatsapp://send?phone=${phoneDigits}`);
-    setWithTextHref(
-      text ? `whatsapp://send?phone=${phoneDigits}&text=${encodeURIComponent(text)}` : null
-    );
-
-    // Já deixa a mensagem completa na área de transferência ao chegar na página.
     if (full) copyTextToClipboardSync(full);
   }, []);
 
-  const clipboardText = fullMessage || shortText;
+  const phoneLabel = formatWhatsAppPhoneDisplay(phone) || phone;
 
   const copyMessage = () => {
-    if (!clipboardText) return;
-    const ok = copyTextToClipboardSync(clipboardText);
+    if (!fullMessage) return;
+    const ok = copyTextToClipboardSync(fullMessage);
     setCopied(ok);
+    setStatus(ok ? "Mensagem completa copiada." : "Não foi possível copiar.");
     window.setTimeout(() => setCopied(false), 2500);
   };
 
-  const launchNative = (href: string) => {
-    copyMessage();
+  const handleSend = async () => {
+    if (!phone || !fullMessage || busy) return;
+    setBusy(true);
+    setStatus(null);
+    const result = await sendWhatsAppDesktopMessage({
+      message: fullMessage,
+      phoneDigits: phone,
+      title: "Designação GRX",
+    });
+    setBusy(false);
 
-    try {
-      window.location.href = href;
-    } catch {
-      /* ignore */
+    if (result.mode === "share") {
+      setStatus(
+        `Mensagem enviada ao painel Compartilhar. Escolha o WhatsApp do PC e o contato ${phoneLabel}.`
+      );
+      return;
     }
-
-    try {
-      const iframe = document.createElement("iframe");
-      iframe.style.display = "none";
-      iframe.src = href;
-      document.body.appendChild(iframe);
-      window.setTimeout(() => {
-        try {
-          iframe.remove();
-        } catch {
-          /* ignore */
-        }
-      }, 2500);
-    } catch {
-      /* ignore */
+    if (result.mode === "cancelled") {
+      setStatus("Compartilhar cancelado. A mensagem continua copiada — Ctrl+V no chat do motorista.");
+      return;
     }
-
-    try {
-      const anchor = document.createElement("a");
-      anchor.href = href;
-      anchor.style.display = "none";
-      document.body.appendChild(anchor);
-      anchor.click();
-      document.body.removeChild(anchor);
-    } catch {
-      /* ignore */
+    if (result.mode === "protocol") {
+      setStatus(
+        `Tentamos abrir o app no número ${phoneLabel}. Se não abriu o chat certo, abra o WhatsApp do PC, busque esse número e Ctrl+V.`
+      );
+      return;
     }
-
-    setTried(true);
+    setStatus(
+      `Mensagem copiada. Abra o WhatsApp do PC, busque ${phoneLabel} e cole com Ctrl+V.`
+    );
   };
-
-  const handleNativeClick = (event: MouseEvent<HTMLAnchorElement>, href: string) => {
-    event.preventDefault();
-    launchNative(href);
-  };
-
-  const phoneLabel = formatWhatsAppPhoneDisplay(phone) || phone;
 
   return (
     <main className="mx-auto flex min-h-[60vh] max-w-lg flex-col items-start justify-center gap-4 px-6 py-16">
-      <h1 className="text-xl font-semibold text-slate-900">Abrir WhatsApp do PC</h1>
+      <h1 className="text-xl font-semibold text-slate-900">Enviar no WhatsApp do PC</h1>
       {error ? (
         <p className="text-sm text-red-700">{error}</p>
       ) : (
         <>
           <p className="text-sm text-slate-600">
-            Destino: chat do motorista <strong>{phoneLabel}</strong> ({phone}).{" "}
-            <strong>Não usa WhatsApp Web</strong> — só o app do PC.
+            Motorista: <strong>{phoneLabel}</strong>
+            <span className="text-slate-500"> ({phone})</span>
           </p>
-          <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
-            1) Bandeja → WhatsApp → <strong>Sair</strong>
-            <br />
-            2) Clique no botão verde abaixo
-            <br />
-            3) Se o chat abrir sem texto, Ctrl+V (mensagem completa já copiada)
+          <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-950">
+            No Windows o Chrome <strong>não consegue forçar</strong> o app a abrir o chat sozinho.
+            O botão verde copia a mensagem completa e abre o{" "}
+            <strong>Compartilhar do Windows</strong> (escolha WhatsApp) ou tenta o app no número
+            certo. Sem WhatsApp Web.
           </p>
         </>
       )}
 
-      {chatOnlyHref ? (
+      {!error && phone ? (
         <div className="flex w-full flex-col gap-2">
-          <a
-            href={chatOnlyHref}
-            onClick={(event) => handleNativeClick(event, chatOnlyHref)}
-            className="inline-flex w-full items-center justify-center rounded-lg bg-emerald-600 px-5 py-3 text-base font-semibold text-white shadow hover:bg-emerald-700"
+          <button
+            type="button"
+            disabled={busy || !fullMessage}
+            onClick={() => void handleSend()}
+            className="inline-flex w-full items-center justify-center rounded-lg bg-emerald-600 px-5 py-3 text-base font-semibold text-white shadow hover:bg-emerald-700 disabled:opacity-60"
           >
-            Abrir chat do motorista no app
-          </a>
-          {withTextHref ? (
-            <a
-              href={withTextHref}
-              onClick={(event) => handleNativeClick(event, withTextHref)}
-              className="inline-flex w-full items-center justify-center rounded-lg border border-emerald-700 bg-white px-5 py-3 text-sm font-semibold text-emerald-800 hover:bg-emerald-50"
-            >
-              Tentar de novo com texto curto no app
-            </a>
-          ) : null}
-
+            {busy ? "Abrindo…" : "Copiar e enviar no WhatsApp"}
+          </button>
           <button
             type="button"
             onClick={copyMessage}
             className="inline-flex w-full items-center justify-center rounded-lg border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-800 hover:bg-slate-50"
           >
-            {copied ? "Mensagem completa copiada" : "Copiar mensagem completa"}
+            {copied ? "Mensagem copiada" : "Só copiar mensagem completa"}
           </button>
 
-          {clipboardText ? (
+          {fullMessage ? (
             <textarea
               readOnly
-              rows={8}
+              rows={10}
               className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-800"
-              value={clipboardText}
+              value={fullMessage}
             />
           ) : null}
 
-          {tried ? (
-            <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
-              Se o app não abriu o chat de <strong>{phoneLabel}</strong>: abra o WhatsApp do PC
-              manualmente, busque esse número, cole com Ctrl+V e envie. Não use WhatsApp Web — o
-              Web abre no chat errado e corta a mensagem.
+          {status ? (
+            <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-800">
+              {status}
             </p>
           ) : null}
         </div>
       ) : !error ? (
-        <p className="text-sm text-slate-500">Preparando link…</p>
+        <p className="text-sm text-slate-500">Preparando…</p>
       ) : null}
 
       <Link href="/operacional/ordens-servico" className="text-sm font-medium text-red-700 underline">

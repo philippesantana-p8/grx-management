@@ -28,7 +28,9 @@ import {
   copyTextToClipboardSync,
   formatPhoneForWhatsApp,
   formatWhatsAppPhoneDisplay,
+  isWindowsWhatsAppDesktop,
   launchPreparedEmailShare,
+  sendWhatsAppDesktopMessage,
 } from "@/lib/service-order-proposal";
 import { glassAction } from "@/lib/liquid-glass-styles";
 import { createClient } from "@/lib/supabase/client";
@@ -122,6 +124,8 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
   const assignmentSentNotifiedRef = useRef(false);
   const [driverPayInput, setDriverPayInput] = useState("");
   const [assistantPayInput, setAssistantPayInput] = useState("");
+  const [whatsappStatus, setWhatsappStatus] = useState<string | null>(null);
+  const [whatsappBusy, setWhatsappBusy] = useState(false);
 
   const companyName = company?.trade_name || company?.name || "GRX Transportes e Logística";
   const selectedDriver = drivers.find((d) => d.id === selectedId);
@@ -543,15 +547,51 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
     if (text) copyTextToClipboardSync(text);
   };
 
-  // NÃO chamar onAssignmentSent no clique do WhatsApp.
-  // Isso atualizava a lista, o CrudPage ia para Loading, o modal sumia e o
-  // navegador cancelava o whatsapp:// — nada abria (nem app, nem Web).
-
-  // Windows: ponte /abrir-whatsapp — o Desktop aberto ignora whatsapp:// e fica na tela inicial.
+  // NÃO chamar onAssignmentSent no clique do WhatsApp (remount mata o protocolo).
   const whatsappOpenHref =
     sharePayload?.whatsappLinks.opensDirectChat && sharePayload.whatsappLinks.primaryHref
       ? sharePayload.whatsappLinks.primaryHref
       : "";
+
+  const handleWindowsWhatsAppSend = async () => {
+    if (!sharePayload?.whatsappLinks.phoneDigits || whatsappBusy) return;
+    const message =
+      sharePayload.whatsappMessage || sharePayload.whatsappLinks.message || "";
+    if (!message.trim()) return;
+
+    setWhatsappBusy(true);
+    setWhatsappStatus(null);
+    const phone = sharePayload.whatsappLinks.phoneDigits;
+    const phoneLabel = formatWhatsAppPhoneDisplay(phone) || phone;
+    const result = await sendWhatsAppDesktopMessage({
+      message,
+      phoneDigits: phone,
+      title: `Designação ${orderDetails.code}`,
+    });
+    setWhatsappBusy(false);
+
+    if (result.mode === "share") {
+      setWhatsappStatus(
+        `Escolha o WhatsApp do PC no painel Compartilhar e o contato ${phoneLabel}.`
+      );
+    } else if (result.mode === "cancelled") {
+      setWhatsappStatus(
+        `Compartilhar cancelado. Mensagem copiada — abra o chat de ${phoneLabel} e Ctrl+V.`
+      );
+    } else if (result.mode === "protocol") {
+      setWhatsappStatus(
+        `Tentamos abrir o app em ${phoneLabel}. Se não abriu o chat certo: WhatsApp do PC → esse número → Ctrl+V.`
+      );
+    } else {
+      setWhatsappStatus(
+        `Mensagem copiada. Abra o WhatsApp do PC, busque ${phoneLabel} e Ctrl+V.`
+      );
+    }
+
+    window.setTimeout(() => {
+      notifyAssignmentSentOnce(selectedId, shareDriverName);
+    }, 1200);
+  };
 
   const handleEmailShareClick = () => {
     if (!sharePayload) {
@@ -653,9 +693,13 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
           {sharePayload ? (
             <div className="space-y-4">
               <p className="text-sm text-emerald-800">
-                Designação registrada para <strong>{shareDriverName}</strong>. Clique em{" "}
-                <strong>Abrir WhatsApp</strong> — no Windows abre uma página intermediária e, nela,
-                o botão verde que entrega o chat no app.
+                Designação registrada para <strong>{shareDriverName}</strong>. Envie pelo WhatsApp
+                do PC no número{" "}
+                <strong>
+                  {formatWhatsAppPhoneDisplay(sharePayload.whatsappLinks.phoneDigits) ||
+                    "cadastrado"}
+                </strong>
+                .
               </p>
               <textarea
                 readOnly
@@ -664,27 +708,51 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
                 value={sharePayload.whatsappMessage || sharePayload.whatsappLinks.message}
               />
               <div className="flex flex-col gap-2">
-                {whatsappOpenHref.startsWith("whatsapp://") ||
-                whatsappOpenHref.startsWith("/abrir-whatsapp") ? (
-                  <WhatsAppAppAnchor
-                    id="assign-driver-whatsapp-open"
-                    href={whatsappOpenHref}
-                    title={`WhatsApp app — ${
-                      formatWhatsAppPhoneDisplay(sharePayload.whatsappLinks.phoneDigits) ||
-                      selectedDriver?.phone ||
-                      "motorista"
-                    }`}
-                    aria-label={`Abrir WhatsApp para ${shareDriverName}`}
-                    className={cn(
-                      glassAction("green", true),
-                      "inline-flex h-12 w-full items-center justify-center gap-2 px-4 text-base font-semibold",
-                      saving && "pointer-events-none opacity-50"
-                    )}
-                    onMouseDown={handleWhatsAppShareMouseDown}
-                  >
-                    <WhatsAppIcon className="h-5 w-5" />
-                    Abrir WhatsApp
-                  </WhatsAppAppAnchor>
+                {sharePayload.whatsappLinks.opensDirectChat &&
+                sharePayload.whatsappLinks.phoneDigits ? (
+                  isWindowsWhatsAppDesktop() ? (
+                    <button
+                      type="button"
+                      id="assign-driver-whatsapp-open"
+                      disabled={saving || whatsappBusy}
+                      title={`WhatsApp — ${
+                        formatWhatsAppPhoneDisplay(sharePayload.whatsappLinks.phoneDigits) ||
+                        selectedDriver?.phone ||
+                        "motorista"
+                      }`}
+                      aria-label={`Enviar designação no WhatsApp para ${shareDriverName}`}
+                      className={cn(
+                        glassAction("green", true),
+                        "inline-flex h-12 w-full items-center justify-center gap-2 px-4 text-base font-semibold",
+                        (saving || whatsappBusy) && "pointer-events-none opacity-50"
+                      )}
+                      onClick={() => void handleWindowsWhatsAppSend()}
+                    >
+                      <WhatsAppIcon className="h-5 w-5" />
+                      {whatsappBusy ? "Abrindo…" : "Copiar e enviar no WhatsApp"}
+                    </button>
+                  ) : whatsappOpenHref.startsWith("whatsapp://") ||
+                    whatsappOpenHref.startsWith("/abrir-whatsapp") ? (
+                    <WhatsAppAppAnchor
+                      id="assign-driver-whatsapp-open"
+                      href={whatsappOpenHref}
+                      title={`WhatsApp app — ${
+                        formatWhatsAppPhoneDisplay(sharePayload.whatsappLinks.phoneDigits) ||
+                        selectedDriver?.phone ||
+                        "motorista"
+                      }`}
+                      aria-label={`Abrir WhatsApp para ${shareDriverName}`}
+                      className={cn(
+                        glassAction("green", true),
+                        "inline-flex h-12 w-full items-center justify-center gap-2 px-4 text-base font-semibold",
+                        saving && "pointer-events-none opacity-50"
+                      )}
+                      onMouseDown={handleWhatsAppShareMouseDown}
+                    >
+                      <WhatsAppIcon className="h-5 w-5" />
+                      Abrir WhatsApp
+                    </WhatsAppAppAnchor>
+                  ) : null
                 ) : (
                   <button
                     type="button"
@@ -717,16 +785,16 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
                   </button>
                 ) : null}
               </div>
-              <p className="text-xs text-slate-600">
-                Chat de{" "}
-                <strong>
-                  {formatWhatsAppPhoneDisplay(sharePayload.whatsappLinks.phoneDigits) ||
-                    "telefone cadastrado"}
-                </strong>
-                . No Windows: bandeja → WhatsApp → <strong>Sair</strong>, depois o botão verde.
-                Não use WhatsApp Web — abre no chat errado e corta o texto. Se a caixa vier vazia,
-                Ctrl+V.
-              </p>
+              {whatsappStatus ? (
+                <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-800">
+                  {whatsappStatus}
+                </p>
+              ) : (
+                <p className="text-xs text-slate-600">
+                  No Windows: o botão copia a mensagem completa e abre o Compartilhar do sistema
+                  (escolha o WhatsApp do PC). Sem WhatsApp Web.
+                </p>
+              )}
             </div>
           ) : loading ? (
             <Loading />
