@@ -123,10 +123,13 @@ export function ServiceOrderProposalView({
 
   const clientPhoneOk =
     Boolean(formatPhoneForWhatsApp(order.phone)) && !isDemoSeedWhatsAppPhone(order.phone);
+  // Sempre o protocolo do app no PC (igual designação). Nunca api.whatsapp.com.
   const whatsappHref =
-    whatsappShare?.opensDirectChat && whatsappShare.primaryHref
-      ? whatsappShare.primaryHref
-      : null;
+    whatsappShare?.opensDirectChat && whatsappShare.desktopHref?.startsWith("whatsapp://")
+      ? whatsappShare.desktopHref
+      : whatsappShare?.opensDirectChat && whatsappShare.primaryHref
+        ? whatsappShare.primaryHref
+        : null;
   const clientPhoneLabel = formatWhatsAppPhoneDisplay(whatsappShare?.phoneDigits);
 
   const shareIconBase = "h-10 w-10 shrink-0 p-0";

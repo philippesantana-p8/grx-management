@@ -771,12 +771,13 @@ export function buildWhatsAppShareLinks(
     };
   }
 
+  // Mantido só como dado interno — UI do PC NÃO deve usar este HTTPS (vira Web).
   const storeAppHref = `https://api.whatsapp.com/send?phone=${normalized}&text=${encodedText}`;
-  // App do PC (proposta cliente e designação motorista): nunca WhatsApp Web.
+  // App do PC (proposta cliente e designação motorista): protocolo nativo.
   const desktopHref = `whatsapp://send?phone=${normalized}&text=${encodedNativeText}`;
   const mobileHref = `https://wa.me/${normalized}?text=${encodedText}`;
 
-  // Desktop = protocolo do app; mobile = wa.me. Sem abrir api/web no PC.
+  // Desktop = só whatsapp://. Mobile = wa.me. Nunca primaryHref = api.whatsapp.com.
   const primaryHref = isMobileWhatsAppDevice() ? mobileHref : desktopHref;
 
   return {

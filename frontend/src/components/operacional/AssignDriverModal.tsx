@@ -679,25 +679,32 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
               <p className="break-all text-xs text-slate-500">{sharePayload.assignmentUrl}</p>
               <div className="flex flex-wrap items-center gap-2">
                 {sharePayload.whatsappLinks.opensDirectChat &&
-                sharePayload.whatsappLinks.primaryHref ? (
-                  <WhatsAppAppAnchor
-                    href={sharePayload.whatsappLinks.primaryHref}
-                    title={`WhatsApp app — ${
-                      formatWhatsAppPhoneDisplay(sharePayload.whatsappLinks.phoneDigits) ||
-                      selectedDriver?.phone ||
-                      "motorista"
-                    }`}
-                    aria-label={`Abrir WhatsApp para ${shareDriverName}`}
-                    className={cn(
-                      glassAction("green", true),
-                      "inline-flex h-11 items-center gap-2 px-4 text-sm font-semibold",
-                      saving && "pointer-events-none opacity-50"
-                    )}
-                    onOpen={handleWhatsAppShareOpen}
-                  >
-                    <WhatsAppIcon className="h-5 w-5" />
-                    Abrir WhatsApp
-                  </WhatsAppAppAnchor>
+                sharePayload.whatsappLinks.desktopHref?.startsWith("whatsapp://") ? (
+                  <div className="space-y-1">
+                    <WhatsAppAppAnchor
+                      href={sharePayload.whatsappLinks.desktopHref}
+                      title={`whatsapp:// → app do PC — ${
+                        formatWhatsAppPhoneDisplay(sharePayload.whatsappLinks.phoneDigits) ||
+                        selectedDriver?.phone ||
+                        "motorista"
+                      }`}
+                      aria-label={`Abrir app WhatsApp para ${shareDriverName}`}
+                      className={cn(
+                        glassAction("green", true),
+                        "inline-flex h-11 items-center gap-2 px-4 text-sm font-semibold",
+                        saving && "pointer-events-none opacity-50"
+                      )}
+                      onOpen={handleWhatsAppShareOpen}
+                    >
+                      <WhatsAppIcon className="h-5 w-5" />
+                      Abrir app WhatsApp
+                    </WhatsAppAppAnchor>
+                    <p className="text-[11px] text-slate-500">
+                      Link: <code className="text-[10px]">whatsapp://</code> (app) — se a barra do
+                      Chrome mostrar <code className="text-[10px]">https://api.whatsapp.com</code>,
+                      feche a aba e abra de novo com Ctrl+F5.
+                    </p>
+                  </div>
                 ) : (
                   <button
                     type="button"
@@ -714,7 +721,7 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
                     }
                   >
                     <WhatsAppIcon className="h-5 w-5" />
-                    Abrir WhatsApp
+                    Abrir app WhatsApp
                   </button>
                 )}
                 {sharePayload.emailBundle ? (
@@ -733,12 +740,11 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
               {sharePayload.whatsappLinks.opensDirectChat &&
               sharePayload.whatsappLinks.phoneDigits ? (
                 <p className="text-xs text-slate-600">
-                  Mesmo fluxo da proposta ao cliente: abre o <strong>WhatsApp do PC</strong> no chat
-                  de{" "}
+                  Versão app (whatsapp://): abre o <strong>WhatsApp do PC</strong> no chat de{" "}
                   <strong>
                     {formatWhatsAppPhoneDisplay(sharePayload.whatsappLinks.phoneDigits)}
-                  </strong>{" "}
-                  com a mensagem e o link — sem WhatsApp Web.
+                  </strong>
+                  . Não usa WhatsApp Web.
                 </p>
               ) : (
                 <p className="text-sm text-amber-800">
