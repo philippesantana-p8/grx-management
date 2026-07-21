@@ -794,17 +794,16 @@ export function buildWhatsAppShareLinks(
     };
   }
 
-  // Link oficial Meta (wa.me): abre o chat do telefone com a mensagem.
-  // O Windows decide app ou Web — é o caminho estável (igual click-to-chat da proposta).
   const storeAppHref = `https://api.whatsapp.com/send?phone=${normalized}&text=${encodedText}`;
+  // PC: só protocolo do app (não abre aba Web).
   const desktopHref = `whatsapp://send/?phone=${normalized}&text=${encodedNativeText}`;
   const desktopChatOnlyHref = `whatsapp://send/?phone=${normalized}`;
   const desktopBridgeHref = buildWhatsAppDesktopBridgeHref(normalized, nativeText);
   const desktopChatOnlyBridgeHref = buildWhatsAppDesktopBridgeHref(normalized);
   const mobileHref = `https://wa.me/${normalized}?text=${encodedText}`;
 
-  // Sempre wa.me com phone+text — confiável para o motorista/cliente responder pelo link.
-  const primaryHref = mobileHref;
+  // Desktop = app; mobile = wa.me. Nunca primaryHref HTTPS no PC.
+  const primaryHref = isMobileWhatsAppDevice() ? mobileHref : desktopHref;
 
   return {
     message: messageForShare,
@@ -855,14 +854,22 @@ export function openWhatsAppShareHref(href: string, targetWindow?: Window | null
 }
 
 /**
- * Abre o WhatsApp no chat do telefone cadastrado (wa.me com phone+text).
- * Só chamar a partir de clique do utilizador — nunca logo após `await`.
+ * Abre o WhatsApp no chat do telefone cadastrado.
+ * PC: whatsapp:// (app). Mobile: wa.me. Nunca api/web no desktop.
  */
 export function openWhatsAppPreferApp(links: WhatsAppShareLinks): boolean {
   if (!links.opensDirectChat || !links.phoneDigits) return false;
-  const href = links.mobileHref || links.storeAppHref || links.primaryHref;
-  if (!href) return false;
-  openExternalUrl(href);
+
+  if (isMobileWhatsAppDevice()) {
+    const href = links.mobileHref || links.storeAppHref;
+    if (!href) return false;
+    openExternalUrl(href);
+    return true;
+  }
+
+  const nativeHref = links.desktopHref;
+  if (!nativeHref || !isWhatsAppNativeHref(nativeHref)) return false;
+  launchCustomProtocol(nativeHref);
   return true;
 }
 

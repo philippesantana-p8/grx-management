@@ -448,24 +448,24 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
       : `Registrar envio da designação da ${orderDetails.code} para ${driver.name}?\n\n${payLines}\n\nO link ficará ativo para o motorista aceitar ou recusar. Se fechar o WhatsApp sem enviar, use «Cancelar designação» na lista da OS.`;
   };
 
-  const launchDriverWhatsAppShare = (
+  const copyAssignmentForDriver = (
     payload: DriverAssignmentSharePayload,
     driverId?: string,
     driverName?: string
   ) => {
-    const links = payload.whatsappLinks;
-    if (!links.opensDirectChat) {
-      window.alert(
-        "Cadastre o telefone do motorista para o WhatsApp abrir direto no contato certo.\n\nSem telefone não enviamos — evita mensagem na pessoa errada."
-      );
-      return false;
-    }
-    // Só no gesto do clique (sem await no meio) — abre o chat do telefone cadastrado.
-    const opened = openWhatsAppPreferApp(links);
-    if (opened) {
-      notifyAssignmentSentOnce(driverId, driverName);
-    }
-    return opened;
+    const name = driverName || shareDriverName || "motorista";
+    const phoneLabel =
+      formatWhatsAppPhoneDisplay(payload.whatsappLinks.phoneDigits) ||
+      "o telefone cadastrado";
+    const text = payload.whatsappLinks.message || payload.assignmentUrl;
+    const ok = copyTextToClipboardSync(text);
+    notifyAssignmentSentOnce(driverId, name);
+    window.alert(
+      ok
+        ? `Mensagem copiada para ${name} (${phoneLabel}).\n\nAbra o WhatsApp do PC nesse contato e cole (Ctrl+V).\nO motorista responde Aceitar/Recusar pelo link — sem abrir WhatsApp Web.`
+        : `Copie e envie este link no WhatsApp do motorista:\n\n${payload.assignmentUrl}`
+    );
+    return ok;
   };
 
   const launchDriverEmailShare = (payload: DriverAssignmentSharePayload) => {
@@ -561,20 +561,7 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
     })();
   };
 
-  const handleCopyAssignmentLink = () => {
-    if (!sharePayload) return;
-    const text = sharePayload.whatsappLinks.message || sharePayload.assignmentUrl;
-    const ok = copyTextToClipboardSync(text);
-    notifyAssignmentSentOnce(selectedId, shareDriverName);
-    window.alert(
-      ok
-        ? `Link da designação copiado.\n\nAbra o WhatsApp do motorista ${shareDriverName} e cole (Ctrl+V) a mensagem — ele responde Aceitar/Recusar pelo link (igual à proposta do cliente).`
-        : `Não foi possível copiar automaticamente.\n\nCopie este link e envie ao motorista:\n${sharePayload.assignmentUrl}`
-    );
-  };
-
   const handleWhatsAppShareOpen = () => {
-    // Navegação nativa do <a href={wa.me}>; só atualiza a lista.
     notifyAssignmentSentOnce(selectedId, shareDriverName);
   };
 
@@ -678,23 +665,15 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
           {sharePayload ? (
             <div className="space-y-4">
               <p className="text-sm text-emerald-800">
-                Designação registrada para <strong>{shareDriverName}</strong>. Envie o link — o
-                motorista responde Aceitar/Recusar na página (mesmo modelo da proposta ao cliente).
-              </p>
-              <p className="break-all rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
-                {sharePayload.assignmentUrl}
+                Designação registrada para <strong>{shareDriverName}</strong>. Clique em WhatsApp
+                para abrir o app no número cadastrado.
               </p>
               <div className="flex flex-wrap items-center gap-2">
-                <Button type="button" onClick={handleCopyAssignmentLink} disabled={saving}>
-                  Copiar link da designação
-                </Button>
                 {sharePayload.whatsappLinks.opensDirectChat &&
-                sharePayload.whatsappLinks.mobileHref ? (
+                sharePayload.whatsappLinks.desktopHref?.startsWith("whatsapp://") ? (
                   <a
-                    href={sharePayload.whatsappLinks.mobileHref}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    title={`WhatsApp — ${
+                    href={sharePayload.whatsappLinks.desktopHref}
+                    title={`WhatsApp app — ${
                       formatWhatsAppPhoneDisplay(sharePayload.whatsappLinks.phoneDigits) ||
                       selectedDriver?.phone ||
                       "motorista"
@@ -742,13 +721,13 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
                 ) : null}
               </div>
               <p className="text-xs text-slate-600">
-                Preferência: <strong>Copiar link</strong> e enviar no WhatsApp do motorista. O botão
-                WhatsApp abre o chat de{" "}
+                Abre o <strong>app</strong> no chat de{" "}
                 <strong>
                   {formatWhatsAppPhoneDisplay(sharePayload.whatsappLinks.phoneDigits) ||
                     "telefone cadastrado"}
-                </strong>{" "}
-                com a mensagem (o Windows pode usar o app ou o navegador).
+                </strong>
+                . Se o WhatsApp já estiver aberto e não for ao chat, feche-o na bandeja (Sair) e
+                clique de novo.
               </p>
             </div>
           ) : loading ? (
