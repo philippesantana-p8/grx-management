@@ -102,6 +102,8 @@ export default function ClientesPage() {
         >
           {({ form, set }) => (
             <>
+              <CnpjLookupSection form={form} set={set} />
+
               <FormFields
                 form={form}
                 set={set}
@@ -109,15 +111,6 @@ export default function ClientesPage() {
                   { name: "code", label: "Código", required: true },
                   { name: "name", label: "Razão social / Nome", required: true },
                   { name: "trade_name", label: "Nome fantasia" },
-                ]}
-              />
-
-              <CnpjLookupSection form={form} set={set} />
-
-              <FormFields
-                form={form}
-                set={set}
-                fields={[
                   { name: "state_registration", label: "Inscrição estadual (IE)" },
                   { name: "postal_code", label: "CEP" },
                   { name: "street", label: "Logradouro", colSpan: 2 },

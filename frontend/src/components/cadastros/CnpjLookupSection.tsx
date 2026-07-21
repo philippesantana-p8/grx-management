@@ -32,9 +32,14 @@ export function CnpjLookupSection({
 
   const documentValue = String(form.document ?? "");
   const digits = onlyDigits(documentValue);
-  const canLookup = digits.length === 14;
 
   const applyLookup = async () => {
+    if (digits.length !== 14) {
+      setError("Informe o CNPJ completo com 14 dígitos para consultar.");
+      setOkMessage(null);
+      return;
+    }
+
     setLoading(true);
     setError(null);
     setOkMessage(null);
@@ -62,13 +67,13 @@ export function CnpjLookupSection({
   };
 
   return (
-    <div className="space-y-3 rounded-lg border border-slate-200 bg-slate-50/60 p-4 sm:col-span-2">
+    <div className="space-y-3 rounded-lg border border-sky-200/70 bg-sky-50/40 p-4 sm:col-span-2">
       <div>
         <p className="text-sm font-medium text-slate-800">Consulta CNPJ</p>
         <p className="text-xs text-slate-500">
-          Com 14 dígitos, consulte razão social, endereço completo e se está ativa na Receita. A
-          inscrição estadual (IE) pode ser preenchida manualmente — a base aberta da Receita não
-          retorna IE.
+          Primeiro campo do cadastro: digite o CNPJ e clique em Consultar para buscar razão social,
+          endereço e situação na Receita. A inscrição estadual (IE) pode ser preenchida
+          manualmente.
         </p>
       </div>
 
@@ -87,6 +92,7 @@ export function CnpjLookupSection({
               placeholder="00.000.000/0000-00"
               inputMode="numeric"
               autoComplete="off"
+              autoFocus
             />
           </label>
         ) : (
@@ -97,8 +103,8 @@ export function CnpjLookupSection({
         )}
         <Button
           type="button"
-          variant="secondary"
-          disabled={loading || !canLookup}
+          variant="primary"
+          disabled={loading}
           onClick={() => void applyLookup()}
           className="shrink-0"
         >
@@ -108,12 +114,12 @@ export function CnpjLookupSection({
 
       {digits.length > 0 && digits.length < 14 ? (
         <p className="text-xs text-amber-700">
-          Digite o CNPJ completo (14 dígitos) para habilitar a consulta. CPF não consulta Receita.
+          Digite o CNPJ completo (14 dígitos). CPF não consulta Receita.
         </p>
       ) : null}
 
       {error ? <Alert variant="error">{error}</Alert> : null}
-      {okMessage ? <Alert variant="info">{okMessage}</Alert> : null}
+      {okMessage ? <Alert variant="success">{okMessage}</Alert> : null}
 
       {form.cnpj_status ? (
         <p className="text-xs text-slate-600">

@@ -103,6 +103,8 @@ export default function FornecedoresPage() {
         >
           {({ form, set }) => (
             <>
+              <CnpjLookupSection form={form} set={set} />
+
               <FormFields
                 form={form}
                 set={set}
@@ -116,15 +118,6 @@ export default function FornecedoresPage() {
                     type: "select",
                     options: SUPPLIER_CATEGORIES.map((c) => ({ value: c, label: c })),
                   },
-                ]}
-              />
-
-              <CnpjLookupSection form={form} set={set} />
-
-              <FormFields
-                form={form}
-                set={set}
-                fields={[
                   { name: "state_registration", label: "Inscrição estadual (IE)" },
                   { name: "postal_code", label: "CEP" },
                   { name: "street", label: "Logradouro", colSpan: 2 },
