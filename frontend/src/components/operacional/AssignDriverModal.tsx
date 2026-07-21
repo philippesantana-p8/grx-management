@@ -679,11 +679,11 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
               <p className="break-all text-xs text-slate-500">{sharePayload.assignmentUrl}</p>
               <div className="flex flex-wrap items-center gap-2">
                 {sharePayload.whatsappLinks.opensDirectChat &&
-                sharePayload.whatsappLinks.desktopHref?.startsWith("whatsapp://") ? (
-                  <div className="space-y-1">
+                sharePayload.whatsappLinks.desktopBridgeHref?.startsWith("/abrir-whatsapp") ? (
+                  <div className="space-y-2">
                     <WhatsAppAppAnchor
-                      href={sharePayload.whatsappLinks.desktopHref}
-                      title={`whatsapp:// → app do PC — ${
+                      href={sharePayload.whatsappLinks.desktopBridgeHref}
+                      title={`App WhatsApp — ${
                         formatWhatsAppPhoneDisplay(sharePayload.whatsappLinks.phoneDigits) ||
                         selectedDriver?.phone ||
                         "motorista"
@@ -699,10 +699,20 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
                       <WhatsAppIcon className="h-5 w-5" />
                       Abrir app WhatsApp
                     </WhatsAppAppAnchor>
+                    {sharePayload.whatsappLinks.desktopChatOnlyBridgeHref ? (
+                      <WhatsAppAppAnchor
+                        href={sharePayload.whatsappLinks.desktopChatOnlyBridgeHref}
+                        title="Se o WhatsApp abriu na tela inicial, use este atalho só do chat"
+                        aria-label="Abrir só o chat do motorista no WhatsApp"
+                        className="text-xs font-medium text-emerald-800 underline"
+                        onOpen={handleWhatsAppShareOpen}
+                      >
+                        Se abriu na tela inicial: abrir só o chat do motorista
+                      </WhatsAppAppAnchor>
+                    ) : null}
                     <p className="text-[11px] text-slate-500">
-                      Link: <code className="text-[10px]">whatsapp://</code> (app) — se a barra do
-                      Chrome mostrar <code className="text-[10px]">https://api.whatsapp.com</code>,
-                      feche a aba e abra de novo com Ctrl+F5.
+                      Vai pelo app do PC (não Web). Se ainda ficar na tela inicial, feche o WhatsApp
+                      na bandeja (Sair) e clique de novo.
                     </p>
                   </div>
                 ) : (
@@ -740,11 +750,11 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
               {sharePayload.whatsappLinks.opensDirectChat &&
               sharePayload.whatsappLinks.phoneDigits ? (
                 <p className="text-xs text-slate-600">
-                  Versão app (whatsapp://): abre o <strong>WhatsApp do PC</strong> no chat de{" "}
+                  Ponte app → WhatsApp do PC no chat de{" "}
                   <strong>
                     {formatWhatsAppPhoneDisplay(sharePayload.whatsappLinks.phoneDigits)}
                   </strong>
-                  . Não usa WhatsApp Web.
+                  . Sem WhatsApp Web.
                 </p>
               ) : (
                 <p className="text-sm text-amber-800">

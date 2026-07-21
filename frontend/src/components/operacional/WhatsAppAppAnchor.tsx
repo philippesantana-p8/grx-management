@@ -9,14 +9,19 @@ type Props = {
   title?: string;
   "aria-label"?: string;
   children: ReactNode;
-  /** Roda no clique sem cancelar a navegação nativa do protocolo. */
+  /** Roda no clique (antes da navegação). */
   onOpen?: () => void;
 };
 
+function isDesktopBridgeHref(href: string): boolean {
+  return href.startsWith("/abrir-whatsapp");
+}
+
 /**
- * Mesmo padrão da proposta ao cliente: anchor whatsapp:// sem preventDefault.
- * O Chrome entrega o protocolo ao app do PC pelo clique nativo do link.
- * Não usar target=_blank nem location.href — isso vira WhatsApp Web.
+ * Abre o WhatsApp do PC:
+ * - `/abrir-whatsapp#…` → navegação completa → whatsapp:// (melhor com app já aberto)
+ * - `whatsapp://…` → protocolo direto
+ * Nunca usar api.whatsapp.com / Web neste componente.
  */
 export function WhatsAppAppAnchor({
   href,
@@ -27,16 +32,21 @@ export function WhatsAppAppAnchor({
   onOpen,
 }: Props) {
   const native = isWhatsAppNativeHref(href);
+  const bridge = isDesktopBridgeHref(href);
 
   const handleClick = (event: MouseEvent<HTMLAnchorElement>) => {
     onOpen?.();
-    if (native) {
-      // Deixa o browser abrir o WhatsApp Desktop (app). Não preventDefault.
+
+    if (bridge) {
+      // Evita soft-nav do Next.js; precisa ser navegação completa para a ponte.
+      event.preventDefault();
+      window.location.assign(href);
       return;
     }
-    // Mobile / HTTPS: navegação normal (nova aba).
-    if (!event.defaultPrevented) {
-      /* default OK */
+
+    if (native) {
+      // Clique nativo no protocolo — não preventDefault.
+      return;
     }
   };
 
@@ -46,8 +56,8 @@ export function WhatsAppAppAnchor({
       title={title}
       aria-label={ariaLabel}
       className={className}
-      data-whatsapp-target={native ? "desktop-app" : "https"}
-      {...(native ? {} : { target: "_blank", rel: "noopener noreferrer" })}
+      data-whatsapp-target={bridge ? "desktop-bridge" : native ? "desktop-app" : "https"}
+      {...(native || bridge ? {} : { target: "_blank", rel: "noopener noreferrer" })}
       onClick={handleClick}
     >
       {children}
