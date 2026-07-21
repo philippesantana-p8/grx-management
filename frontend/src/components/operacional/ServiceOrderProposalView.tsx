@@ -123,10 +123,10 @@ export function ServiceOrderProposalView({
 
   const clientPhoneOk =
     Boolean(formatPhoneForWhatsApp(order.phone)) && !isDemoSeedWhatsAppPhone(order.phone);
-  // PC: whatsapp:// no clique. Mobile: wa.me. Nunca api.whatsapp.com.
+  // Link oficial wa.me (phone+text) — mesmo padrão estável da designação.
   const whatsappHref =
-    whatsappShare?.opensDirectChat && whatsappShare.desktopHref?.startsWith("whatsapp://")
-      ? whatsappShare.desktopHref
+    whatsappShare?.opensDirectChat && whatsappShare.mobileHref
+      ? whatsappShare.mobileHref
       : whatsappShare?.opensDirectChat && whatsappShare.primaryHref
         ? whatsappShare.primaryHref
         : null;

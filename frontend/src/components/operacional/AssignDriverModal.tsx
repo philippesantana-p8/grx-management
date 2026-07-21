@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MailIcon, WhatsAppIcon } from "@/components/icons/ShareIcons";
-import { WhatsAppAppAnchor } from "@/components/operacional/WhatsAppAppAnchor";
 import { Button } from "@/components/ui/Button";
 import { Loading } from "@/components/ui/Badge";
 import { Input } from "@/components/ui/Input";
@@ -562,14 +561,20 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
     })();
   };
 
+  const handleCopyAssignmentLink = () => {
+    if (!sharePayload) return;
+    const text = sharePayload.whatsappLinks.message || sharePayload.assignmentUrl;
+    const ok = copyTextToClipboardSync(text);
+    notifyAssignmentSentOnce(selectedId, shareDriverName);
+    window.alert(
+      ok
+        ? `Link da designação copiado.\n\nAbra o WhatsApp do motorista ${shareDriverName} e cole (Ctrl+V) a mensagem — ele responde Aceitar/Recusar pelo link (igual à proposta do cliente).`
+        : `Não foi possível copiar automaticamente.\n\nCopie este link e envie ao motorista:\n${sharePayload.assignmentUrl}`
+    );
+  };
+
   const handleWhatsAppShareOpen = () => {
-    if (!sharePayload || !selectedDriver?.phone?.trim()) {
-      window.alert(
-        "Cadastre o telefone do motorista para o WhatsApp abrir direto no contato certo."
-      );
-      return;
-    }
-    // Clique nativo do WhatsAppAppAnchor abre o app; só atualizamos a lista.
+    // Navegação nativa do <a href={wa.me}>; só atualiza a lista.
     notifyAssignmentSentOnce(selectedId, shareDriverName);
   };
 
@@ -673,65 +678,54 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
           {sharePayload ? (
             <div className="space-y-4">
               <p className="text-sm text-emerald-800">
-                Designação registrada para <strong>{shareDriverName}</strong>. Clique em{" "}
-                <strong>Abrir WhatsApp</strong> para enviar no número cadastrado.
+                Designação registrada para <strong>{shareDriverName}</strong>. Envie o link — o
+                motorista responde Aceitar/Recusar na página (mesmo modelo da proposta ao cliente).
               </p>
-              <p className="break-all text-xs text-slate-500">{sharePayload.assignmentUrl}</p>
+              <p className="break-all rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
+                {sharePayload.assignmentUrl}
+              </p>
               <div className="flex flex-wrap items-center gap-2">
+                <Button type="button" onClick={handleCopyAssignmentLink} disabled={saving}>
+                  Copiar link da designação
+                </Button>
                 {sharePayload.whatsappLinks.opensDirectChat &&
-                sharePayload.whatsappLinks.desktopHref?.startsWith("whatsapp://") ? (
-                  <div className="space-y-2">
-                    <WhatsAppAppAnchor
-                      href={sharePayload.whatsappLinks.desktopHref}
-                      title={`whatsapp:// → app — ${
-                        formatWhatsAppPhoneDisplay(sharePayload.whatsappLinks.phoneDigits) ||
-                        selectedDriver?.phone ||
-                        "motorista"
-                      }`}
-                      aria-label={`Abrir app WhatsApp para ${shareDriverName}`}
-                      className={cn(
-                        glassAction("green", true),
-                        "inline-flex h-11 items-center gap-2 px-4 text-sm font-semibold",
-                        saving && "pointer-events-none opacity-50"
-                      )}
-                      onOpen={handleWhatsAppShareOpen}
-                    >
-                      <WhatsAppIcon className="h-5 w-5" />
-                      Abrir app WhatsApp
-                    </WhatsAppAppAnchor>
-                    {sharePayload.whatsappLinks.desktopChatOnlyHref ? (
-                      <WhatsAppAppAnchor
-                        href={sharePayload.whatsappLinks.desktopChatOnlyHref}
-                        title="Abre só o chat do número (sem texto) se a tela inicial aparecer"
-                        aria-label="Abrir só o chat do motorista no WhatsApp"
-                        className="text-xs font-medium text-emerald-800 underline"
-                        onOpen={handleWhatsAppShareOpen}
-                      >
-                        Se abriu na tela inicial: abrir só o chat
-                      </WhatsAppAppAnchor>
-                    ) : null}
-                    <p className="text-[11px] text-slate-500">
-                      Um clique abre o app (não Web). Se ficar na tela inicial, feche o WhatsApp na
-                      bandeja (Sair) e clique de novo — aí o Windows entrega o chat com a mensagem.
-                    </p>
-                  </div>
+                sharePayload.whatsappLinks.mobileHref ? (
+                  <a
+                    href={sharePayload.whatsappLinks.mobileHref}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title={`WhatsApp — ${
+                      formatWhatsAppPhoneDisplay(sharePayload.whatsappLinks.phoneDigits) ||
+                      selectedDriver?.phone ||
+                      "motorista"
+                    }`}
+                    aria-label={`Enviar designação no WhatsApp para ${shareDriverName}`}
+                    className={cn(
+                      glassAction("green", true),
+                      "inline-flex h-11 items-center gap-2 px-4 text-sm font-semibold",
+                      saving && "pointer-events-none opacity-50"
+                    )}
+                    onClick={handleWhatsAppShareOpen}
+                  >
+                    <WhatsAppIcon className="h-5 w-5" />
+                    WhatsApp
+                  </a>
                 ) : (
                   <button
                     type="button"
-                    title="Cadastre o telefone do motorista para abrir o WhatsApp no contato certo"
-                    aria-label="WhatsApp indisponível — telefone do motorista não cadastrado"
+                    title="Cadastre o telefone do motorista"
                     className={cn(
                       glassAction("green", true),
                       "inline-flex h-11 items-center gap-2 px-4 text-sm font-semibold opacity-50"
                     )}
                     onClick={() =>
                       window.alert(
-                        "Cadastre o telefone do motorista para o WhatsApp abrir direto no contato certo."
+                        "Cadastre o telefone do motorista para abrir o WhatsApp no contato dele."
                       )
                     }
                   >
                     <WhatsAppIcon className="h-5 w-5" />
-                    Abrir app WhatsApp
+                    WhatsApp
                   </button>
                 )}
                 {sharePayload.emailBundle ? (
@@ -747,20 +741,15 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
                   </button>
                 ) : null}
               </div>
-              {sharePayload.whatsappLinks.opensDirectChat &&
-              sharePayload.whatsappLinks.phoneDigits ? (
-                <p className="text-xs text-slate-600">
-                  App WhatsApp no chat de{" "}
-                  <strong>
-                    {formatWhatsAppPhoneDisplay(sharePayload.whatsappLinks.phoneDigits)}
-                  </strong>
-                  . Sem WhatsApp Web.
-                </p>
-              ) : (
-                <p className="text-sm text-amber-800">
-                  Cadastre o telefone do motorista para abrir o WhatsApp direto no contato dele.
-                </p>
-              )}
+              <p className="text-xs text-slate-600">
+                Preferência: <strong>Copiar link</strong> e enviar no WhatsApp do motorista. O botão
+                WhatsApp abre o chat de{" "}
+                <strong>
+                  {formatWhatsAppPhoneDisplay(sharePayload.whatsappLinks.phoneDigits) ||
+                    "telefone cadastrado"}
+                </strong>{" "}
+                com a mensagem (o Windows pode usar o app ou o navegador).
+              </p>
             </div>
           ) : loading ? (
             <Loading />

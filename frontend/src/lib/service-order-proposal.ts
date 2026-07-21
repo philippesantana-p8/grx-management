@@ -794,18 +794,17 @@ export function buildWhatsAppShareLinks(
     };
   }
 
-  // Mantido só como dado interno — UI do PC NÃO deve usar este HTTPS (vira Web).
+  // Link oficial Meta (wa.me): abre o chat do telefone com a mensagem.
+  // O Windows decide app ou Web — é o caminho estável (igual click-to-chat da proposta).
   const storeAppHref = `https://api.whatsapp.com/send?phone=${normalized}&text=${encodedText}`;
-  // Barra após send/ — formato que o Desktop Windows costuma aceitar melhor.
   const desktopHref = `whatsapp://send/?phone=${normalized}&text=${encodedNativeText}`;
   const desktopChatOnlyHref = `whatsapp://send/?phone=${normalized}`;
   const desktopBridgeHref = buildWhatsAppDesktopBridgeHref(normalized, nativeText);
   const desktopChatOnlyBridgeHref = buildWhatsAppDesktopBridgeHref(normalized);
   const mobileHref = `https://wa.me/${normalized}?text=${encodedText}`;
 
-  // PC: whatsapp:// direto no clique (gesto do usuário). Ponte /abrir-whatsapp só como fallback.
-  // Mobile: wa.me. Nunca api.whatsapp.com na UI.
-  const primaryHref = isMobileWhatsAppDevice() ? mobileHref : desktopHref;
+  // Sempre wa.me com phone+text — confiável para o motorista/cliente responder pelo link.
+  const primaryHref = mobileHref;
 
   return {
     message: messageForShare,
@@ -856,30 +855,14 @@ export function openWhatsAppShareHref(href: string, targetWindow?: Window | null
 }
 
 /**
- * Abre o WhatsApp no chat do telefone cadastrado (com a mensagem na URL).
+ * Abre o WhatsApp no chat do telefone cadastrado (wa.me com phone+text).
  * Só chamar a partir de clique do utilizador — nunca logo após `await`.
- *
- * Preferir WhatsAppAppAnchor com href=desktopHref (clique nativo no anchor).
- * Esta função é fallback para botões: simula anchor whatsapp:// via click() —
- * sem location.href e sem api.whatsapp.com / Web.
  */
 export function openWhatsAppPreferApp(links: WhatsAppShareLinks): boolean {
   if (!links.opensDirectChat || !links.phoneDigits) return false;
-
-  if (isMobileWhatsAppDevice()) {
-    openExternalUrl(links.mobileHref || links.storeAppHref);
-    return true;
-  }
-
-  const nativeHref = links.desktopHref || links.primaryHref;
-  if (!nativeHref || !isWhatsAppNativeHref(nativeHref)) {
-    window.alert(
-      "Instale o WhatsApp no PC para abrir o chat do telefone cadastrado.\n\nNão usamos WhatsApp Web neste fluxo."
-    );
-    return false;
-  }
-
-  launchCustomProtocol(nativeHref);
+  const href = links.mobileHref || links.storeAppHref || links.primaryHref;
+  if (!href) return false;
+  openExternalUrl(href);
   return true;
 }
 
