@@ -27,9 +27,7 @@ import {
   formatPhoneForWhatsApp,
   formatWhatsAppPhoneDisplay,
   launchPreparedEmailShare,
-  openWhatsAppInReservedWindow,
   openWhatsAppPreferApp,
-  reserveWindowForWhatsApp,
 } from "@/lib/service-order-proposal";
 import { glassAction } from "@/lib/liquid-glass-styles";
 import { createClient } from "@/lib/supabase/client";
@@ -485,61 +483,38 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
     if (!driver.phone?.trim() || saving) {
       if (!driver.phone?.trim()) {
         window.alert(
-          "Cadastre o telefone deste motorista para o WhatsApp abrir direto no contato dele."
+          "Cadastre o telefone deste motorista para o WhatsApp abrir no contato dele."
         );
       }
       return;
     }
 
-    // Já registrado: abre o app no mesmo clique.
+    // Já registrado: só o clique no <a whatsapp://> / openWhatsAppPreferApp abre o app.
     if (sharePayload && selectedId === driver.id) {
       launchDriverWhatsAppShare(sharePayload, driver.id, driver.name);
       return;
     }
 
-    const payDetails = resolvePayDetails();
-    if (!payDetails) return;
-
-    const phoneLabel =
-      formatWhatsAppPhoneDisplay(formatPhoneForWhatsApp(driver.phone)) ||
-      driver.phone?.trim() ||
-      "o motorista";
-    const confirmed = window.confirm(buildShareConfirmMessage(driver, payDetails));
-    if (!confirmed) return;
-
-    // Ainda no turno síncrono do clique (após confirm): reserva janela para o whatsapp://.
-    // Depois do await o Chrome bloqueia abrir o protocolo do zero.
-    const reserved = reserveWindowForWhatsApp();
-
     void (async () => {
+      const payDetails = resolvePayDetails();
+      if (!payDetails) return;
+
+      const phoneLabel =
+        formatWhatsAppPhoneDisplay(formatPhoneForWhatsApp(driver.phone)) ||
+        driver.phone?.trim() ||
+        "o motorista";
+      const confirmed = window.confirm(
+        `${buildShareConfirmMessage(driver, payDetails)}\n\nDepois clique em WhatsApp para abrir o app no chat de ${phoneLabel}.`
+      );
+      if (!confirmed) return;
+
       const payload = await registerAssignmentShareForDriver(driver, payDetails, {
         notifySent: false,
       });
-      if (!payload) {
-        try {
-          reserved?.close();
-        } catch {
-          /* ignore */
-        }
-        return;
-      }
+      if (!payload) return;
 
-      const href =
-        payload.whatsappLinks.desktopHref || payload.whatsappLinks.primaryHref || "";
-      if (!href.startsWith("whatsapp://")) {
-        try {
-          reserved?.close();
-        } catch {
-          /* ignore */
-        }
-        window.alert(
-          `Não foi possível montar o link do app para ${phoneLabel}. Cadastre o telefone do motorista.`
-        );
-        return;
-      }
-
-      openWhatsAppInReservedWindow(href, reserved);
-      notifyAssignmentSentOnce(driver.id, driver.name);
+      // Não abrir após await (Chrome manda para Web ou bloqueia).
+      // O botão WhatsApp do painel é <a href="whatsapp://"> — 2º clique abre o app.
     })();
   };
 
@@ -687,8 +662,8 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
           {sharePayload ? (
             <div className="space-y-4">
               <p className="text-sm text-emerald-800">
-                Designação registrada para <strong>{shareDriverName}</strong>. Se o WhatsApp não
-                abriu, use o botão abaixo.
+                Designação registrada para <strong>{shareDriverName}</strong>. Clique em{" "}
+                <strong>WhatsApp</strong> para abrir o app com o texto da designação.
               </p>
               <div className="flex flex-wrap items-center gap-2">
                 {sharePayload.whatsappLinks.opensDirectChat &&

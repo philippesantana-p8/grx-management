@@ -192,13 +192,19 @@ export function buildDriverAssignmentWhatsAppText(
 
 export function buildDriverAssignmentWhatsAppUrlText(
   order: DriverAssignmentOrderSummary,
-  _companyName: string,
-  _driverName: string,
+  companyName: string,
+  driverName: string,
   assignmentUrl: string,
-  _payDetails: DriverAssignmentPayDetails
+  payDetails: DriverAssignmentPayDetails
 ): string {
-  // Texto mínimo (ASCII) — Windows/WhatsApp Desktop descartam phone/text em URLs longas/com acento.
-  return `OS ${order.code}: ${assignmentUrl.trim()}`;
+  return buildDriverAssignmentWhatsAppText(
+    order,
+    companyName,
+    driverName,
+    assignmentUrl,
+    payDetails,
+    { compact: true }
+  );
 }
 
 export function buildDriverAssignmentEmailBody(

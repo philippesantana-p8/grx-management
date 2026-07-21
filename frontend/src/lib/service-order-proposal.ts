@@ -965,47 +965,6 @@ function launchCustomProtocol(url: string) {
   document.body.removeChild(anchor);
 }
 
-/**
- * Abre whatsapp:// numa janela reservada no gesto do clique (antes de await).
- * Assim o app abre direto após registrar a designação, sem 2º clique e sem Web.
- */
-export function openWhatsAppInReservedWindow(
-  href: string,
-  reservedWindow?: Window | null
-): void {
-  if (!href) return;
-
-  if (reservedWindow && !reservedWindow.closed) {
-    try {
-      reservedWindow.location.href = href;
-      window.setTimeout(() => {
-        try {
-          reservedWindow.close();
-        } catch {
-          /* ignore */
-        }
-      }, 500);
-      return;
-    } catch {
-      /* fallback abaixo */
-    }
-  }
-
-  if (isWhatsAppNativeHref(href)) {
-    launchCustomProtocol(href);
-    return;
-  }
-  openExternalUrl(href);
-}
-
-/** Reserva janela no mesmo instante do clique (antes de confirm/await). */
-export function reserveWindowForWhatsApp(): Window | null {
-  try {
-    return window.open("about:blank", "_blank");
-  } catch {
-    return null;
-  }
-}
 
 /**
  * Tentativa programática (menos confiável que <a href> nativo no JSX).
