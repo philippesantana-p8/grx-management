@@ -27,7 +27,9 @@ import {
   formatPhoneForWhatsApp,
   formatWhatsAppPhoneDisplay,
   launchPreparedEmailShare,
+  openWhatsAppInReservedWindow,
   openWhatsAppPreferApp,
+  reserveWindowForWhatsApp,
 } from "@/lib/service-order-proposal";
 import { glassAction } from "@/lib/liquid-glass-styles";
 import { createClient } from "@/lib/supabase/client";
@@ -489,32 +491,55 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
       return;
     }
 
-    // Designação já registrada: abrir no mesmo gesto do clique (Chrome bloqueia deep link após await).
+    // Já registrado: abre o app no mesmo clique.
     if (sharePayload && selectedId === driver.id) {
       launchDriverWhatsAppShare(sharePayload, driver.id, driver.name);
       return;
     }
 
+    const payDetails = resolvePayDetails();
+    if (!payDetails) return;
+
+    const phoneLabel =
+      formatWhatsAppPhoneDisplay(formatPhoneForWhatsApp(driver.phone)) ||
+      driver.phone?.trim() ||
+      "o motorista";
+    const confirmed = window.confirm(buildShareConfirmMessage(driver, payDetails));
+    if (!confirmed) return;
+
+    // Ainda no turno síncrono do clique (após confirm): reserva janela para o whatsapp://.
+    // Depois do await o Chrome bloqueia abrir o protocolo do zero.
+    const reserved = reserveWindowForWhatsApp();
+
     void (async () => {
-      const payDetails = resolvePayDetails();
-      if (!payDetails) return;
-
-      const phoneLabel =
-        formatWhatsAppPhoneDisplay(formatPhoneForWhatsApp(driver.phone)) ||
-        driver.phone?.trim() ||
-        "o motorista";
-      const confirmed = window.confirm(
-        `${buildShareConfirmMessage(driver, payDetails)}\n\nEm seguida clique em WhatsApp para o chat de ${phoneLabel}.`
-      );
-      if (!confirmed) return;
-
       const payload = await registerAssignmentShareForDriver(driver, payDetails, {
         notifySent: false,
       });
-      if (!payload) return;
+      if (!payload) {
+        try {
+          reserved?.close();
+        } catch {
+          /* ignore */
+        }
+        return;
+      }
 
-      // Não abrir aqui (gesto já perdido) e não atualizar a lista ainda —
-      // o painel do modal fica aberto com o botão «Abrir WhatsApp» (2º clique).
+      const href =
+        payload.whatsappLinks.desktopHref || payload.whatsappLinks.primaryHref || "";
+      if (!href.startsWith("whatsapp://")) {
+        try {
+          reserved?.close();
+        } catch {
+          /* ignore */
+        }
+        window.alert(
+          `Não foi possível montar o link do app para ${phoneLabel}. Cadastre o telefone do motorista.`
+        );
+        return;
+      }
+
+      openWhatsAppInReservedWindow(href, reserved);
+      notifyAssignmentSentOnce(driver.id, driver.name);
     })();
   };
 
@@ -662,8 +687,8 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
           {sharePayload ? (
             <div className="space-y-4">
               <p className="text-sm text-emerald-800">
-                Designação registrada para <strong>{shareDriverName}</strong>. Clique em WhatsApp
-                para abrir o app no número cadastrado.
+                Designação registrada para <strong>{shareDriverName}</strong>. Se o WhatsApp não
+                abriu, use o botão abaixo.
               </p>
               <div className="flex flex-wrap items-center gap-2">
                 {sharePayload.whatsappLinks.opensDirectChat &&
@@ -718,13 +743,12 @@ export function AssignDriverModal({ open, order, onClose, onAssigned, onAssignme
                 ) : null}
               </div>
               <p className="text-xs text-slate-600">
-                Abre o <strong>app</strong> no chat de{" "}
+                Abre o app no chat de{" "}
                 <strong>
                   {formatWhatsAppPhoneDisplay(sharePayload.whatsappLinks.phoneDigits) ||
                     "telefone cadastrado"}
                 </strong>
-                . Se o WhatsApp já estiver aberto e não for ao chat, feche-o na bandeja (Sair) e
-                clique de novo.
+                .
               </p>
             </div>
           ) : loading ? (

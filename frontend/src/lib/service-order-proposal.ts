@@ -956,14 +956,55 @@ export type WhatsAppShareResult = {
 };
 
 function launchCustomProtocol(url: string) {
-  // Mesmo mecanismo do anchor whatsapp://: clique sintético sem target=_blank
-  // e sem location.href (location.href / _blank no Chrome costumam ir para WhatsApp Web).
+  // Clique sintético sem target=_blank — entrega o protocolo ao app do PC.
   const anchor = document.createElement("a");
   anchor.setAttribute("href", url);
   anchor.style.display = "none";
   document.body.appendChild(anchor);
   anchor.click();
   document.body.removeChild(anchor);
+}
+
+/**
+ * Abre whatsapp:// numa janela reservada no gesto do clique (antes de await).
+ * Assim o app abre direto após registrar a designação, sem 2º clique e sem Web.
+ */
+export function openWhatsAppInReservedWindow(
+  href: string,
+  reservedWindow?: Window | null
+): void {
+  if (!href) return;
+
+  if (reservedWindow && !reservedWindow.closed) {
+    try {
+      reservedWindow.location.href = href;
+      window.setTimeout(() => {
+        try {
+          reservedWindow.close();
+        } catch {
+          /* ignore */
+        }
+      }, 500);
+      return;
+    } catch {
+      /* fallback abaixo */
+    }
+  }
+
+  if (isWhatsAppNativeHref(href)) {
+    launchCustomProtocol(href);
+    return;
+  }
+  openExternalUrl(href);
+}
+
+/** Reserva janela no mesmo instante do clique (antes de confirm/await). */
+export function reserveWindowForWhatsApp(): Window | null {
+  try {
+    return window.open("about:blank", "_blank");
+  } catch {
+    return null;
+  }
 }
 
 /**
