@@ -1,11 +1,13 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { CnpjLookupSection } from "@/components/cadastros/CnpjLookupSection";
 import { CrudPage } from "@/components/crud/CrudPage";
 import { EntityForm, FormFields } from "@/components/crud/EntityForm";
 import { Badge } from "@/components/ui/Badge";
-import { nextCode } from "@/lib/codes";
+import { isValidNumericCode, nextNumericCode, normalizeNumericCode } from "@/lib/codes";
 import { useCompany } from "@/lib/company-context";
+import { glassField } from "@/lib/liquid-glass-styles";
 import type { Client } from "@/types/database";
 import { STATUS_OPTIONS } from "@/types/database";
 
@@ -21,7 +23,7 @@ export default function ClientesPage() {
   return (
     <CrudPage<Client>
       title="Clientes"
-      description="Quem gera receita — consulta CNPJ preenche razão social, endereço e situação cadastral"
+      description="Consulta CNPJ primeiro · código numérico sequencial de 8 dígitos (editável)"
       table="clients"
       auditScreenKey="cadastros.clientes"
       orderBy="name"
@@ -51,90 +53,159 @@ export default function ClientesPage() {
         },
       ]}
       renderForm={({ item, onSave, onCancel, saving }) => (
-        <EntityForm
+        <ClientForm
+          item={item ?? null}
+          companyId={companyId}
           saving={saving}
+          onSave={onSave}
           onCancel={onCancel}
-          initial={{
-            code: item?.code ?? "",
-            name: item?.name ?? "",
-            document: item?.document ?? "",
-            trade_name: item?.trade_name ?? "",
-            state_registration: item?.state_registration ?? "",
-            postal_code: item?.postal_code ?? "",
-            street: item?.street ?? "",
-            address_number: item?.address_number ?? "",
-            address_complement: item?.address_complement ?? "",
-            neighborhood: item?.neighborhood ?? "",
-            city: item?.city ?? "",
-            state: item?.state ?? "",
-            address: item?.address ?? "",
-            cnpj_status: item?.cnpj_status ?? "",
-            cnpj_checked_at: item?.cnpj_checked_at ?? "",
-            contact_name: item?.contact_name ?? "",
-            phone: item?.phone ?? "",
-            status: item?.status ?? "Ativo",
-            notes: item?.notes ?? "",
-          }}
-          onSubmit={async (data) => {
-            if (!item?.id && companyId && !data.code) {
-              data.code = await nextCode("clients", companyId, "CLI");
-            }
-            emptyToNull(data, [
-              "document",
-              "trade_name",
-              "state_registration",
-              "postal_code",
-              "street",
-              "address_number",
-              "address_complement",
-              "neighborhood",
-              "city",
-              "state",
-              "address",
-              "cnpj_status",
-              "cnpj_checked_at",
-              "contact_name",
-              "phone",
-              "notes",
-            ]);
-            await onSave(data);
-          }}
-        >
-          {({ form, set }) => (
-            <>
-              <CnpjLookupSection form={form} set={set} />
-
-              <FormFields
-                form={form}
-                set={set}
-                fields={[
-                  { name: "code", label: "Código", required: true },
-                  { name: "name", label: "Razão social / Nome", required: true },
-                  { name: "trade_name", label: "Nome fantasia" },
-                  { name: "state_registration", label: "Inscrição estadual (IE)" },
-                  { name: "postal_code", label: "CEP" },
-                  { name: "street", label: "Logradouro", colSpan: 2 },
-                  { name: "address_number", label: "Número" },
-                  { name: "address_complement", label: "Complemento" },
-                  { name: "neighborhood", label: "Bairro" },
-                  { name: "city", label: "Cidade" },
-                  { name: "state", label: "UF" },
-                  { name: "address", label: "Endereço completo", colSpan: 2 },
-                  { name: "contact_name", label: "Contato" },
-                  { name: "phone", label: "Telefone" },
-                  {
-                    name: "status",
-                    label: "Status no cadastro",
-                    type: "select",
-                    options: STATUS_OPTIONS.map((s) => ({ value: s, label: s })),
-                  },
-                  { name: "notes", label: "Observações", type: "textarea" },
-                ]}
-              />
-            </>
-          )}
-        </EntityForm>
+        />
       )}
     />
+  );
+}
+
+function ClientForm({
+  item,
+  companyId,
+  saving,
+  onSave,
+  onCancel,
+}: {
+  item: Partial<Client> | null;
+  companyId: string | null;
+  saving: boolean;
+  onSave: (data: Record<string, unknown>) => Promise<string | null>;
+  onCancel: () => void;
+}) {
+  const [seedCode, setSeedCode] = useState(item?.code ?? "");
+  const [codeReady, setCodeReady] = useState(Boolean(item?.id || item?.code));
+
+  useEffect(() => {
+    if (item?.id) {
+      setSeedCode(item.code ?? "");
+      setCodeReady(true);
+      return;
+    }
+    if (!companyId) return;
+    let cancelled = false;
+    setCodeReady(false);
+    void nextNumericCode("clients", companyId, 8).then((code) => {
+      if (!cancelled) {
+        setSeedCode(code);
+        setCodeReady(true);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [item?.id, item?.code, companyId]);
+
+  if (!codeReady) {
+    return <p className="text-sm text-slate-500">Gerando próximo código...</p>;
+  }
+
+  return (
+    <EntityForm
+      key={item?.id ?? `new-${seedCode}`}
+      saving={saving}
+      onCancel={onCancel}
+      initial={{
+        code: seedCode,
+        name: item?.name ?? "",
+        document: item?.document ?? "",
+        trade_name: item?.trade_name ?? "",
+        state_registration: item?.state_registration ?? "",
+        postal_code: item?.postal_code ?? "",
+        street: item?.street ?? "",
+        address_number: item?.address_number ?? "",
+        address_complement: item?.address_complement ?? "",
+        neighborhood: item?.neighborhood ?? "",
+        city: item?.city ?? "",
+        state: item?.state ?? "",
+        address: item?.address ?? "",
+        cnpj_status: item?.cnpj_status ?? "",
+        cnpj_checked_at: item?.cnpj_checked_at ?? "",
+        contact_name: item?.contact_name ?? "",
+        phone: item?.phone ?? "",
+        status: item?.status ?? "Ativo",
+        notes: item?.notes ?? "",
+      }}
+      onSubmit={async (data) => {
+        data.code = normalizeNumericCode(data.code, 8);
+        if (!isValidNumericCode(data.code, 8)) {
+          window.alert("Informe um código numérico com até 8 dígitos (ex.: 00000001).");
+          return;
+        }
+        emptyToNull(data, [
+          "document",
+          "trade_name",
+          "state_registration",
+          "postal_code",
+          "street",
+          "address_number",
+          "address_complement",
+          "neighborhood",
+          "city",
+          "state",
+          "address",
+          "cnpj_status",
+          "cnpj_checked_at",
+          "contact_name",
+          "phone",
+          "notes",
+        ]);
+        await onSave(data);
+      }}
+    >
+      {({ form, set }) => (
+        <>
+          <CnpjLookupSection form={form} set={set} />
+
+          <label className="block space-y-1 sm:col-span-2">
+            <span className="text-sm font-medium text-slate-700">Código (numérico · 8 posições)</span>
+            <input
+              className={glassField(false)}
+              value={String(form.code ?? "")}
+              inputMode="numeric"
+              maxLength={8}
+              onChange={(e) => set("code", e.target.value.replace(/\D/g, "").slice(0, 8))}
+              placeholder="00000001"
+            />
+            <span className="text-xs text-slate-500">
+              Sequencial automático (next number). Campo aberto — pode alterar se precisar de outro
+              número.
+            </span>
+          </label>
+
+          <FormFields
+            form={form}
+            set={set}
+            fields={[
+              { name: "name", label: "Razão social / Nome", required: true },
+              { name: "trade_name", label: "Nome fantasia" },
+              { name: "state_registration", label: "Inscrição estadual (IE)" },
+              { name: "postal_code", label: "CEP" },
+              { name: "street", label: "Logradouro", colSpan: 2 },
+              { name: "address_number", label: "Número" },
+              { name: "address_complement", label: "Complemento" },
+              { name: "neighborhood", label: "Bairro" },
+              { name: "city", label: "Cidade" },
+              { name: "state", label: "UF" },
+              { name: "address", label: "Endereço completo", colSpan: 2 },
+              { name: "contact_name", label: "Contato" },
+              { name: "phone", label: "Telefone" },
+              {
+                name: "status",
+                label: "Status no cadastro",
+                type: "select",
+                options: STATUS_OPTIONS.map((s) => ({ value: s, label: s })),
+              },
+              { name: "notes", label: "Observações", type: "textarea" },
+            ]}
+          />
+        </>
+      )}
+    </EntityForm>
   );
 }

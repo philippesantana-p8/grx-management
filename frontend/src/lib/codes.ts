@@ -13,3 +13,41 @@ export async function nextCode(
     .eq("company_id", companyId);
   return generateCode(prefix, count ?? 0);
 }
+
+/**
+ * Próximo código numérico sequencial (ex.: 00000001).
+ * Campo fica editável no formulário — o usuário pode trocar o número.
+ */
+export async function nextNumericCode(
+  table: string,
+  companyId: string,
+  digits = 8
+): Promise<string> {
+  const supabase = createClient();
+  const { data } = await supabase.from(table).select("code").eq("company_id", companyId);
+
+  let max = 0;
+  for (const row of data ?? []) {
+    const raw = String((row as { code?: string }).code ?? "").trim();
+    if (/^\d+$/.test(raw)) {
+      const n = Number(raw);
+      if (Number.isFinite(n) && n > max) max = n;
+    }
+  }
+
+  const next = max + 1;
+  if (next >= 10 ** digits) return String(next);
+  return String(next).padStart(digits, "0");
+}
+
+/** Só dígitos; no máximo `digits` posições; completa com zeros à esquerda. */
+export function normalizeNumericCode(value: unknown, digits = 8): string {
+  const digitsOnly = String(value ?? "").replace(/\D/g, "").slice(0, digits);
+  if (!digitsOnly) return "";
+  return digitsOnly.padStart(digits, "0");
+}
+
+export function isValidNumericCode(value: unknown, digits = 8): boolean {
+  const normalized = normalizeNumericCode(value, digits);
+  return normalized.length === digits && /^\d+$/.test(normalized);
+}
