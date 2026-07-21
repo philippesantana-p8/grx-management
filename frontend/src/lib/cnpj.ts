@@ -17,13 +17,15 @@ export type CnpjCompanyInfo = {
   /** Endereço completo formatado para gravação/exibição. */
   address: string;
   phone: string;
-  /** IE não vem da Receita Federal aberta; campo fica para preenchimento manual. */
+  /** Inscrição estadual (IE) — via SINTEGRA quando disponível. */
   stateRegistration: string;
   checkedAt: string;
   /** true quando logradouro veio do CEP (lacuna na base CNPJ). */
   streetFromCep?: boolean;
   /** true quando número/rua vieram de fonte complementar (OpenCNPJ). */
   addressEnriched?: boolean;
+  /** true quando a IE foi encontrada na consulta SINTEGRA. */
+  stateRegistrationFound?: boolean;
 };
 
 type AddressDraft = {
@@ -128,6 +130,41 @@ async function fetchBrasilApiCnpj(cnpj: string): Promise<Partial<AddressDraft> |
     state: (data.uf ?? "").trim().toUpperCase(),
     phone: formatPhoneDigits(data.ddd_telefone_1),
   };
+}
+
+/**
+ * SINTEGRA Brasil — IE por CNPJ (API pública gratuita).
+ * Prefere IE ativa da mesma UF do estabelecimento; senão a primeira ativa.
+ */
+async function fetchStateRegistration(cnpj: string, ufHint: string): Promise<string> {
+  try {
+    const response = await fetch(`https://www.sintegrabrasil.com.br/api/v1/cnpj/${cnpj}`, {
+      cache: "no-store",
+    });
+    if (!response.ok) return "";
+
+    const data = (await response.json()) as {
+      inscricoes_estaduais?: Array<{
+        inscricao_estadual?: string;
+        ativo?: boolean;
+        uf?: string;
+      }>;
+    };
+
+    const list = data.inscricoes_estaduais ?? [];
+    if (!list.length) return "";
+
+    const uf = ufHint.trim().toUpperCase();
+    const active = list.filter((ie) => ie.ativo !== false && ie.inscricao_estadual);
+    const preferred =
+      (uf ? active.find((ie) => (ie.uf ?? "").toUpperCase() === uf) : null) ??
+      active[0] ??
+      list.find((ie) => ie.inscricao_estadual);
+
+    return (preferred?.inscricao_estadual ?? "").trim();
+  } catch {
+    return "";
+  }
 }
 
 /** OpenCNPJ costuma trazer número/logradouro quando a BrasilAPI omite (comum em MEI). */
@@ -238,6 +275,9 @@ export async function fetchCompanyByCnpj(cnpjInput: string): Promise<CnpjCompany
     }
   }
 
+  const stateRegistration = await fetchStateRegistration(cnpj, draft.state);
+  const stateRegistrationFound = Boolean(stateRegistration);
+
   if (!draft.legalName) {
     throw new Error("CNPJ encontrado, mas sem razão social. Preencha os dados manualmente.");
   }
@@ -267,10 +307,11 @@ export async function fetchCompanyByCnpj(cnpjInput: string): Promise<CnpjCompany
     state: draft.state,
     address: buildFullAddress(addressParts),
     phone: draft.phone,
-    stateRegistration: "",
+    stateRegistration,
     checkedAt: new Date().toISOString(),
     streetFromCep,
     addressEnriched,
+    stateRegistrationFound,
   };
 }
 
@@ -286,6 +327,7 @@ export function cnpjInfoToFormPatch(
   const patch: Record<string, unknown> = {
     document: info.cnpj,
     trade_name: info.tradeName || "",
+    state_registration: info.stateRegistration || "",
     postal_code: info.postalCode,
     street: info.street,
     address_number: info.addressNumber,

@@ -52,16 +52,20 @@ export function CnpjLookupSection({
       const base = info.isActive
         ? "CNPJ ATIVO na Receita. Dados preenchidos — salve para gravar no banco."
         : `Situação na Receita: ${info.status}. Dados preenchidos — salve para gravar no banco.`;
-      let detail = "";
-      if (info.addressEnriched && info.addressNumber) {
-        detail = " Endereço e número completados na consulta.";
-      } else if (info.streetFromCep) {
-        detail =
-          " Logradouro completado pelo CEP. Confira o número se estiver em branco.";
-      } else if (!info.street || !info.addressNumber) {
-        detail = " Endereço incompleto — preencha logradouro/número se faltarem.";
+      const parts: string[] = [];
+      if (info.stateRegistrationFound && info.stateRegistration) {
+        parts.push(`IE: ${info.stateRegistration}.`);
+      } else {
+        parts.push("IE não encontrada — preencha manualmente se houver.");
       }
-      setOkMessage(`${base}${detail}`);
+      if (info.addressEnriched && info.addressNumber) {
+        parts.push("Endereço e número completados.");
+      } else if (info.streetFromCep) {
+        parts.push("Logradouro completado pelo CEP — confira o número.");
+      } else if (!info.street || !info.addressNumber) {
+        parts.push("Endereço incompleto — confira logradouro/número.");
+      }
+      setOkMessage(`${base} ${parts.join(" ")}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Falha ao consultar CNPJ.");
     } finally {
@@ -74,9 +78,8 @@ export function CnpjLookupSection({
       <div>
         <p className="text-sm font-medium text-slate-800">Consulta CNPJ</p>
         <p className="text-xs text-slate-500">
-          Primeiro campo do cadastro: digite o CNPJ e clique em Consultar para buscar razão social,
-          endereço e situação na Receita. A inscrição estadual (IE) pode ser preenchida
-          manualmente.
+          Digite o CNPJ e clique em Consultar para buscar razão social, endereço, inscrição
+          estadual (IE) e situação cadastral. Se a IE não aparecer, preencha manualmente.
         </p>
       </div>
 
