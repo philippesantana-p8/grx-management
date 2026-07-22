@@ -16,7 +16,7 @@ import {
 } from "@/lib/br-documents";
 import { NumericCodeField } from "@/components/cadastros/NumericCodeField";
 import { useAccess } from "@/lib/access-context";
-import { resolveEntityNumericCode } from "@/lib/codes";
+import { formatDuplicateCodeError, isEntityCodeTaken, resolveEntityNumericCode } from "@/lib/codes";
 import { useCompany } from "@/lib/company-context";
 import { glassField } from "@/lib/liquid-glass-styles";
 import { softDeletePartnerByCode } from "@/lib/partners";
@@ -79,7 +79,7 @@ function SociosPageContent() {
       <CrudPage<Partner>
         key={refreshKey}
         title="Sócios"
-        description="Código 8 dígitos · CPF/CNPJ único por empresa · RG"
+        description="Código numérico sequencial de 8 dígitos (editável e único) · CPF/CNPJ único · RG"
         table="partners"
         auditScreenKey="cadastros.socios"
         orderBy="code"
@@ -133,6 +133,7 @@ function PartnerEntityForm({
   const [docError, setDocError] = useState<string | null>(null);
   const [rgError, setRgError] = useState<string | null>(null);
   const [docDupError, setDocDupError] = useState<string | null>(null);
+  const [codeDupError, setCodeDupError] = useState<string | null>(null);
   const { seedCode, codeReady } = useSeedNumericCode("partners", companyId, item);
 
   if (!codeReady) {
@@ -169,6 +170,20 @@ function PartnerEntityForm({
         }
         data.code = resolved.code;
 
+        if (companyId) {
+          const codeCheck = await isEntityCodeTaken(
+            "partners",
+            companyId,
+            resolved.code,
+            item?.id ?? null
+          );
+          if (codeCheck.taken) {
+            setCodeDupError(formatDuplicateCodeError(resolved.code));
+            return;
+          }
+        }
+        setCodeDupError(null);
+
         const rgRaw = String(data.rg ?? "").trim();
         data.rg = partnerType === "Empresa" || !rgRaw ? null : formatRg(rgRaw);
 
@@ -201,10 +216,24 @@ function PartnerEntityForm({
             {rgError && <Alert variant="error">{rgError}</Alert>}
             {docError && <Alert variant="error">{docError}</Alert>}
             {docDupError && <Alert variant="error">{docDupError}</Alert>}
+            {codeDupError && <Alert variant="error">{codeDupError}</Alert>}
 
             <NumericCodeField
               value={String(form.code ?? "")}
-              onChange={(v) => set("code", v)}
+              onChange={(v) => {
+                set("code", v);
+                setCodeDupError(null);
+              }}
+              onBlur={async (code) => {
+                if (!companyId || !code) return;
+                const check = await isEntityCodeTaken(
+                  "partners",
+                  companyId,
+                  code,
+                  item?.id ?? null
+                );
+                setCodeDupError(check.taken ? formatDuplicateCodeError(code) : null);
+              }}
             />
 
             <FormFields

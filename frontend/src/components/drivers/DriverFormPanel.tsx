@@ -24,7 +24,7 @@ import {
 } from "@/lib/cnh";
 import { NumericCodeField } from "@/components/cadastros/NumericCodeField";
 import { formatCpfCnpj, onlyDigits } from "@/lib/br-documents";
-import { resolveEntityNumericCode } from "@/lib/codes";
+import { formatDuplicateCodeError, isEntityCodeTaken, resolveEntityNumericCode } from "@/lib/codes";
 import { glassField } from "@/lib/liquid-glass-styles";
 import {
   documentLabelForDigits,
@@ -50,6 +50,7 @@ export function DriverFormPanel({ item, companyId, saving, onSave, onCancel }: P
   const { seedCode, codeReady } = useSeedNumericCode("drivers", companyId, item);
   const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
   const [docDupError, setDocDupError] = useState<string | null>(null);
+  const [codeDupError, setCodeDupError] = useState<string | null>(null);
   const [cnhError, setCnhError] = useState<string | null>(null);
   const [uploadMsg, setUploadMsg] = useState<string | null>(null);
   const [pendingCnhAssets, setPendingCnhAssets] = useState<CnhScanAsset[]>([]);
@@ -67,6 +68,7 @@ export function DriverFormPanel({ item, companyId, saving, onSave, onCancel }: P
     setCnhError(null);
     setDuplicateWarning(null);
     setDocDupError(null);
+    setCodeDupError(null);
   }, [item?.id, item?.photo_storage_path]);
 
   const checkDuplicate = async (name: string) => {
@@ -92,6 +94,7 @@ export function DriverFormPanel({ item, companyId, saving, onSave, onCancel }: P
   return (
     <>
       {duplicateWarning && <Alert variant="warning">{duplicateWarning}</Alert>}
+      {codeDupError && <Alert variant="error">{codeDupError}</Alert>}
       {docDupError && <Alert variant="error">{docDupError}</Alert>}
       {cnhError && <Alert variant="error">{cnhError}</Alert>}
       {uploadMsg && <Alert variant="info">{uploadMsg}</Alert>}
@@ -133,6 +136,20 @@ export function DriverFormPanel({ item, companyId, saving, onSave, onCancel }: P
             return;
           }
           data.code = resolved.code;
+
+          if (companyId) {
+            const codeCheck = await isEntityCodeTaken(
+              "drivers",
+              companyId,
+              resolved.code,
+              item?.id ?? null
+            );
+            if (codeCheck.taken) {
+              setCodeDupError(formatDuplicateCodeError(resolved.code));
+              return;
+            }
+          }
+          setCodeDupError(null);
 
           const docDigits = onlyDigits(String(data.document ?? ""));
           if (docDigits && companyId) {
@@ -250,7 +267,20 @@ export function DriverFormPanel({ item, companyId, saving, onSave, onCancel }: P
 
               <NumericCodeField
                 value={String(form.code ?? "")}
-                onChange={(v) => set("code", v)}
+                onChange={(v) => {
+                  set("code", v);
+                  setCodeDupError(null);
+                }}
+                onBlur={async (code) => {
+                  if (!companyId || !code) return;
+                  const check = await isEntityCodeTaken(
+                    "drivers",
+                    companyId,
+                    code,
+                    item?.id ?? null
+                  );
+                  setCodeDupError(check.taken ? formatDuplicateCodeError(code) : null);
+                }}
               />
 
               <FormFields
