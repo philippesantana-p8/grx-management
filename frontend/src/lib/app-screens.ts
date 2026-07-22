@@ -63,6 +63,12 @@ export const APP_SCREENS: AppScreen[] = [
     group: "DRE",
     href: "/dre/despesas-veiculo",
   },
+  {
+    key: "dre.rateio-os",
+    label: "Rateio por OS",
+    group: "DRE",
+    href: "/dre/rateio-os",
+  },
   { key: "cadastros.socios", label: "Sócios", group: "Cadastros", href: "/cadastros/socios" },
   { key: "cadastros.veiculos", label: "Veículos", group: "Cadastros", href: "/cadastros/veiculos" },
   {

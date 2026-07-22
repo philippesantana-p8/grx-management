@@ -33,6 +33,7 @@ const NAV: NavItem[] = [
       { href: "/dre/lancamentos", label: "Lançamentos da Empresa" },
       { href: "/dre/despesas-motorista", label: "Despesas Motorista / Ajudante" },
       { href: "/dre/despesas-veiculo", label: "Despesas do Veículo" },
+      { href: "/dre/rateio-os", label: "Rateio por OS" },
     ],
   },
   {

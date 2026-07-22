@@ -72,12 +72,13 @@ Regra Cursor espelhada: `.cursor/rules/deploy-prod-and-dev.mdc`.
 | Foto veículo | Foto mestre em Cadastros → Veículos (`vehicles.photo_storage_path`, bucket `company-attachments`). Na OS/voucher Frete/Transporte: preview **somente leitura** (sem upload na OS). SQL: `apply-045-vehicle-photo.sql`. |
 | Dashboard 3D | Navegação por produto (Geral / Frete-Transporte / Estacionamento / Lava). Geral: 3 pizzas (receita, despesa, societário). Filtros: período preset + **De/Até** (data), placa/sócio/%. **Exportar Excel** (abas Resumo / Frete Transporte / Estacionamento / Lava / Despesas / Receitas; **inclui DEMO** por enquanto para teste — depois omitir). Lib: `dashboard-export.ts` + exceljs. Base DEMO via RPC `seed_dashboard_demo` (Senha Máster). SQL: `apply-047-dashboard-demo-volume.sql` + `reset-dashboard-demo.sql`. |
 | Sócios | RG / CPF / CNPJ + validações BR. |
-| Menu / nomes | Operacional: **Agenda da Frota** acima de **Ordem de Serviço — Transporte e Frete**. DRE com iniciais maiúsculas (Empresa, Motorista/Ajudante, Veículo). Ordem dos blocos: Cadastros → **Parâmetros** → **Configurações** (Integrações + **Renovação da licença**). Sem ✕ ao lado do logo no desktop (só no menu mobile). |
+| Menu / nomes | Operacional: **Agenda da Frota** acima de **Ordem de Serviço — Transporte e Frete**. DRE com iniciais maiúsculas (Empresa, Motorista/Ajudante, Veículo, Rateio por OS). Ordem dos blocos: Cadastros → **Parâmetros** → **Configurações** (Integrações + **Renovação da licença**). Sem ✕ ao lado do logo no desktop (só no menu mobile). |
 | Marca / logos | **Sistema:** Logistics AI Platform (menu/login). **Cliente:** Configurações → **Empresa** (nome + upload logo). Header = nome fantasia/razão. Voucher/proposta = `logo_storage_path` (SQL `apply-051`). Fallback `/grx-logo.png`. |
 | Parâmetros | **Senha Máster - Concessão de Acessos** = só permissões por sócio (sem bloco Asaas/mensalidade). Cobrança/valores/cartão em **Configurações → Renovação da licença**. **Análise/Alteração/Exclusão** enforçados nas telas. Exclusão pede motivo obrigatório. **Histórico de exclusões** — admin; SQL `apply-048` + `apply-049`. |
 | Auth | Cadastro/login e-mail + reset de senha. |
 | DRE motorista | Pagamentos + lançamento automático Motorista/Ajudante. |
 | DRE veículo | Aba **Despesas do veículo** por placa (pedágio, combustível, pneu, oficina, outros). Anti-duplicata: mesma **data + OS + conta DRE**. SQL: `apply-038-vehicle-expenses.sql`. |
+| DRE rateio OS | Aba **Rateio por OS** (consulta): por período/placa/sócio, calcula a cota de cada sócio na OS com base no % de participação vigente na data da OS. Receita = frete acordado (senão valor do serviço); despesa = FT Despesa com `service_order_id`. |
 | Mobile web | Shell responsivo: menu ☰ (drawer), formulários com Salvar sticky, tabelas com scroll horizontal + ações fixas. Abrir/editar no celular pelo mesmo URL. |
 | Agenda frota | Aba **Agenda da frota** (semana por placa, horários livres, baseada em OS entrada/saída). |
 | DRE empresa | Aba **Lançamentos da empresa** — receitas/despesas gerais (geladeira, escritório…) sem placa. SQL: `apply-039-company-ledger.sql`. |
@@ -104,7 +105,7 @@ Regra Cursor espelhada: `.cursor/rules/deploy-prod-and-dev.mdc`.
 - Retomar Asaas / teste cartão Felipe → depois valor produção Rafael.
 - Onboarding white-label para segundo cliente (Comfort etc.).
 - Importação financeira / lançamentos DRE em massa (planilha do Rafael).
-- Limpeza / reset total da base da empresa (além do Limpar DEMO do Dashboard).
+- Limpeza / reset total da base da empresa — **feito 2026-07-22** (script `wipe-grx-operational-data.mjs`): apagou OS/DRE/pátio/cadastros de teste da GRX; preservou empresa, logins, plano DRE (81 contas), Senha Máster/billing.
 - Vincular `company_members.partner_id` para permissões finas de não-admin.
 - Proposta comercial formal PSCS (texto já rascunhado; coberta sob demanda).
 
