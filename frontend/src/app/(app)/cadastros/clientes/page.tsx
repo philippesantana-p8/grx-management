@@ -23,7 +23,7 @@ export default function ClientesPage() {
   return (
     <CrudPage<Client>
       title="Clientes"
-      description="Consulta CNPJ primeiro · código numérico sequencial de 8 dígitos (editável)"
+      description="Consulta CNPJ primeiro · código 8 dígitos · CNPJ/CPF único por empresa"
       table="clients"
       auditScreenKey="cadastros.clientes"
       orderBy="name"
@@ -140,7 +140,13 @@ function ClientForm({
     >
       {({ form, set }) => (
         <>
-          <CnpjLookupSection form={form} set={set} />
+          <CnpjLookupSection
+            form={form}
+            set={set}
+            companyId={companyId}
+            partyTable="clients"
+            excludeId={item?.id ?? null}
+          />
 
           <NumericCodeField
             value={String(form.code ?? "")}

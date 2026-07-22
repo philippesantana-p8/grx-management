@@ -6,6 +6,10 @@ import { Button } from "@/components/ui/Button";
 import { formatCpfCnpj, onlyDigits } from "@/lib/br-documents";
 import { cnpjInfoToFormPatch, fetchCompanyByCnpj } from "@/lib/cnpj";
 import { glassField } from "@/lib/liquid-glass-styles";
+import {
+  formatDuplicateDocumentError,
+  isPartyDocumentTaken,
+} from "@/lib/party-document-uniqueness";
 
 type Props = {
   form: Record<string, unknown>;
@@ -16,6 +20,10 @@ type Props = {
   mapStatusToCadastro?: boolean;
   /** Se false, não renderiza o input de documento (já existe no formulário pai). */
   showDocumentInput?: boolean;
+  /** Para avisar na consulta se o CNPJ/CPF já está cadastrado. */
+  companyId?: string | null;
+  partyTable?: "clients" | "suppliers";
+  excludeId?: string | null;
 };
 
 export function CnpjLookupSection({
@@ -25,10 +33,14 @@ export function CnpjLookupSection({
   fillPhone = true,
   mapStatusToCadastro = true,
   showDocumentInput = true,
+  companyId = null,
+  partyTable,
+  excludeId = null,
 }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [okMessage, setOkMessage] = useState<string | null>(null);
+  const [dupWarning, setDupWarning] = useState<string | null>(null);
 
   const documentValue = String(form.document ?? "");
   const digits = onlyDigits(documentValue);
@@ -37,13 +49,22 @@ export function CnpjLookupSection({
     if (digits.length !== 14) {
       setError("Informe o CNPJ completo com 14 dígitos para consultar.");
       setOkMessage(null);
+      setDupWarning(null);
       return;
     }
 
     setLoading(true);
     setError(null);
     setOkMessage(null);
+    setDupWarning(null);
     try {
+      if (companyId && partyTable) {
+        const dup = await isPartyDocumentTaken(partyTable, companyId, digits, excludeId);
+        if (dup.taken) {
+          setDupWarning(formatDuplicateDocumentError("CNPJ"));
+        }
+      }
+
       const info = await fetchCompanyByCnpj(documentValue);
       const patch = cnpjInfoToFormPatch(info, { fillName, fillPhone, mapStatusToCadastro });
       for (const [key, value] of Object.entries(patch)) {
@@ -94,6 +115,7 @@ export function CnpjLookupSection({
                 set("document", formatCpfCnpj(e.target.value));
                 setError(null);
                 setOkMessage(null);
+                setDupWarning(null);
               }}
               placeholder="00.000.000/0000-00"
               inputMode="numeric"
@@ -125,6 +147,7 @@ export function CnpjLookupSection({
       ) : null}
 
       {error ? <Alert variant="error">{error}</Alert> : null}
+      {dupWarning ? <Alert variant="error">{dupWarning}</Alert> : null}
       {okMessage ? <Alert variant="success">{okMessage}</Alert> : null}
 
       {form.cnpj_status ? (

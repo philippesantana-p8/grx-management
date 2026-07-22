@@ -10,6 +10,12 @@ import {
   isUniqueConstraintError,
 } from "@/lib/codes";
 import { recordDeletion, summarizeDeletedRow } from "@/lib/deletion-audit";
+import {
+  documentFieldForTable,
+  documentLabelForDigits,
+  formatDuplicateDocumentError,
+  isPartyDocumentTaken,
+} from "@/lib/party-document-uniqueness";
 import { Button } from "@/components/ui/Button";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Loading, Alert } from "@/components/ui/Badge";
@@ -208,6 +214,28 @@ export function CrudPage<T extends { id: string }>({
       }
     }
 
+    const docField = documentFieldForTable(table);
+    const rawDocument =
+      docField && typeof payload[docField] === "string" ? String(payload[docField]) : "";
+    if (docField && rawDocument.trim()) {
+      const docCheck = await isPartyDocumentTaken(
+        table,
+        companyId,
+        rawDocument,
+        editing?.id ?? null
+      );
+      if (docCheck.error) {
+        setSaving(false);
+        setError(docCheck.error);
+        return null;
+      }
+      if (docCheck.taken) {
+        setSaving(false);
+        setError(formatDuplicateDocumentError(documentLabelForDigits(docCheck.digits)));
+        return null;
+      }
+    }
+
     let err;
     let savedId: string | null = null;
 
@@ -227,8 +255,21 @@ export function CrudPage<T extends { id: string }>({
     setSaving(false);
     if (err) {
       const msg = err.message;
-      if (code && isUniqueConstraintError(msg)) {
-        setError(formatDuplicateCodeError(code));
+      if (isUniqueConstraintError(msg)) {
+        const lower = msg.toLowerCase();
+        if (
+          docField &&
+          rawDocument.trim() &&
+          (lower.includes("document") || lower.includes("cpf") || lower.includes("digits"))
+        ) {
+          setError(
+            formatDuplicateDocumentError(documentLabelForDigits(rawDocument.replace(/\D/g, "")))
+          );
+        } else if (code) {
+          setError(formatDuplicateCodeError(code));
+        } else {
+          setError("Registro duplicado: já existe um cadastro com estes dados nesta empresa.");
+        }
       } else {
         setError(msg);
       }

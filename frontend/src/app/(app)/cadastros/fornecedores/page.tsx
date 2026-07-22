@@ -23,7 +23,7 @@ export default function FornecedoresPage() {
   return (
     <CrudPage<Supplier>
       title="Fornecedores"
-      description="Consulta CNPJ primeiro · código numérico sequencial de 8 dígitos (editável)"
+      description="Consulta CNPJ primeiro · código 8 dígitos · CNPJ/CPF único por empresa"
       table="suppliers"
       auditScreenKey="cadastros.fornecedores"
       orderBy="name"
@@ -141,7 +141,13 @@ function SupplierForm({
     >
       {({ form, set }) => (
         <>
-          <CnpjLookupSection form={form} set={set} />
+          <CnpjLookupSection
+            form={form}
+            set={set}
+            companyId={companyId}
+            partyTable="suppliers"
+            excludeId={item?.id ?? null}
+          />
 
           <NumericCodeField
             value={String(form.code ?? "")}
