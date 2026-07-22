@@ -39,7 +39,7 @@ export default function VeiculosPage() {
   return (
     <CrudPage<Vehicle>
       title="Veículos"
-      description="Cadastro da frota — código numérico sequencial de 8 dígitos (editável), foto, documentos e placa"
+      description="Código 8 dígitos · placa única por empresa · foto e documentos"
       table="vehicles"
       auditScreenKey="cadastros.veiculos"
       orderBy="plate"
@@ -217,7 +217,12 @@ function VehicleForm({
               form={form}
               set={setField}
               fields={[
-                { name: "plate", label: "Placa", required: true },
+                {
+                  name: "plate",
+                  label: "Placa (única por empresa)",
+                  required: true,
+                  placeholder: "ABC1D23",
+                },
                 { name: "plate_display", label: "Placa (exibição)" },
                 { name: "model", label: "Modelo" },
                 { name: "year", label: "Ano", type: "number" },

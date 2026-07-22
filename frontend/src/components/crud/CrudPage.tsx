@@ -14,8 +14,11 @@ import {
   documentFieldForTable,
   documentLabelForDigits,
   formatDuplicateDocumentError,
+  formatDuplicatePlateError,
   isPartyDocumentTaken,
+  isVehiclePlateTaken,
 } from "@/lib/party-document-uniqueness";
+import { normalizePlate } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Loading, Alert } from "@/components/ui/Badge";
@@ -236,6 +239,21 @@ export function CrudPage<T extends { id: string }>({
       }
     }
 
+    const rawPlate = table === "vehicles" && typeof payload.plate === "string" ? payload.plate : "";
+    if (table === "vehicles" && rawPlate.trim()) {
+      const plateCheck = await isVehiclePlateTaken(companyId, rawPlate, editing?.id ?? null);
+      if (plateCheck.error) {
+        setSaving(false);
+        setError(plateCheck.error);
+        return null;
+      }
+      if (plateCheck.taken) {
+        setSaving(false);
+        setError(formatDuplicatePlateError(plateCheck.plate));
+        return null;
+      }
+    }
+
     let err;
     let savedId: string | null = null;
 
@@ -265,6 +283,8 @@ export function CrudPage<T extends { id: string }>({
           setError(
             formatDuplicateDocumentError(documentLabelForDigits(rawDocument.replace(/\D/g, "")))
           );
+        } else if (table === "vehicles" && (lower.includes("plate") || rawPlate.trim())) {
+          setError(formatDuplicatePlateError(normalizePlate(rawPlate) || String(rawPlate)));
         } else if (code) {
           setError(formatDuplicateCodeError(code));
         } else {

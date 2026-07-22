@@ -23,7 +23,14 @@ import {
   validateCnh,
 } from "@/lib/cnh";
 import { NumericCodeField } from "@/components/cadastros/NumericCodeField";
+import { formatCpfCnpj, onlyDigits } from "@/lib/br-documents";
 import { resolveEntityNumericCode } from "@/lib/codes";
+import { glassField } from "@/lib/liquid-glass-styles";
+import {
+  documentLabelForDigits,
+  formatDuplicateDocumentError,
+  isPartyDocumentTaken,
+} from "@/lib/party-document-uniqueness";
 import { useSeedNumericCode } from "@/lib/use-seed-numeric-code";
 import { isSimilarName, normalizeText } from "@/lib/utils";
 import type { Driver } from "@/types/database";
@@ -42,6 +49,7 @@ export function DriverFormPanel({ item, companyId, saving, onSave, onCancel }: P
   const supabase = createClient();
   const { seedCode, codeReady } = useSeedNumericCode("drivers", companyId, item);
   const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
+  const [docDupError, setDocDupError] = useState<string | null>(null);
   const [cnhError, setCnhError] = useState<string | null>(null);
   const [uploadMsg, setUploadMsg] = useState<string | null>(null);
   const [pendingCnhAssets, setPendingCnhAssets] = useState<CnhScanAsset[]>([]);
@@ -58,6 +66,7 @@ export function DriverFormPanel({ item, companyId, saving, onSave, onCancel }: P
     setUploadMsg(null);
     setCnhError(null);
     setDuplicateWarning(null);
+    setDocDupError(null);
   }, [item?.id, item?.photo_storage_path]);
 
   const checkDuplicate = async (name: string) => {
@@ -83,6 +92,7 @@ export function DriverFormPanel({ item, companyId, saving, onSave, onCancel }: P
   return (
     <>
       {duplicateWarning && <Alert variant="warning">{duplicateWarning}</Alert>}
+      {docDupError && <Alert variant="error">{docDupError}</Alert>}
       {cnhError && <Alert variant="error">{cnhError}</Alert>}
       {uploadMsg && <Alert variant="info">{uploadMsg}</Alert>}
 
@@ -123,6 +133,18 @@ export function DriverFormPanel({ item, companyId, saving, onSave, onCancel }: P
             return;
           }
           data.code = resolved.code;
+
+          const docDigits = onlyDigits(String(data.document ?? ""));
+          if (docDigits && companyId) {
+            const dup = await isPartyDocumentTaken("drivers", companyId, docDigits, item?.id);
+            if (dup.taken) {
+              setDocDupError(formatDuplicateDocumentError(documentLabelForDigits(dup.digits)));
+              return;
+            }
+          }
+          setDocDupError(null);
+          data.document = docDigits ? formatCpfCnpj(docDigits) : null;
+
           data.name_normalized = normalizeText(String(data.name));
           if (data.cnh_number === "") data.cnh_number = null;
           else data.cnh_number = normalizeCnh(String(data.cnh_number));
@@ -277,11 +299,38 @@ export function DriverFormPanel({ item, companyId, saving, onSave, onCancel }: P
                 />
               </fieldset>
 
-              <FormFields
-                form={form}
-                set={set}
-                fields={[{ name: "document", label: "CPF/CNPJ" }]}
-              />
+              <label className="block space-y-1 sm:col-span-2">
+                <span className="text-sm font-medium text-slate-700">CPF/CNPJ</span>
+                <input
+                  className={glassField(false)}
+                  value={formatCpfCnpj(String(form.document ?? ""))}
+                  inputMode="numeric"
+                  autoComplete="off"
+                  placeholder="000.000.000-00 ou 00.000.000/0000-00"
+                  onChange={(e) => {
+                    set("document", formatCpfCnpj(e.target.value));
+                    setDocDupError(null);
+                  }}
+                  onBlur={async (e) => {
+                    const digits = onlyDigits(e.target.value);
+                    if (!digits || !companyId) return;
+                    const dup = await isPartyDocumentTaken(
+                      "drivers",
+                      companyId,
+                      digits,
+                      item?.id
+                    );
+                    setDocDupError(
+                      dup.taken
+                        ? formatDuplicateDocumentError(documentLabelForDigits(dup.digits))
+                        : null
+                    );
+                  }}
+                />
+                <span className="text-xs text-slate-500">
+                  Documento único por empresa — não permite o mesmo CPF/CNPJ duas vezes.
+                </span>
+              </label>
 
               <fieldset className="space-y-4 rounded-lg border border-slate-200 p-4">
                 <legend className="px-1 text-sm font-medium text-slate-700">

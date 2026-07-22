@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/client";
 import { onlyDigits } from "@/lib/br-documents";
+import { normalizePlate } from "@/lib/utils";
 
 /** Tabelas de cadastro com documento de pessoa/empresa (CNPJ/CPF). */
 export const PARTY_DOCUMENT_TABLES = [
@@ -19,6 +20,10 @@ export function documentFieldForTable(table: string): "document" | "cpf" | null 
 
 export function formatDuplicateDocumentError(documentLabel: string): string {
   return `Já existe um cadastro com este ${documentLabel} nesta empresa. Não é permitido inserir o mesmo CNPJ/CPF duas vezes.`;
+}
+
+export function formatDuplicatePlateError(plate: string): string {
+  return `Já existe um veículo com a placa ${plate} nesta empresa. Não é permitido cadastrar a mesma placa duas vezes.`;
 }
 
 export function documentLabelForDigits(digits: string): string {
@@ -60,4 +65,31 @@ export async function isPartyDocumentTaken(
   });
 
   return { taken, digits };
+}
+
+/** Placa única por empresa (padrão de identidade do veículo). */
+export async function isVehiclePlateTaken(
+  companyId: string,
+  rawPlate: string,
+  excludeId?: string | null
+): Promise<{ taken: boolean; plate: string; error?: string }> {
+  const plate = normalizePlate(rawPlate);
+  if (!plate) return { taken: false, plate };
+
+  const supabase = createClient();
+  let query = supabase
+    .from("vehicles")
+    .select("id, plate")
+    .eq("company_id", companyId)
+    .is("deleted_at", null);
+
+  if (excludeId) {
+    query = query.neq("id", excludeId);
+  }
+
+  const { data, error } = await query;
+  if (error) return { taken: false, plate, error: error.message };
+
+  const taken = (data ?? []).some((row) => normalizePlate(String(row.plate ?? "")) === plate);
+  return { taken, plate };
 }

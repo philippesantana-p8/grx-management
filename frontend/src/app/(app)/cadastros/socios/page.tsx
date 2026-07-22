@@ -20,6 +20,11 @@ import { resolveEntityNumericCode } from "@/lib/codes";
 import { useCompany } from "@/lib/company-context";
 import { glassField } from "@/lib/liquid-glass-styles";
 import { softDeletePartnerByCode } from "@/lib/partners";
+import {
+  documentLabelForDigits,
+  formatDuplicateDocumentError,
+  isPartyDocumentTaken,
+} from "@/lib/party-document-uniqueness";
 import { useSeedNumericCode } from "@/lib/use-seed-numeric-code";
 import type { Partner } from "@/types/database";
 import { PARTNER_TYPES, STATUS_OPTIONS } from "@/types/database";
@@ -74,7 +79,7 @@ function SociosPageContent() {
       <CrudPage<Partner>
         key={refreshKey}
         title="Sócios"
-        description="Cadastro de sócios — código numérico sequencial de 8 dígitos (editável), RG e CPF/CNPJ"
+        description="Código 8 dígitos · CPF/CNPJ único por empresa · RG"
         table="partners"
         auditScreenKey="cadastros.socios"
         orderBy="code"
@@ -127,6 +132,7 @@ function PartnerEntityForm({
 }) {
   const [docError, setDocError] = useState<string | null>(null);
   const [rgError, setRgError] = useState<string | null>(null);
+  const [docDupError, setDocDupError] = useState<string | null>(null);
   const { seedCode, codeReady } = useSeedNumericCode("partners", companyId, item);
 
   if (!codeReady) {
@@ -169,6 +175,15 @@ function PartnerEntityForm({
         const docDigits = onlyDigits(String(data.cpf ?? ""));
         data.cpf = docDigits ? docDigits : null;
 
+        if (docDigits && companyId) {
+          const dup = await isPartyDocumentTaken("partners", companyId, docDigits, item?.id);
+          if (dup.taken) {
+            setDocDupError(formatDuplicateDocumentError(documentLabelForDigits(dup.digits)));
+            return;
+          }
+        }
+        setDocDupError(null);
+
         await onSave(data);
       }}
     >
@@ -185,6 +200,7 @@ function PartnerEntityForm({
           <>
             {rgError && <Alert variant="error">{rgError}</Alert>}
             {docError && <Alert variant="error">{docError}</Alert>}
+            {docDupError && <Alert variant="error">{docDupError}</Alert>}
 
             <NumericCodeField
               value={String(form.code ?? "")}
@@ -271,12 +287,28 @@ function PartnerEntityForm({
                       );
                       set("cpf", digits);
                       setDocError(validatePartnerDocument(partnerType, digits));
+                      setDocDupError(null);
+                    }}
+                    onBlur={async (e) => {
+                      const digits = onlyDigits(e.target.value);
+                      if (!digits || !companyId) return;
+                      const dup = await isPartyDocumentTaken(
+                        "partners",
+                        companyId,
+                        digits,
+                        item?.id
+                      );
+                      setDocDupError(
+                        dup.taken
+                          ? formatDuplicateDocumentError(documentLabelForDigits(dup.digits))
+                          : null
+                      );
                     }}
                   />
                   <span className="text-xs text-slate-500">
                     {kind === "cnpj"
-                      ? "14 dígitos com validação dos verificadores"
-                      : "11 dígitos com validação dos verificadores"}
+                      ? "14 dígitos · único por empresa"
+                      : "11 dígitos · único por empresa"}
                   </span>
                 </label>
               </div>

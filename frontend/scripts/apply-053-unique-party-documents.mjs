@@ -84,6 +84,7 @@ async function softDeleteDuplicates(table, field = "document") {
 await softDeleteDuplicates("clients");
 await softDeleteDuplicates("suppliers");
 await softDeleteDuplicates("drivers");
+await softDeleteDuplicates("partners", "cpf");
 
 console.log(`
 Cleanup via API concluído.
