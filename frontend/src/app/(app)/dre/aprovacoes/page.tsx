@@ -237,7 +237,8 @@ export default function DreAprovacoesPage() {
               <th className="px-3 py-2">Data do lançamento</th>
               <th className="px-3 py-2">Lançado por</th>
               <th className="px-3 py-2">Origem</th>
-              <th className="px-3 py-2">Conta / placa</th>
+              <th className="px-3 py-2">Conta DRE</th>
+              <th className="px-3 py-2">Placa</th>
               <th className="px-3 py-2">Descrição</th>
               <th className="px-3 py-2">Tipo</th>
               <th className="px-3 py-2">Valor</th>
@@ -267,8 +268,17 @@ export default function DreAprovacoesPage() {
                 </td>
                 <td className="px-3 py-2">{entrySourceLabel(row.entry_source)}</td>
                 <td className="px-3 py-2">
-                  <div>{row.dre_account_name || "—"}</div>
-                  {row.plate ? <div className="text-xs text-slate-500">{row.plate}</div> : null}
+                  <div className="font-semibold text-slate-900">
+                    {row.dre_account_name || (
+                      <span className="font-normal text-amber-700">Conta não informada</span>
+                    )}
+                  </div>
+                  {row.classification ? (
+                    <div className="text-xs text-slate-500">{row.classification}</div>
+                  ) : null}
+                </td>
+                <td className="whitespace-nowrap px-3 py-2 text-slate-700">
+                  {row.plate || <span className="text-slate-400">—</span>}
                 </td>
                 <td className="max-w-xs px-3 py-2">{row.description || "—"}</td>
                 <td className="px-3 py-2">{row.transaction_type}</td>
@@ -339,7 +349,7 @@ export default function DreAprovacoesPage() {
             ))}
             {!loading && rows.length === 0 ? (
               <tr>
-                <td colSpan={9} className="px-3 py-8 text-center text-slate-500">
+                <td colSpan={10} className="px-3 py-8 text-center text-slate-500">
                   Nenhum lançamento pendente. Se acabou de aplicar o SQL 056, novos manuais
                   aparecerão aqui.
                 </td>
