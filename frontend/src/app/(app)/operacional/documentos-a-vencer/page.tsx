@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { DriverDocumentsFollowupPanel } from "@/components/compliance/DriverDocumentsFollowupPanel";
 import { Alert, Badge, Loading } from "@/components/ui/Badge";
 import { GlassSelect } from "@/components/ui/GlassSelect";
 import { useCompany } from "@/lib/company-context";
@@ -20,9 +21,12 @@ import { formatExpiryDateBR } from "@/lib/expiry-status";
 import { glassFilterPanel } from "@/lib/liquid-glass-styles";
 import { createClient } from "@/lib/supabase/client";
 
+type MainTab = "fleet" | "drivers";
+
 export default function DocumentosAVencerOperacionalPage() {
   const { companyId } = useCompany();
   const supabase = useMemo(() => createClient(), []);
+  const [tab, setTab] = useState<MainTab>("fleet");
   const [rows, setRows] = useState<ComplianceDocument[]>([]);
   const [vehicles, setVehicles] = useState<
     Map<string, { plate: string; brandModel: string | null }>
@@ -103,145 +107,177 @@ export default function DocumentosAVencerOperacionalPage() {
     return opts.sort((a, b) => a.label.localeCompare(b.label, "pt-BR"));
   }, [vehicles, rows]);
 
-  if (!companyId || loading) return <Loading />;
+  if (!companyId || (loading && tab === "fleet")) return <Loading />;
 
   return (
     <div className="mx-auto max-w-5xl space-y-5 p-4 sm:p-6">
       <div>
         <h1 className="text-2xl font-semibold text-slate-900">Documentos a vencer</h1>
         <p className="text-sm text-slate-600">
-          Acompanhe vencimentos por placa (Prefixo, CRLV…) e o TA da empresa. Tipos em{" "}
-          <Link href="/configuracoes/documentos-licencas" className="text-sky-700 underline">
-            Parâmetros → Documentos e licenças
-          </Link>
-          .
+          Acompanhe no Operacional os documentos da frota/empresa e os documentos dos
+          motoristas (CNH e CNH-AVC) que precisam ser enviados ou renovados.
         </p>
       </div>
 
-      {error ? <Alert variant="error">{error}</Alert> : null}
-
-      <div className={`grid gap-3 sm:grid-cols-3 ${glassFilterPanel()}`}>
-        <GlassSelect
-          label="Escopo"
-          value={scope}
-          onChange={(v) => setScope(v as "all" | "vehicle" | "company")}
-          options={[
-            { value: "all", label: "Todos" },
-            { value: "vehicle", label: "Por placa (veículo)" },
-            { value: "company", label: "Empresa" },
-          ]}
-        />
-        <GlassSelect
-          label="Placa (marca / modelo)"
-          value={plateFilter}
-          onChange={setPlateFilter}
-          options={plateOptions}
-        />
-        <GlassSelect
-          label="Situação"
-          value={situationFilter}
-          onChange={(v) =>
-            setSituationFilter(
-              v as "all" | "expiring" | "expired" | "in_renewal" | "suspended"
-            )
-          }
-          options={[
-            { value: "all", label: "Todas" },
-            { value: "expiring", label: "A vencer" },
-            { value: "expired", label: "Vencidos" },
-            { value: "in_renewal", label: "Em renovação" },
-            { value: "suspended", label: "Suspenso" },
-          ]}
-        />
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => setTab("fleet")}
+          className={`rounded-lg px-3 py-1.5 text-sm font-medium ${
+            tab === "fleet" ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-700"
+          }`}
+        >
+          Frota e empresa
+        </button>
+        <button
+          type="button"
+          onClick={() => setTab("drivers")}
+          className={`rounded-lg px-3 py-1.5 text-sm font-medium ${
+            tab === "drivers" ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-700"
+          }`}
+        >
+          Motoristas (CNH / CNH-AVC)
+        </button>
       </div>
 
-      <section className={`space-y-2 ${glassFilterPanel()}`}>
-        <h2 className="text-sm font-semibold">Notificações (não lidas)</h2>
-        {alerts.length === 0 ? (
-          <p className="text-sm text-slate-500">Nenhum alerta pendente nesta semana.</p>
-        ) : (
-          alerts.map((a) => (
-            <div
-              key={a.id}
-              className="flex flex-wrap items-start justify-between gap-2 rounded-lg border border-slate-100 px-3 py-2"
-            >
-              <div>
-                <p className="text-sm font-medium">{a.title}</p>
-                <p className="text-xs text-slate-500">{a.body}</p>
-              </div>
-              <button
-                type="button"
-                className="text-xs font-medium text-sky-700 underline"
-                onClick={async () => {
-                  await markComplianceAlertRead(supabase, companyId, a.id, userId);
-                  await load();
-                }}
-              >
-                Marcar lido
-              </button>
-            </div>
-          ))
-        )}
-      </section>
+      {tab === "drivers" ? (
+        <DriverDocumentsFollowupPanel companyId={companyId} />
+      ) : (
+        <>
+          <p className="text-sm text-slate-600">
+            Vencimentos por placa (Prefixo, CRLV…) e o TA da empresa. Tipos em{" "}
+            <Link href="/configuracoes/documentos-licencas" className="text-sky-700 underline">
+              Parâmetros → Documentos e licenças
+            </Link>
+            .
+          </p>
 
-      <section className={`overflow-x-auto ${glassFilterPanel()}`}>
-        <h2 className="mb-2 text-sm font-semibold">Documentos em atenção</h2>
-        <table className="min-w-full text-left text-sm">
-          <thead className="text-xs uppercase text-slate-500">
-            <tr>
-              <th className="px-2 py-2">Placa / Escopo</th>
-              <th className="px-2 py-2">Marca / modelo</th>
-              <th className="px-2 py-2">Documento</th>
-              <th className="px-2 py-2">Nº</th>
-              <th className="px-2 py-2">Validade</th>
-              <th className="px-2 py-2">Situação</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="px-2 py-4 text-slate-500">
-                  Nenhum documento vencido ou a vencer neste filtro.
-                </td>
-              </tr>
+          {error ? <Alert variant="error">{error}</Alert> : null}
+
+          <div className={`grid gap-3 sm:grid-cols-3 ${glassFilterPanel()}`}>
+            <GlassSelect
+              label="Escopo"
+              value={scope}
+              onChange={(v) => setScope(v as "all" | "vehicle" | "company")}
+              options={[
+                { value: "all", label: "Todos" },
+                { value: "vehicle", label: "Por placa (veículo)" },
+                { value: "company", label: "Empresa" },
+              ]}
+            />
+            <GlassSelect
+              label="Placa (marca / modelo)"
+              value={plateFilter}
+              onChange={setPlateFilter}
+              options={plateOptions}
+            />
+            <GlassSelect
+              label="Situação"
+              value={situationFilter}
+              onChange={(v) =>
+                setSituationFilter(
+                  v as "all" | "expiring" | "expired" | "in_renewal" | "suspended"
+                )
+              }
+              options={[
+                { value: "all", label: "Todas" },
+                { value: "expiring", label: "A vencer" },
+                { value: "expired", label: "Vencidos" },
+                { value: "in_renewal", label: "Em renovação" },
+                { value: "suspended", label: "Suspenso" },
+              ]}
+            />
+          </div>
+
+          <section className={`space-y-2 ${glassFilterPanel()}`}>
+            <h2 className="text-sm font-semibold">Notificações (não lidas)</h2>
+            {alerts.length === 0 ? (
+              <p className="text-sm text-slate-500">Nenhum alerta pendente nesta semana.</p>
             ) : (
-              filtered.map((doc) => {
-                const view = resolveComplianceSituation(doc, doc.document_type);
-                const veh =
-                  doc.owner_type === "vehicle" ? vehicles.get(doc.owner_id) : null;
-                const plate =
-                  doc.owner_type === "vehicle" ? veh?.plate || "Veículo" : "Empresa";
-                const brandModel =
-                  doc.owner_type === "vehicle" ? veh?.brandModel || "—" : "—";
-                return (
-                  <tr key={doc.id} className="border-t border-slate-100">
-                    <td className="px-2 py-2 font-medium">{plate}</td>
-                    <td className="px-2 py-2 text-slate-700">{brandModel}</td>
-                    <td className="px-2 py-2">
-                      {documentDisplayName(doc.document_type)}
-                    </td>
-                    <td className="px-2 py-2">{doc.document_number || "—"}</td>
-                    <td className="px-2 py-2 whitespace-nowrap">
-                      {doc.no_expiry
-                        ? "Sem vencimento"
-                        : formatExpiryDateBR(doc.expires_at) || "—"}
-                      {view.daysLeft != null ? ` (${view.daysLeft}d)` : ""}
-                      {view.renewalNote || view.situation === "suspended" ? (
-                        <span className="block text-[11px] text-slate-500">
-                          Validade original mantida
-                        </span>
-                      ) : null}
-                    </td>
-                    <td className="px-2 py-2">
-                      <Badge variant={view.badge}>{view.label}</Badge>
+              alerts.map((a) => (
+                <div
+                  key={a.id}
+                  className="flex flex-wrap items-start justify-between gap-2 rounded-lg border border-slate-100 px-3 py-2"
+                >
+                  <div>
+                    <p className="text-sm font-medium">{a.title}</p>
+                    <p className="text-xs text-slate-500">{a.body}</p>
+                  </div>
+                  <button
+                    type="button"
+                    className="text-xs font-medium text-sky-700 underline"
+                    onClick={async () => {
+                      await markComplianceAlertRead(supabase, companyId, a.id, userId);
+                      await load();
+                    }}
+                  >
+                    Marcar lido
+                  </button>
+                </div>
+              ))
+            )}
+          </section>
+
+          <section className={`overflow-x-auto ${glassFilterPanel()}`}>
+            <h2 className="mb-2 text-sm font-semibold">Documentos em atenção</h2>
+            <table className="min-w-full text-left text-sm">
+              <thead className="text-xs uppercase text-slate-500">
+                <tr>
+                  <th className="px-2 py-2">Placa / Escopo</th>
+                  <th className="px-2 py-2">Marca / modelo</th>
+                  <th className="px-2 py-2">Documento</th>
+                  <th className="px-2 py-2">Nº</th>
+                  <th className="px-2 py-2">Validade</th>
+                  <th className="px-2 py-2">Situação</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-2 py-4 text-slate-500">
+                      Nenhum documento vencido ou a vencer neste filtro.
                     </td>
                   </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-      </section>
+                ) : (
+                  filtered.map((doc) => {
+                    const view = resolveComplianceSituation(doc, doc.document_type);
+                    const veh =
+                      doc.owner_type === "vehicle" ? vehicles.get(doc.owner_id) : null;
+                    const plate =
+                      doc.owner_type === "vehicle" ? veh?.plate || "Veículo" : "Empresa";
+                    const brandModel =
+                      doc.owner_type === "vehicle" ? veh?.brandModel || "—" : "—";
+                    return (
+                      <tr key={doc.id} className="border-t border-slate-100">
+                        <td className="px-2 py-2 font-medium">{plate}</td>
+                        <td className="px-2 py-2 text-slate-700">{brandModel}</td>
+                        <td className="px-2 py-2">
+                          {documentDisplayName(doc.document_type)}
+                        </td>
+                        <td className="px-2 py-2">{doc.document_number || "—"}</td>
+                        <td className="px-2 py-2 whitespace-nowrap">
+                          {doc.no_expiry
+                            ? "Sem vencimento"
+                            : formatExpiryDateBR(doc.expires_at) || "—"}
+                          {view.daysLeft != null ? ` (${view.daysLeft}d)` : ""}
+                          {view.renewalNote || view.situation === "suspended" ? (
+                            <span className="block text-[11px] text-slate-500">
+                              Validade original mantida
+                            </span>
+                          ) : null}
+                        </td>
+                        <td className="px-2 py-2">
+                          <Badge variant={view.badge}>{view.label}</Badge>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </section>
+        </>
+      )}
     </div>
   );
 }
