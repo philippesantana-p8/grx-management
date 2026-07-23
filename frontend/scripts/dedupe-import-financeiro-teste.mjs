@@ -1,8 +1,8 @@
 /**
  * Remove duplicatas dos imports financeiros de teste (GRX + Rafa/Malu/Sérgio).
  *
- * Critério: mesma data caixa + valor + conta DRE + parte + data serviço + COT +
- * descrição "livre" (sem tag/fonte/meta).
+ * Critério: data caixa × placa (+ valor + conta + parte + serviço + COT).
+ * Com placa, a descrição não entra (varia entre planilhas). Sem placa, inclui desc.
  *
  * Prioridade de retenção:
  *   1) import_historico_teste (Financeiro GRX)
@@ -18,6 +18,7 @@ import ExcelJS from "exceljs";
 import { createClient } from "@supabase/supabase-js";
 import {
   importFingerprint,
+  normalizePlate,
   parseImportDesc,
 } from "./lib/import-financeiro-fingerprint.mjs";
 
@@ -59,7 +60,7 @@ async function fetchAll(sb) {
     const { data, error } = await sb
       .from("financial_transactions")
       .select(
-        "id, transaction_date, amount, chart_of_account_id, description, entry_source, legacy_number, created_at"
+        "id, transaction_date, amount, chart_of_account_id, description, entry_source, legacy_number, allocation_vehicle_id, created_at"
       )
       .eq("company_id", COMPANY_ID)
       .in("entry_source", SOURCES)
@@ -81,10 +82,19 @@ async function main() {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
+  const { data: vehicles, error: vehErr } = await sb
+    .from("vehicles")
+    .select("id, plate")
+    .eq("company_id", COMPANY_ID);
+  if (vehErr) throw vehErr;
+  const plateByVehicleId = new Map(
+    (vehicles || []).map((v) => [v.id, normalizePlate(v.plate)])
+  );
+
   const rows = await fetchAll(sb);
   const groups = new Map();
   for (const row of rows) {
-    const fp = importFingerprint(row);
+    const fp = importFingerprint(row, plateByVehicleId);
     if (!groups.has(fp)) groups.set(fp, []);
     groups.get(fp).push(row);
   }
@@ -126,12 +136,17 @@ async function main() {
     { header: "Mantém id", key: "kid", width: 38 },
     { header: "Mantém fonte", key: "kf", width: 22 },
     { header: "Data", key: "d", width: 12 },
+    { header: "Placa", key: "pl", width: 12 },
     { header: "Valor", key: "v", width: 12 },
     { header: "Parte", key: "p", width: 28 },
     { header: "Desc", key: "c", width: 50 },
   ];
   for (const r of toDelete) {
     const p = parseImportDesc(r.description);
+    const pl =
+      (r.allocation_vehicle_id && plateByVehicleId.get(r.allocation_vehicle_id)) ||
+      p.plateFromRateio ||
+      "";
     ws.addRow({
       id: r.id,
       df: r._drop_fonte,
@@ -139,6 +154,7 @@ async function main() {
       kid: r._keep_id,
       kf: r._keep_fonte,
       d: r.transaction_date,
+      pl,
       v: r.amount,
       p: p.party,
       c: p.core.slice(0, 80),

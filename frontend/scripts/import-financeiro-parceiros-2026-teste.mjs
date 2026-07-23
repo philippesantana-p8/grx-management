@@ -225,6 +225,9 @@ async function main() {
   const plateToId = new Map(
     (vehicles || []).map((v) => [normalizePlate(v.plate), v.id])
   );
+  const plateByVehicleId = new Map(
+    (vehicles || []).map((v) => [v.id, normalizePlate(v.plate)])
+  );
 
   // Fingerprints já no banco (GRX + parceiros) para não recriar duplicata
   const seenFp = new Set();
@@ -235,7 +238,7 @@ async function main() {
       const { data, error } = await sb
         .from("financial_transactions")
         .select(
-          "transaction_date, amount, chart_of_account_id, description, legacy_number"
+          "transaction_date, amount, chart_of_account_id, description, legacy_number, allocation_vehicle_id"
         )
         .eq("company_id", COMPANY_ID)
         .in("entry_source", [
@@ -246,7 +249,7 @@ async function main() {
         .range(from, from + page - 1);
       if (error) throw error;
       if (!data?.length) break;
-      for (const row of data) seenFp.add(importFingerprint(row));
+      for (const row of data) seenFp.add(importFingerprint(row, plateByVehicleId));
       if (data.length < page) break;
       from += page;
     }
@@ -397,13 +400,14 @@ async function main() {
         serviceDate,
         cot,
         desc,
+        plate: plateCandidate,
       });
       if (seenFp.has(fp)) {
         skippedDup++;
         gaps.push({
           fonte: src.label,
           linha: r,
-          motivo: "Duplicata (já existe GRX/outra planilha/lote)",
+          motivo: "Duplicata (data×placa / já existe GRX ou outra planilha)",
           data_caixa: cashDate,
           data_servico: serviceDate || "",
           valor: amount,

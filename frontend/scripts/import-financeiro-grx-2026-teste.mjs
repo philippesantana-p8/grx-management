@@ -322,12 +322,13 @@ async function main() {
       serviceDate,
       cot,
       desc,
+      plate: plateCandidate,
     });
     if (seenFp.has(fp)) {
       skippedDup++;
       gaps.push({
         linha: r,
-        motivo: "Duplicata na própria planilha GRX",
+        motivo: "Duplicata na própria planilha GRX (data×placa)",
         data_caixa: cashDate,
         data_servico: serviceDate || "",
         valor: amount,
