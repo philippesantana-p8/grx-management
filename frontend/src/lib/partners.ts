@@ -7,13 +7,14 @@ export type SoftDeletePartnerResult =
 
 export async function softDeletePartnerByCode(
   companyId: string,
-  code: string
+  code: string,
+  options?: { reason?: string; reasonCode?: string }
 ): Promise<SoftDeletePartnerResult> {
   const supabase = createClient();
 
   const { data: partner, error: findError } = await supabase
     .from("partners")
-    .select("id, code, name")
+    .select("*")
     .eq("company_id", companyId)
     .eq("code", code)
     .is("deleted_at", null)
@@ -51,6 +52,11 @@ export async function softDeletePartnerByCode(
     };
   }
 
+  const reason =
+    options?.reason?.trim() ||
+    "Exclusão do sócio solicitada pelo sistema (código do cadastro)";
+  const reasonCode = options?.reasonCode?.trim() || "outro";
+
   const logged = await recordDeletion({
     supabase,
     companyId,
@@ -58,7 +64,8 @@ export async function softDeletePartnerByCode(
     entityId: partner.id as string,
     entityCode: partner.code as string,
     summary: partner.name as string,
-    reason: "Exclusão do sócio solicitada pelo sistema (código do cadastro)",
+    reason,
+    reasonCode,
     screenKey: "cadastros.socios",
     deleteMode: "soft",
     payload: partner as Record<string, unknown>,

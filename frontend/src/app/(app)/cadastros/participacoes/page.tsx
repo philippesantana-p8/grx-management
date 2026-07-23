@@ -285,7 +285,7 @@ export default function ParticipacoesPage() {
     setPendingDeleteId(id);
   };
 
-  const handleDelete = async (reason: string) => {
+  const handleDelete = async (payload: { reason: string; reasonCode: string }) => {
     if (!canDelete) {
       setError("Seu acesso não inclui Exclusão nesta tela.");
       setPendingDeleteId(null);
@@ -310,7 +310,8 @@ export default function ParticipacoesPage() {
         entityId: id,
         entityCode,
         summary: summary || `Participação ${id.slice(0, 8)}`,
-        reason,
+        reason: payload.reason,
+        reasonCode: payload.reasonCode,
         screenKey: "cadastros.participacoes",
         deleteMode: "hard",
         payload: row,

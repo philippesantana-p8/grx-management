@@ -3,16 +3,31 @@
 import { useEffect, useId, useMemo, useState } from "react";
 import { Alert } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
-import { validateDeletionReason } from "@/lib/deletion-audit";
+import { GlassSelect } from "@/components/ui/GlassSelect";
+import {
+  composeDeletionReason,
+  DELETION_REASON_OPTIONS,
+  validateDeletionReason,
+} from "@/lib/deletion-audit";
 import { glassField } from "@/lib/liquid-glass-styles";
+
+export type DeleteReasonConfirmPayload = {
+  reason: string;
+  reasonCode: string;
+};
 
 type Props = {
   open: boolean;
   title?: string;
   description?: string;
   confirming?: boolean;
+  /** Exibe aviso reforçado (sócio, veículo, motorista, etc.). */
+  critical?: boolean;
+  confirmLabel?: string;
+  /** Quando true, usa lista padronizada de motivos. */
+  useReasonCodes?: boolean;
   onCancel: () => void;
-  onConfirm: (reason: string) => void | Promise<void>;
+  onConfirm: (payload: DeleteReasonConfirmPayload) => void | Promise<void>;
 };
 
 export function DeleteReasonModal({
@@ -20,11 +35,15 @@ export function DeleteReasonModal({
   title = "Confirmar exclusão",
   description = "Informe o motivo da exclusão. Esse texto fica registrado no histórico.",
   confirming = false,
+  critical = false,
+  confirmLabel = "Excluir com registro",
+  useReasonCodes = true,
   onCancel,
   onConfirm,
 }: Props) {
   const reasonId = useId();
-  const [reason, setReason] = useState("");
+  const [reasonCode, setReasonCode] = useState<string>("");
+  const [detail, setDetail] = useState("");
   const [localError, setLocalError] = useState<string | null>(null);
 
   const auditStampLabel = useMemo(() => {
@@ -41,7 +60,8 @@ export function DeleteReasonModal({
 
   useEffect(() => {
     if (!open) {
-      setReason("");
+      setReasonCode("");
+      setDetail("");
       setLocalError(null);
     }
   }, [open]);
@@ -49,15 +69,28 @@ export function DeleteReasonModal({
   if (!open) return null;
 
   const submit = async () => {
-    const trimmed = reason.trim().replace(/\s+/g, " ");
+    if (useReasonCodes) {
+      const composed = composeDeletionReason(reasonCode, detail);
+      if (composed.error) {
+        setLocalError(composed.error);
+        return;
+      }
+      setLocalError(null);
+      await onConfirm({ reason: composed.reason, reasonCode: composed.reasonCode });
+      return;
+    }
+
+    const trimmed = detail.trim().replace(/\s+/g, " ");
     const validationError = validateDeletionReason(trimmed);
     if (validationError) {
       setLocalError(validationError);
       return;
     }
     setLocalError(null);
-    await onConfirm(trimmed);
+    await onConfirm({ reason: trimmed, reasonCode: "outro" });
   };
+
+  const detailRequired = !useReasonCodes || reasonCode === "outro";
 
   return (
     <div
@@ -75,7 +108,7 @@ export function DeleteReasonModal({
         </h2>
         <p className="mt-1 text-sm text-slate-600">{description}</p>
 
-        <div className="mt-3">
+        <div className="mt-3 space-y-2">
           <Alert variant="warning">
             Atenção: antes da exclusão, o sistema registra automaticamente{" "}
             <strong>seu nome/usuário</strong>, a <strong>data e a hora</strong>
@@ -85,26 +118,56 @@ export function DeleteReasonModal({
                 (agora: <strong>{auditStampLabel}</strong>)
               </>
             ) : null}{" "}
-            e o motivo abaixo no Histórico de Exclusões. Essa informação não pode ser apagada.
+            e o motivo abaixo no Histórico de Exclusões. Essa informação não pode ser apagada nem
+            editada.
           </Alert>
+          {critical ? (
+            <Alert variant="error">
+              Exclusão crítica: este tipo de registro (sócio, veículo, motorista, cliente ou
+              financeiro) exige justificativa clara. Confirme que não há movimentação vinculada
+              antes de continuar.
+            </Alert>
+          ) : null}
         </div>
 
+        {useReasonCodes ? (
+          <div className="mt-4">
+            <GlassSelect
+              label="Motivo da exclusão *"
+              value={reasonCode}
+              onChange={setReasonCode}
+              options={[
+                { value: "", label: "Selecione…" },
+                ...DELETION_REASON_OPTIONS.map((o) => ({ value: o.code, label: o.label })),
+              ]}
+            />
+          </div>
+        ) : null}
+
         <label className="mt-4 block space-y-1">
-          <span className="text-sm font-medium text-slate-700">Motivo da exclusão *</span>
+          <span className="text-sm font-medium text-slate-700">
+            {detailRequired ? "Detalhe / observação *" : "Detalhe (opcional)"}
+          </span>
           <textarea
             id={reasonId}
-            className={`${glassField(true)} min-h-[6rem] resize-y`}
-            value={reason}
+            className={`${glassField(detailRequired)} min-h-[6rem] resize-y`}
+            value={detail}
             disabled={confirming}
-            placeholder="Ex.: lançamento duplicado · erro de conta · solicitação do sócio"
+            placeholder={
+              detailRequired
+                ? "Descreva o motivo com uma justificativa clara"
+                : "Complemento opcional (ex.: código do cadastro substituto)"
+            }
             onChange={(e) => {
-              setReason(e.target.value);
+              setDetail(e.target.value);
               if (localError) setLocalError(null);
             }}
-            autoFocus
+            autoFocus={!useReasonCodes}
           />
           <span className="text-xs text-slate-500">
-            Use uma justificativa real. Não aceita só letras/números repetidos (ex.: aaaa, 1111).
+            {detailRequired
+              ? "Use uma justificativa real. Não aceita só letras/números repetidos."
+              : "Com motivo da lista, o detalhe é opcional — exceto em «Outro»."}
           </span>
         </label>
         {localError ? <p className="mt-2 text-sm text-red-600">{localError}</p> : null}
@@ -114,7 +177,7 @@ export function DeleteReasonModal({
             Cancelar
           </Button>
           <Button type="button" disabled={confirming} onClick={() => void submit()}>
-            {confirming ? "Excluindo…" : "Excluir com registro"}
+            {confirming ? "Excluindo…" : confirmLabel}
           </Button>
         </div>
       </div>

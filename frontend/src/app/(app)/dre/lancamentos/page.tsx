@@ -173,7 +173,7 @@ export default function DreLancamentosPage() {
     await load();
   };
 
-  const remove = async (reason: string) => {
+  const remove = async (payload: { reason: string; reasonCode: string }) => {
     if (!companyId || !pendingDeleteId) return;
     if (!canDelete) {
       setError("Seu acesso não inclui Exclusão nesta tela.");
@@ -183,7 +183,13 @@ export default function DreLancamentosPage() {
     setDeleting(true);
     setError(null);
     setMsg(null);
-    const result = await deleteCompanyLedgerEntry(supabase, companyId, pendingDeleteId, reason);
+    const result = await deleteCompanyLedgerEntry(
+      supabase,
+      companyId,
+      pendingDeleteId,
+      payload.reason,
+      payload.reasonCode
+    );
     setDeleting(false);
     setPendingDeleteId(null);
     if (result.error) {
@@ -448,6 +454,7 @@ export default function DreLancamentosPage() {
       <DeleteReasonModal
         open={Boolean(pendingDeleteId)}
         confirming={deleting}
+        critical
         title="Excluir lançamento"
         description="Informe o motivo da exclusão deste lançamento do DRE da empresa."
         onCancel={() => {

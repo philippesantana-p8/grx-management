@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { CrudPage } from "@/components/crud/CrudPage";
 import { EntityForm, FormFields } from "@/components/crud/EntityForm";
 import { Alert, Badge } from "@/components/ui/Badge";
+import { DeleteReasonModal } from "@/components/ui/DeleteReasonModal";
 import {
   documentKindForPartnerType,
   formatCnpj,
@@ -38,43 +39,58 @@ function SociosPageContent() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [actionMsg, setActionMsg] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [pendingDeleteCode, setPendingDeleteCode] = useState<string | null>(null);
+  const [deletingByCode, setDeletingByCode] = useState(false);
 
   useEffect(() => {
     const deleteCode = searchParams.get("deleteCode");
     if (!deleteCode || companyLoading || accessLoading || !companyId) return;
 
-    let cancelled = false;
-
-    (async () => {
-      if (!canDelete) {
-        router.replace("/cadastros/socios");
-        setActionError("Seu acesso não inclui Exclusão nesta tela.");
-        return;
-      }
-      const result = await softDeletePartnerByCode(companyId, deleteCode);
-      if (cancelled) return;
-
+    if (!canDelete) {
       router.replace("/cadastros/socios");
+      setActionError("Seu acesso não inclui Exclusão nesta tela.");
+      return;
+    }
 
-      if (result.ok) {
-        setActionMsg(`Sócio ${result.code} (${result.name}) excluído com sucesso.`);
-        setActionError(null);
-        setRefreshKey((k) => k + 1);
-      } else {
-        setActionError(result.reason);
-        setActionMsg(null);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
+    setPendingDeleteCode(deleteCode);
   }, [accessLoading, canDelete, companyId, companyLoading, router, searchParams]);
 
   return (
     <div className="space-y-4">
       {actionMsg && <Alert variant="info">{actionMsg}</Alert>}
       {actionError && <Alert variant="error">{actionError}</Alert>}
+
+      <DeleteReasonModal
+        open={Boolean(pendingDeleteCode)}
+        confirming={deletingByCode}
+        critical
+        title={`Excluir sócio ${pendingDeleteCode ?? ""}`}
+        description="Informe o motivo. O sócio sai da lista ativa e o registro fica no Histórico de Exclusões."
+        onCancel={() => {
+          if (deletingByCode) return;
+          setPendingDeleteCode(null);
+          router.replace("/cadastros/socios");
+        }}
+        onConfirm={async (payload) => {
+          if (!companyId || !pendingDeleteCode) return;
+          setDeletingByCode(true);
+          const result = await softDeletePartnerByCode(companyId, pendingDeleteCode, {
+            reason: payload.reason,
+            reasonCode: payload.reasonCode,
+          });
+          setDeletingByCode(false);
+          setPendingDeleteCode(null);
+          router.replace("/cadastros/socios");
+          if (result.ok) {
+            setActionMsg(`Sócio ${result.code} (${result.name}) excluído com sucesso.`);
+            setActionError(null);
+            setRefreshKey((k) => k + 1);
+          } else {
+            setActionError(result.reason);
+            setActionMsg(null);
+          }
+        }}
+      />
 
       <CrudPage<Partner>
         key={refreshKey}

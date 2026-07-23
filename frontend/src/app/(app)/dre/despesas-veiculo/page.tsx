@@ -182,7 +182,7 @@ export default function DreDespesasVeiculoPage() {
     await loadExpenses();
   };
 
-  const remove = async (reason: string) => {
+  const remove = async (payload: { reason: string; reasonCode: string }) => {
     if (!companyId || !pendingDeleteId) return;
     if (!canDelete) {
       setError("Seu acesso não inclui Exclusão nesta tela.");
@@ -192,7 +192,13 @@ export default function DreDespesasVeiculoPage() {
     setDeleting(true);
     setError(null);
     setMsg(null);
-    const result = await deleteVehicleExpense(supabase, companyId, pendingDeleteId, reason);
+    const result = await deleteVehicleExpense(
+      supabase,
+      companyId,
+      pendingDeleteId,
+      payload.reason,
+      payload.reasonCode
+    );
     setDeleting(false);
     setPendingDeleteId(null);
     if (result.error) {
@@ -458,6 +464,7 @@ export default function DreDespesasVeiculoPage() {
       <DeleteReasonModal
         open={Boolean(pendingDeleteId)}
         confirming={deleting}
+        critical
         title="Excluir despesa do veículo"
         description="Informe o motivo da exclusão deste lançamento do DRE do veículo."
         onCancel={() => {

@@ -9,7 +9,11 @@ import {
   isEntityCodeTaken,
   isUniqueConstraintError,
 } from "@/lib/codes";
-import { recordDeletion, summarizeDeletedRow } from "@/lib/deletion-audit";
+import {
+  CRITICAL_DELETE_ENTITY_TYPES,
+  recordDeletion,
+  summarizeDeletedRow,
+} from "@/lib/deletion-audit";
 import {
   documentFieldForTable,
   documentLabelForDigits,
@@ -309,7 +313,7 @@ export function CrudPage<T extends { id: string }>({
     setPendingDeleteId(id);
   };
 
-  const confirmDelete = async (reason: string) => {
+  const confirmDelete = async (payload: { reason: string; reasonCode: string }) => {
     if (!companyId || !pendingDeleteId) return;
     if (!screenCanDelete) {
       setError("Seu acesso não inclui Exclusão nesta tela.");
@@ -330,7 +334,8 @@ export function CrudPage<T extends { id: string }>({
       entityId: id,
       entityCode,
       summary,
-      reason,
+      reason: payload.reason,
+      reasonCode: payload.reasonCode,
       screenKey: auditScreenKey ?? null,
       deleteMode: softDelete ? "soft" : "hard",
       payload: existing ?? null,
@@ -342,7 +347,14 @@ export function CrudPage<T extends { id: string }>({
     }
 
     const { error: err } = softDelete
-      ? await supabase.from(table).update({ deleted_at: new Date().toISOString() }).eq("id", id)
+      ? await supabase
+          .from(table)
+          .update(
+            table === "partners"
+              ? { deleted_at: new Date().toISOString(), status: "Inativo" }
+              : { deleted_at: new Date().toISOString() }
+          )
+          .eq("id", id)
       : await supabase.from(table).delete().eq("id", id);
     setDeleting(false);
     setPendingDeleteId(null);
@@ -491,6 +503,7 @@ export function CrudPage<T extends { id: string }>({
       <DeleteReasonModal
         open={Boolean(pendingDeleteId)}
         confirming={deleting}
+        critical={CRITICAL_DELETE_ENTITY_TYPES.has(table)}
         title="Excluir registro"
         description="Informe o motivo da exclusão. O registro sai da lista e o motivo fica no Histórico de Exclusões."
         onCancel={() => {
