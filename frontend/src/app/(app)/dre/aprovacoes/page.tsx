@@ -231,24 +231,24 @@ export default function DreAprovacoesPage() {
       {loading ? <Loading /> : null}
 
       <section className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
-        <table className="w-full min-w-[720px] text-left text-sm">
+        <table className="w-full min-w-[720px] text-center text-sm">
           <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
             <tr>
-              <th className="whitespace-nowrap px-2 py-2">Data</th>
-              <th className="whitespace-nowrap px-2 py-2">Quem</th>
-              <th className="whitespace-nowrap px-2 py-2">Origem</th>
-              <th className="min-w-[7.5rem] px-2 py-2">Conta DRE</th>
-              <th className="whitespace-nowrap px-2 py-2">Placa</th>
-              <th className="px-2 py-2">Descrição</th>
-              <th className="whitespace-nowrap px-2 py-2 text-right">Valor</th>
-              <th className="whitespace-nowrap px-2 py-2">Ações</th>
+              <th className="whitespace-nowrap px-2 py-2 text-center">Data</th>
+              <th className="whitespace-nowrap px-2 py-2 text-center">Quem</th>
+              <th className="whitespace-nowrap px-2 py-2 text-center">Origem</th>
+              <th className="min-w-[7.5rem] px-2 py-2 text-center">Conta DRE</th>
+              <th className="whitespace-nowrap px-2 py-2 text-center">Placa</th>
+              <th className="px-2 py-2 text-center">Descrição</th>
+              <th className="whitespace-nowrap px-2 py-2 text-center">Valor</th>
+              <th className="whitespace-nowrap px-2 py-2 text-center">Ações</th>
             </tr>
           </thead>
           <tbody>
             {rows.map((row) => (
               <tr key={row.id} className="border-t border-slate-100 align-middle">
                 <td
-                  className="whitespace-nowrap px-2 py-2 font-medium text-slate-900"
+                  className="whitespace-nowrap px-2 py-2 text-center font-medium text-slate-900"
                   title={
                     row.submitted_at
                       ? `Enviado ${formatSubmittedAt(row.submitted_at)}`
@@ -258,17 +258,17 @@ export default function DreAprovacoesPage() {
                   {formatDate(row.transaction_date)}
                 </td>
                 <td
-                  className="max-w-[7rem] truncate px-2 py-2 text-slate-700"
+                  className="max-w-[7rem] truncate px-2 py-2 text-center text-slate-700"
                   title={row.submitted_by_name || undefined}
                 >
                   {row.submitted_by_name || (
                     <span className="text-slate-400">{row.submitted_by ? "—" : "—"}</span>
                   )}
                 </td>
-                <td className="whitespace-nowrap px-2 py-2 text-slate-600">
+                <td className="whitespace-nowrap px-2 py-2 text-center text-slate-600">
                   {entrySourceLabel(row.entry_source)}
                 </td>
-                <td className="px-2 py-2">
+                <td className="px-2 py-2 text-center">
                   <div
                     className="font-semibold leading-snug text-slate-900"
                     title={
@@ -282,20 +282,20 @@ export default function DreAprovacoesPage() {
                     )}
                   </div>
                 </td>
-                <td className="whitespace-nowrap px-2 py-2 text-slate-700">
+                <td className="whitespace-nowrap px-2 py-2 text-center text-slate-700">
                   {row.plate || <span className="text-slate-400">—</span>}
                 </td>
                 <td
-                  className="max-w-[10rem] truncate px-2 py-2 text-slate-700"
+                  className="max-w-[10rem] truncate px-2 py-2 text-center text-slate-700"
                   title={row.description || undefined}
                 >
                   {row.description || "—"}
                 </td>
-                <td className="whitespace-nowrap px-2 py-2 text-right font-medium text-slate-900">
+                <td className="whitespace-nowrap px-2 py-2 text-center font-medium text-slate-900">
                   {formatCurrency(row.amount)}
                 </td>
-                <td className="px-2 py-2">
-                  <div className="flex flex-nowrap items-center gap-1.5">
+                <td className="px-2 py-2 text-center">
+                  <div className="inline-flex flex-nowrap items-center justify-center gap-1.5">
                     <Button
                       type="button"
                       size="sm"
