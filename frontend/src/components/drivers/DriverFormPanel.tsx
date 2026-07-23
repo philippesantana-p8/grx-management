@@ -2,14 +2,17 @@
 
 import { useEffect, useState } from "react";
 import { EntityForm, FormFields } from "@/components/crud/EntityForm";
-import { AttachmentGallery } from "@/components/drivers/AttachmentGallery";
 import { CnhScanner, type CnhScanPayload } from "@/components/drivers/CnhScanner";
+import {
+  DriverDocumentFolders,
+  type PendingDriverFolderDoc,
+} from "@/components/drivers/DriverDocumentFolders";
 import { DriverPhotoUpload } from "@/components/drivers/DriverPhotoUpload";
 import { Alert } from "@/components/ui/Badge";
 import { uploadEntityAttachment } from "@/lib/attachments";
 import { uploadDriverPhoto } from "@/lib/driver-photo";
 import { applyCnhOcrToForm, cnhFieldsUpdatedByOcr } from "@/lib/cnh-ocr";
-import type { CnhScanAsset } from "@/lib/cnh-document";
+import { driverDocDescription } from "@/lib/driver-document-folders";
 import {
   CNH_CATEGORIES,
   formatCnh,
@@ -55,7 +58,7 @@ export function DriverFormPanel({ item, companyId, saving, onSave, onCancel }: P
   const [codeDupError, setCodeDupError] = useState<string | null>(null);
   const [cnhError, setCnhError] = useState<string | null>(null);
   const [uploadMsg, setUploadMsg] = useState<string | null>(null);
-  const [pendingCnhAssets, setPendingCnhAssets] = useState<CnhScanAsset[]>([]);
+  const [pendingFolderDocs, setPendingFolderDocs] = useState<PendingDriverFolderDoc[]>([]);
   const [pendingPhotoFile, setPendingPhotoFile] = useState<File | null>(null);
   const [photoStoragePath, setPhotoStoragePath] = useState<string | null>(
     item?.photo_storage_path ?? null
@@ -69,7 +72,7 @@ export function DriverFormPanel({ item, companyId, saving, onSave, onCancel }: P
   const [cnhAlertClearedMsg, setCnhAlertClearedMsg] = useState<string | null>(null);
 
   useEffect(() => {
-    setPendingCnhAssets([]);
+    setPendingFolderDocs([]);
     setPendingPhotoFile(null);
     setPhotoStoragePath(item?.photo_storage_path ?? null);
     setUploadMsg(null);
@@ -228,25 +231,25 @@ export function DriverFormPanel({ item, companyId, saving, onSave, onCancel }: P
             }
           }
 
-          if (pendingCnhAssets.length > 0) {
+          if (pendingFolderDocs.length > 0) {
             let uploaded = 0;
-            for (const asset of pendingCnhAssets) {
+            for (const asset of pendingFolderDocs) {
               const { error } = await uploadEntityAttachment({
                 companyId,
                 entityType: "driver",
                 entityId: driverId,
                 file: asset.file,
-                description: `CNH — ${asset.label}`,
+                description: driverDocDescription(asset.folder, asset.label),
               });
               if (!error) uploaded += 1;
             }
-            if (uploaded < pendingCnhAssets.length) {
+            if (uploaded < pendingFolderDocs.length) {
               setUploadMsg(
-                `Motorista salvo. ${uploaded}/${pendingCnhAssets.length} imagem(ns) enviada(s) à galeria.`
+                `Motorista salvo. ${uploaded}/${pendingFolderDocs.length} arquivo(s) enviados às pastas.`
               );
             } else {
-              setPendingCnhAssets([]);
-              setUploadMsg("Motorista salvo e imagens da CNH adicionadas à galeria.");
+              setPendingFolderDocs([]);
+              setUploadMsg("Motorista salvo e documentos enviados às pastas CNH / CNH-AVC.");
               setAttachmentRefreshKey((key) => key + 1);
             }
           }
@@ -299,7 +302,7 @@ export function DriverFormPanel({ item, companyId, saving, onSave, onCancel }: P
                         entityType: "driver",
                         entityId: item.id,
                         file: asset.file,
-                        description: `CNH — ${asset.label}`,
+                        description: driverDocDescription("CNH", asset.label),
                       });
                       if (!error) uploaded += 1;
                     }
@@ -309,14 +312,22 @@ export function DriverFormPanel({ item, companyId, saving, onSave, onCancel }: P
                       );
                     } else {
                       setUploadMsg(
-                        `CNH digitalizada (${engineLabel}) e ${uploaded} imagem(ns) na galeria.${changedLabel} Salve o cadastro para limpar o alerta com a nova validade.`
+                        `CNH digitalizada (${engineLabel}) e ${uploaded} arquivo(s) na pasta CNH.${changedLabel} Salve para limpar o alerta com a nova validade.`
                       );
                       setAttachmentRefreshKey((key) => key + 1);
                     }
                   } else {
-                    setPendingCnhAssets(assets);
+                    setPendingFolderDocs((prev) => [
+                      ...prev,
+                      ...assets.map((asset) => ({
+                        file: asset.file,
+                        previewUrl: asset.previewUrl,
+                        label: asset.label,
+                        folder: "CNH" as const,
+                      })),
+                    ]);
                     setUploadMsg(
-                      `Dados preenchidos.${changedLabel} As imagens serão enviadas à galeria ao salvar.`
+                      `Dados preenchidos.${changedLabel} Arquivos vão para a pasta CNH ao salvar.`
                     );
                   }
                 }}
@@ -578,15 +589,13 @@ export function DriverFormPanel({ item, companyId, saving, onSave, onCancel }: P
               />
 
               {companyId && (
-                <AttachmentGallery
+                <DriverDocumentFolders
                   companyId={companyId}
-                  entityType="driver"
-                  entityId={item?.id ?? null}
+                  driverId={item?.id ?? null}
                   refreshKey={attachmentRefreshKey}
-                  pendingPreviews={pendingCnhAssets.map((asset) => ({
-                    url: asset.previewUrl,
-                    name: asset.label,
-                  }))}
+                  pendingDocs={pendingFolderDocs}
+                  onPendingDocsChange={setPendingFolderDocs}
+                  disabled={saving}
                 />
               )}
             </>
