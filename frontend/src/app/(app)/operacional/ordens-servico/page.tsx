@@ -15,7 +15,6 @@ import { VehiclePhotoPreview } from "@/components/vehicles/VehiclePhotoPreview";
 import { Badge, Alert } from "@/components/ui/Badge";
 import { GlassSelect } from "@/components/ui/GlassSelect";
 import { nextCode } from "@/lib/codes";
-import { formatDateBR } from "@/lib/utils";
 import { useCompany } from "@/lib/company-context";
 import {
   categoriesForServiceType,
@@ -45,10 +44,11 @@ import {
   isProposalFollowUpOverdue,
 } from "@/lib/service-order-proposal-api";
 import {
+  defaultServiceOrderDateRange,
   matchesServiceOrderFilters,
   type ServiceOrderListRow,
 } from "@/lib/service-order-filters";
-import { formatCurrency, normalizePlate } from "@/lib/utils";
+import { formatCurrency, formatDateBR, normalizePlate } from "@/lib/utils";
 import {
   serviceOrderShowsFlightData,
   serviceOrderShowsPassengers,
@@ -102,6 +102,12 @@ function OrdensServicoPageContent() {
   const [statusFilter, setStatusFilter] = useState("");
   const [serviceTypeFilter, setServiceTypeFilter] = useState("");
   const [pendingProposalsFilter, setPendingProposalsFilter] = useState(false);
+  const defaultDates = useMemo(() => defaultServiceOrderDateRange(), []);
+  const [dateFrom, setDateFrom] = useState(defaultDates.dateFrom);
+  const [dateTo, setDateTo] = useState(defaultDates.dateTo);
+  const [allDates, setAllDates] = useState(false);
+  /** Padrão ligado: novas OS não se perdem no meio do legado importado. */
+  const [hideImportedHistory, setHideImportedHistory] = useState(true);
   const [listRows, setListRows] = useState<ServiceOrderListRow[]>([]);
   const [listRefreshKey, setListRefreshKey] = useState(0);
   const [drivers, setDrivers] = useState<Driver[]>([]);
@@ -212,8 +218,21 @@ function OrdensServicoPageContent() {
         status: statusFilter,
         serviceType: serviceTypeFilter,
         pendingProposals: pendingProposalsFilter,
+        allDates,
+        dateFrom,
+        dateTo,
+        hideImportedHistory,
       }),
-    [searchQuery, statusFilter, serviceTypeFilter, pendingProposalsFilter]
+    [
+      searchQuery,
+      statusFilter,
+      serviceTypeFilter,
+      pendingProposalsFilter,
+      allDates,
+      dateFrom,
+      dateTo,
+      hideImportedHistory,
+    ]
   );
 
   const handleFollowUpRegistered = useCallback(
@@ -468,12 +487,20 @@ function OrdensServicoPageContent() {
             status={statusFilter}
             serviceType={serviceTypeFilter}
             pendingProposals={pendingProposalsFilter}
+            dateFrom={dateFrom}
+            dateTo={dateTo}
+            allDates={allDates}
+            hideImportedHistory={hideImportedHistory}
             totalCount={listRows.length}
             visibleCount={visibleCount}
             onSearchChange={setSearchQuery}
             onStatusChange={setStatusFilter}
             onServiceTypeChange={setServiceTypeFilter}
             onPendingProposalsChange={setPendingProposalsFilter}
+            onDateFromChange={setDateFrom}
+            onDateToChange={setDateTo}
+            onAllDatesChange={setAllDates}
+            onHideImportedHistoryChange={setHideImportedHistory}
           />
           {vehiclesError ? (
             <Alert variant="error">

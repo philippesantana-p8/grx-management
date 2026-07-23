@@ -2,7 +2,7 @@
 
 import { Input } from "@/components/ui/Input";
 import { GlassSelect } from "@/components/ui/GlassSelect";
-import { glassFilterPanel } from "@/lib/liquid-glass-styles";
+import { glassField, glassFilterPanel } from "@/lib/liquid-glass-styles";
 import {
   PROPOSAL_RESPONSE_LABELS,
   SERVICE_ORDER_STATUS,
@@ -26,12 +26,20 @@ type Props = {
   status: string;
   serviceType: string;
   pendingProposals: boolean;
+  dateFrom: string;
+  dateTo: string;
+  allDates: boolean;
+  hideImportedHistory: boolean;
   totalCount: number;
   visibleCount: number;
   onSearchChange: (value: string) => void;
   onStatusChange: (value: string) => void;
   onServiceTypeChange: (value: string) => void;
   onPendingProposalsChange: (value: boolean) => void;
+  onDateFromChange: (value: string) => void;
+  onDateToChange: (value: string) => void;
+  onAllDatesChange: (value: boolean) => void;
+  onHideImportedHistoryChange: (value: boolean) => void;
 };
 
 export function ServiceOrderListFilters({
@@ -39,12 +47,20 @@ export function ServiceOrderListFilters({
   status,
   serviceType,
   pendingProposals,
+  dateFrom,
+  dateTo,
+  allDates,
+  hideImportedHistory,
   totalCount,
   visibleCount,
   onSearchChange,
   onStatusChange,
   onServiceTypeChange,
   onPendingProposalsChange,
+  onDateFromChange,
+  onDateToChange,
+  onAllDatesChange,
+  onHideImportedHistoryChange,
 }: Props) {
   return (
     <div className={`flex flex-wrap items-end gap-4 ${glassFilterPanel()}`}>
@@ -56,6 +72,28 @@ export function ServiceOrderListFilters({
           onChange={(e) => onSearchChange(e.target.value)}
         />
       </div>
+
+      <label className="block min-w-[150px]">
+        <span className="mb-1 block text-sm font-medium text-slate-700">Data de</span>
+        <input
+          type="date"
+          className={glassField(false)}
+          value={dateFrom}
+          disabled={allDates}
+          onChange={(e) => onDateFromChange(e.target.value)}
+        />
+      </label>
+
+      <label className="block min-w-[150px]">
+        <span className="mb-1 block text-sm font-medium text-slate-700">Data até</span>
+        <input
+          type="date"
+          className={glassField(false)}
+          value={dateTo}
+          disabled={allDates}
+          onChange={(e) => onDateToChange(e.target.value)}
+        />
+      </label>
 
       <GlassSelect
         label="Status"
@@ -81,6 +119,27 @@ export function ServiceOrderListFilters({
           })),
         ]}
       />
+
+      <label className="flex items-center gap-2 pb-2">
+        <input
+          type="checkbox"
+          className="h-4 w-4 rounded border-slate-300"
+          checked={allDates}
+          onChange={(e) => onAllDatesChange(e.target.checked)}
+        />
+        <span className="text-sm text-slate-700">Todas as datas</span>
+      </label>
+
+      <label className="flex items-center gap-2 pb-2">
+        <input
+          type="checkbox"
+          className="h-4 w-4 rounded border-slate-300"
+          checked={hideImportedHistory}
+          onChange={(e) => onHideImportedHistoryChange(e.target.checked)}
+        />
+        <span className="text-sm text-slate-700">Ocultar histórico importado</span>
+      </label>
+
       <label className="flex items-center gap-2 pb-2">
         <input
           type="checkbox"

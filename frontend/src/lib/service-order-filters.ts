@@ -20,6 +20,23 @@ export function normalizeServiceOrderSearchTerm(term: string): string {
   return term.trim().toLowerCase();
 }
 
+/** Data local `YYYY-MM-DD` (evita deslocar o dia por UTC). */
+export function localIsoDate(d = new Date()): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+/** Padrão: mês corrente — novas OS aparecem sem carregar o histórico legado inteiro. */
+export function defaultServiceOrderDateRange(now = new Date()): {
+  dateFrom: string;
+  dateTo: string;
+} {
+  const from = new Date(now.getFullYear(), now.getMonth(), 1);
+  return { dateFrom: localIsoDate(from), dateTo: localIsoDate(now) };
+}
+
 function serviceOrderSearchHaystack(row: ServiceOrderListRow): string {
   const typeLabel = SERVICE_ORDER_TYPE_LABELS[row.service_type] ?? row.service_type;
   const nature = row.service_categories?.length
@@ -51,11 +68,28 @@ export function matchesServiceOrderFilters(
     status: string;
     serviceType: string;
     pendingProposals?: boolean;
+    /** Quando true, ignora dateFrom/dateTo. */
+    allDates?: boolean;
+    dateFrom?: string;
+    dateTo?: string;
+    /** Oculta OS da importação teste de eventos/legado. */
+    hideImportedHistory?: boolean;
   }
 ): boolean {
   if (filters.pendingProposals && !isPendingProposalRow(row)) return false;
   if (!matchesServiceOrderStatusFilter(row, filters.status)) return false;
   if (filters.serviceType && row.service_type !== filters.serviceType) return false;
+
+  if (filters.hideImportedHistory) {
+    const notes = String(row.notes ?? "");
+    if (notes.includes("[IMPORTAÇÃO TESTE OS]")) return false;
+  }
+
+  if (!filters.allDates) {
+    const serviceDate = String(row.service_date ?? "").slice(0, 10);
+    if (filters.dateFrom && serviceDate && serviceDate < filters.dateFrom) return false;
+    if (filters.dateTo && serviceDate && serviceDate > filters.dateTo) return false;
+  }
 
   const term = normalizeServiceOrderSearchTerm(filters.search);
   if (!term) return true;
