@@ -408,6 +408,11 @@ async function main() {
       vehicle_id: vehicleId,
       vehicle_type: block.vehicleType || null,
       driver_id: driverId,
+      proposed_driver_id: driverId,
+      // Sem fluxo WhatsApp: já entra como motorista confirmado (botões/DRE)
+      driver_assignment_response: driverId ? "accepted" : "pending",
+      proposal_response: "accepted",
+      proposal_accepted_at: serviceDate ? `${serviceDate}T12:00:00.000Z` : new Date().toISOString(),
       client_name: block.client || "[SEM DADO: cliente]",
       phone: block.phone || null,
       service_name: serviceName.slice(0, 200),

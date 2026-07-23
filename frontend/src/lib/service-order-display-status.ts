@@ -29,12 +29,21 @@ export function isProposalAcceptedByClient(row: ServiceOrderStatusRow): boolean 
   );
 }
 
-/** Motorista confirmado na OS (aceitou a designação). */
+/**
+ * Motorista confirmado na OS.
+ * - Fluxo normal: aceitou a designação (`driver_assignment_response = accepted`).
+ * - Import/legado: já veio com `driver_id` sem WhatsApp/designação pendente.
+ */
 export function isDriverConfirmedOnServiceOrder(row: ServiceOrderStatusRow): boolean {
-  return (
-    Boolean(row.driver_id) &&
-    (row.driver_assignment_response ?? "pending") === "accepted"
-  );
+  if (!row.driver_id) return false;
+  const assignment = (row.driver_assignment_response ?? "pending") as DriverAssignmentResponse;
+  if (assignment === "accepted") return true;
+  if (assignment === "rejected") return false;
+  // Designação formal enviada e ainda aguardando aceite do motorista
+  if (row.driver_assignment_sent_at && row.proposed_driver_id) return false;
+  // Import / cadastro legado: motorista já vinculado, sem fluxo de designação
+  if (!row.driver_assignment_sent_at && !row.proposed_driver_id) return true;
+  return false;
 }
 
 export function isServiceOrderCompleted(row: ServiceOrderStatusRow): boolean {
@@ -96,16 +105,19 @@ export function canAssignDriverToServiceOrder(
 export function resolveServiceOrderDisplayStatus(row: ServiceOrderStatusRow): string {
   const response = row.proposal_response ?? "pending";
 
+  if (isServiceOrderCompleted(row)) {
+    return "Concluido";
+  }
+
+  // Import/legado com motorista já na OS: libera a mesma fase de «Motorista confirmado»
+  if (isDriverConfirmedOnServiceOrder(row)) {
+    return DRIVER_ASSIGNMENT_RESPONSE_LABELS.accepted;
+  }
+
   if (isProposalAcceptedByClient(row)) {
     const assignment = (row.driver_assignment_response ?? "pending") as DriverAssignmentResponse;
     if (assignment === "rejected") {
       return DRIVER_ASSIGNMENT_RESPONSE_LABELS.rejected;
-    }
-    if (isServiceOrderCompleted(row)) {
-      return "Concluido";
-    }
-    if (isDriverConfirmedOnServiceOrder(row)) {
-      return DRIVER_ASSIGNMENT_RESPONSE_LABELS.accepted;
     }
     if (isPendingDriverAssignment(row)) {
       return DRIVER_ASSIGNMENT_RESPONSE_LABELS.pending;
