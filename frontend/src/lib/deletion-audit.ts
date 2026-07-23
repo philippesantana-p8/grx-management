@@ -20,6 +20,13 @@ export const SOFT_RESTORABLE_ENTITY_TYPES = new Set([
   "drivers",
 ]);
 
+export const HARD_RESTORABLE_ENTITY_TYPES = new Set([
+  "financial_transactions",
+  "vehicle_ownership",
+  "traffic_infractions",
+  "service_orders",
+]);
+
 export const CRITICAL_DELETE_ENTITY_TYPES = new Set([
   "partners",
   "vehicles",
@@ -271,11 +278,17 @@ export function summarizeDeletedRow(
 }
 
 export function canRestoreDeletionEvent(row: DeletionAuditEvent): boolean {
-  return (
-    !row.restored &&
-    row.delete_mode === "soft" &&
-    SOFT_RESTORABLE_ENTITY_TYPES.has(row.entity_type)
-  );
+  if (row.restored) return false;
+  if (row.delete_mode === "soft") {
+    return SOFT_RESTORABLE_ENTITY_TYPES.has(row.entity_type);
+  }
+  if (row.delete_mode === "hard") {
+    return (
+      HARD_RESTORABLE_ENTITY_TYPES.has(row.entity_type) &&
+      Boolean(row.payload_json && typeof row.payload_json === "object" && row.payload_json.id)
+    );
+  }
+  return false;
 }
 
 async function resolveActor(
@@ -520,21 +533,37 @@ export async function restoreSoftDeletedFromAudit(
   eventId: string,
   restorationReason: string
 ): Promise<{ error: string | null }> {
+  return restoreDeletedFromAudit(supabase, eventId, restorationReason);
+}
+
+export async function restoreDeletedFromAudit(
+  supabase: SupabaseClient,
+  eventId: string,
+  restorationReason: string
+): Promise<{ error: string | null }> {
   const reasonError = validateDeletionReason(restorationReason);
   if (reasonError) return { error: reasonError };
 
-  const { error } = await supabase.rpc("restore_soft_deleted_from_audit", {
+  const reason = restorationReason.trim().replace(/\s+/g, " ");
+  const primary = await supabase.rpc("restore_deleted_from_audit", {
     p_event_id: eventId,
-    p_restoration_reason: restorationReason.trim().replace(/\s+/g, " "),
+    p_restoration_reason: reason,
   });
 
-  if (!error) return { error: null };
+  if (!primary.error) return { error: null };
 
-  const msg = error.message || "Falha ao restaurar.";
+  const fallback = await supabase.rpc("restore_soft_deleted_from_audit", {
+    p_event_id: eventId,
+    p_restoration_reason: reason,
+  });
+
+  if (!fallback.error) return { error: null };
+
+  const msg = primary.error.message || fallback.error.message || "Falha ao restaurar.";
   if (isMissingColumnError(msg, "restored") || msg.toLowerCase().includes("function")) {
     return {
       error:
-        "Função de restauração ainda não está no banco. Aplique o SQL apply-054-deletion-audit-hardening.sql no Supabase.",
+        "Função de restauração ainda não está no banco. Aplique apply-054 e apply-055 no Supabase.",
     };
   }
   return { error: msg };

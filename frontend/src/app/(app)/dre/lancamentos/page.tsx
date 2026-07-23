@@ -15,6 +15,11 @@ import {
 } from "@/lib/dre-company-ledger-api";
 import { useAccess } from "@/lib/access-context";
 import { useCompany } from "@/lib/company-context";
+import { summarizeDeletedRow } from "@/lib/deletion-audit";
+import { createDeletionApprovalRequest } from "@/lib/deletion-approvals";
+import { enqueueDeletionAlert } from "@/lib/deletion-alerts";
+import { assertCriticalDeleteGate } from "@/lib/deletion-gate";
+import { isMasterSessionUnlocked } from "@/lib/master-password";
 import { glassField, glassFilterPanel, glassStatCard } from "@/lib/liquid-glass-styles";
 import { createClient } from "@/lib/supabase/client";
 import { formatCurrency } from "@/lib/utils";
@@ -34,9 +39,10 @@ type AccountOption = {
 
 export default function DreLancamentosPage() {
   const { companyId } = useCompany();
-  const { canEditScreen, canDeleteScreen } = useAccess();
+  const { canEditScreen, canDeleteScreen, isAdmin } = useAccess();
   const canEdit = canEditScreen("dre.lancamentos");
   const canDelete = canDeleteScreen("dre.lancamentos");
+  const [requireMasterForDelete, setRequireMasterForDelete] = useState(false);
   const supabase = useMemo(() => createClient(), []);
   const now = new Date();
 
@@ -173,7 +179,11 @@ export default function DreLancamentosPage() {
     await load();
   };
 
-  const remove = async (payload: { reason: string; reasonCode: string }) => {
+  const remove = async (payload: {
+    reason: string;
+    reasonCode: string;
+    masterPassword?: string;
+  }) => {
     if (!companyId || !pendingDeleteId) return;
     if (!canDelete) {
       setError("Seu acesso não inclui Exclusão nesta tela.");
@@ -183,10 +193,66 @@ export default function DreLancamentosPage() {
     setDeleting(true);
     setError(null);
     setMsg(null);
+
+    const gate = await assertCriticalDeleteGate({
+      supabase,
+      companyId,
+      isAdmin,
+      masterPassword: payload.masterPassword,
+    });
+    if (!gate.ok) {
+      setDeleting(false);
+      setError(gate.error);
+      return;
+    }
+
+    if (gate.mode === "approval") {
+      const { data: existing } = await supabase
+        .from("financial_transactions")
+        .select("*")
+        .eq("company_id", companyId)
+        .eq("id", pendingDeleteId)
+        .maybeSingle();
+      const row = (existing as Record<string, unknown> | null) ?? null;
+      const { entityCode, summary } = summarizeDeletedRow(row, "financial_transactions");
+      const requested = await createDeletionApprovalRequest({
+        supabase,
+        companyId,
+        entityType: "financial_transactions",
+        entityId: pendingDeleteId,
+        entityCode,
+        summary,
+        screenKey: "dre.lancamentos",
+        deleteMode: "hard",
+        reason: payload.reason,
+        reasonCode: payload.reasonCode,
+        payload: row,
+      });
+      setDeleting(false);
+      setPendingDeleteId(null);
+      if (requested.error) {
+        setError(requested.error);
+        return;
+      }
+      await enqueueDeletionAlert({
+        supabase,
+        companyId,
+        alertType: "approval_requested",
+        title: "Pedido de exclusão: Lançamento DRE",
+        body: `Pedido pendente (${summary || pendingDeleteId}). Motivo: ${payload.reason}`,
+        entityType: "financial_transactions",
+        entityId: pendingDeleteId,
+        meta: { requestId: requested.id },
+      });
+      setMsg("Pedido enviado para aprovação do administrador.");
+      return;
+    }
+
+    const deleteId = pendingDeleteId;
     const result = await deleteCompanyLedgerEntry(
       supabase,
       companyId,
-      pendingDeleteId,
+      deleteId,
       payload.reason,
       payload.reasonCode
     );
@@ -196,6 +262,15 @@ export default function DreLancamentosPage() {
       setError(result.error);
       return;
     }
+    await enqueueDeletionAlert({
+      supabase,
+      companyId,
+      alertType: "critical_deleted",
+      title: "Exclusão crítica: Lançamento DRE",
+      body: `Lançamento da empresa excluído. Motivo: ${payload.reason}`,
+      entityType: "financial_transactions",
+      entityId: deleteId,
+    });
     setMsg("Lançamento excluído.");
     await load();
   };
@@ -431,7 +506,21 @@ export default function DreLancamentosPage() {
                           <Button
                             type="button"
                             variant="ghost"
-                            onClick={() => setPendingDeleteId(row.id)}
+                            onClick={() => {
+                              setPendingDeleteId(row.id);
+                              void (async () => {
+                                if (!isAdmin || !companyId) {
+                                  setRequireMasterForDelete(false);
+                                  return;
+                                }
+                                const {
+                                  data: { user },
+                                } = await supabase.auth.getUser();
+                                setRequireMasterForDelete(
+                                  !(user?.id && isMasterSessionUnlocked(companyId, user.id))
+                                );
+                              })();
+                            }}
                           >
                             Excluir
                           </Button>
@@ -455,6 +544,8 @@ export default function DreLancamentosPage() {
         open={Boolean(pendingDeleteId)}
         confirming={deleting}
         critical
+        requireMasterPassword={requireMasterForDelete}
+        confirmLabel={isAdmin ? "Excluir com registro" : "Enviar para aprovação"}
         title="Excluir lançamento"
         description="Informe o motivo da exclusão deste lançamento do DRE da empresa."
         onCancel={() => {

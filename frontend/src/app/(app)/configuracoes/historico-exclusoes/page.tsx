@@ -16,9 +16,20 @@ import {
   exportDeletionAuditExcel,
   formatSnapshotLines,
   listDeletionAuditEvents,
-  restoreSoftDeletedFromAudit,
+  restoreDeletedFromAudit,
   type DeletionAuditEvent,
 } from "@/lib/deletion-audit";
+import {
+  approveDeletionApprovalRequest,
+  listPendingDeletionApprovals,
+  rejectDeletionApprovalRequest,
+  type DeletionApprovalRequest,
+} from "@/lib/deletion-approvals";
+import {
+  listDeletionAlerts,
+  markDeletionAlertRead,
+  type DeletionAlert,
+} from "@/lib/deletion-alerts";
 import { glassField, glassFilterPanel } from "@/lib/liquid-glass-styles";
 import { createClient } from "@/lib/supabase/client";
 import { formatDateBR } from "@/lib/utils";
@@ -86,27 +97,38 @@ export default function HistoricoExclusoesPage() {
   const [pendingRestore, setPendingRestore] = useState<DeletionAuditEvent | null>(null);
   const [restoring, setRestoring] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [pendingApprovals, setPendingApprovals] = useState<DeletionApprovalRequest[]>([]);
+  const [alerts, setAlerts] = useState<DeletionAlert[]>([]);
+  const [reviewingId, setReviewingId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!companyId || !isAdmin) return;
     setLoading(true);
     setError(null);
     setMissingHardening(false);
-    const result = await listDeletionAuditEvents(supabase, companyId, {
-      entityType: entityType || null,
-      fromDate: fromDate || null,
-      toDate: toDate || null,
-      deleteMode: deleteMode === "soft" || deleteMode === "hard" ? deleteMode : null,
-      restored: statusFilter === "restored" ? true : statusFilter === "deleted" ? false : null,
-      reasonCode: reasonCode || null,
-      actorQuery: actorQuery || null,
-      recordCode: recordCode || null,
-      reasonQuery: reasonQuery || null,
-      limit: 500,
-    });
+    const [result, approvals, alertRows] = await Promise.all([
+      listDeletionAuditEvents(supabase, companyId, {
+        entityType: entityType || null,
+        fromDate: fromDate || null,
+        toDate: toDate || null,
+        deleteMode: deleteMode === "soft" || deleteMode === "hard" ? deleteMode : null,
+        restored: statusFilter === "restored" ? true : statusFilter === "deleted" ? false : null,
+        reasonCode: reasonCode || null,
+        actorQuery: actorQuery || null,
+        recordCode: recordCode || null,
+        reasonQuery: reasonQuery || null,
+        limit: 500,
+      }),
+      listPendingDeletionApprovals(supabase, companyId),
+      listDeletionAlerts(supabase, companyId, { limit: 20 }),
+    ]);
     if (result.error) setError(result.error);
+    if (approvals.error) setError(approvals.error);
+    if (alertRows.error) setError(alertRows.error);
     setMissingHardening(Boolean(result.missingHardening));
     setRows(result.rows);
+    setPendingApprovals(approvals.rows);
+    setAlerts(alertRows.rows);
     setLoading(false);
   }, [
     actorQuery,
@@ -150,7 +172,7 @@ export default function HistoricoExclusoesPage() {
         <div>
           <h1 className="text-xl font-bold text-slate-900 sm:text-2xl">Histórico de Exclusões</h1>
           <p className="mt-1 text-sm text-slate-500">
-            Auditoria imutável: quem excluiu, quando, motivo, snapshot e restauração (soft-delete).
+            Auditoria imutável: aprovação de críticos, snapshot, restauração soft/hard e alertas.
             {company?.trade_name || company?.name
               ? ` Empresa: ${company.trade_name || company.name}.`
               : ""}
@@ -184,9 +206,9 @@ export default function HistoricoExclusoesPage() {
       {missingHardening ? (
         <Alert variant="warning">
           Colunas de restauração / motivo padronizado ainda não existem no Supabase. Rode no SQL
-          Editor o script{" "}
-          <code className="text-xs">frontend/scripts/apply-054-deletion-audit-hardening.sql</code>.
-          Até lá, a lista funciona no modo básico (sem status Restaurado).
+          Editor:{" "}
+          <code className="text-xs">apply-054-deletion-audit-hardening.sql</code> e{" "}
+          <code className="text-xs">apply-055-deletion-approval-hard-restore-alerts.sql</code>.
         </Alert>
       ) : null}
 
@@ -199,6 +221,131 @@ export default function HistoricoExclusoesPage() {
             ))}
           </ul>
         </Alert>
+      ) : null}
+
+      {pendingApprovals.length > 0 ? (
+        <section className="space-y-3 rounded-xl border border-amber-200 bg-amber-50/70 p-4">
+          <h2 className="text-sm font-semibold text-amber-950">
+            Pedidos de exclusão pendentes ({pendingApprovals.length})
+          </h2>
+          <div className="space-y-2">
+            {pendingApprovals.map((req) => (
+              <div
+                key={req.id}
+                className="flex flex-col gap-2 rounded-lg border border-amber-200 bg-white p-3 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div className="min-w-0 text-sm">
+                  <p className="font-medium text-slate-900">
+                    {entityTypeLabel(req.entity_type)} · {req.entity_code || req.summary || req.entity_id}
+                  </p>
+                  <p className="text-slate-600">
+                    Solicitado por {req.requested_by_name || req.requested_by_email || "—"} em{" "}
+                    {formatOccurredAt(req.requested_at)}
+                  </p>
+                  <p className="mt-1 whitespace-pre-wrap text-slate-800">{req.reason}</p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={reviewingId === req.id}
+                    onClick={() => {
+                      void (async () => {
+                        setReviewingId(req.id);
+                        setError(null);
+                        const result = await approveDeletionApprovalRequest({
+                          supabase,
+                          companyId,
+                          request: req,
+                        });
+                        setReviewingId(null);
+                        if (result.error) {
+                          setError(result.error);
+                          return;
+                        }
+                        setMsg("Pedido aprovado e exclusão executada.");
+                        await load();
+                      })();
+                    }}
+                  >
+                    Aprovar
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    disabled={reviewingId === req.id}
+                    onClick={() => {
+                      void (async () => {
+                        setReviewingId(req.id);
+                        setError(null);
+                        const result = await rejectDeletionApprovalRequest({
+                          supabase,
+                          companyId,
+                          requestId: req.id,
+                        });
+                        setReviewingId(null);
+                        if (result.error) {
+                          setError(result.error);
+                          return;
+                        }
+                        setMsg("Pedido rejeitado. Registro permanece ativo.");
+                        await load();
+                      })();
+                    }}
+                  >
+                    Rejeitar
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {alerts.length > 0 ? (
+        <section className="space-y-2 rounded-xl border border-slate-200 bg-white p-4">
+          <h2 className="text-sm font-semibold text-slate-900">Alertas de auditoria</h2>
+          <p className="text-xs text-slate-500">
+            In-app sempre. E-mail aos admins quando `RESEND_API_KEY` estiver na Vercel (senão fica
+            skipped).
+          </p>
+          <ul className="space-y-2">
+            {alerts.map((alert) => (
+              <li
+                key={alert.id}
+                className={`rounded-lg border px-3 py-2 text-sm ${
+                  alert.read_at ? "border-slate-100 bg-slate-50 text-slate-600" : "border-slate-200"
+                }`}
+              >
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <p className="font-medium text-slate-900">{alert.title}</p>
+                    <p className="mt-0.5 whitespace-pre-wrap">{alert.body}</p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {formatOccurredAt(alert.created_at)} · e-mail: {alert.email_status}
+                    </p>
+                  </div>
+                  {!alert.read_at ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        void (async () => {
+                          await markDeletionAlertRead(supabase, companyId, alert.id);
+                          await load();
+                        })();
+                      }}
+                    >
+                      Marcar lido
+                    </Button>
+                  ) : null}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
       ) : null}
 
       <section className={`space-y-3 ${glassFilterPanel()}`}>
@@ -392,7 +539,7 @@ export default function HistoricoExclusoesPage() {
                               setPendingRestore(row);
                             }}
                           >
-                            Restaurar
+                            {row.delete_mode === "hard" ? "Restaurar (hard)" : "Restaurar"}
                           </Button>
                         ) : null}
                       </div>
@@ -432,7 +579,9 @@ export default function HistoricoExclusoesPage() {
                           ) : null}
                           {restorable ? (
                             <p className="mt-2 text-xs text-amber-900">
-                              Este registro soft-deleted pode ser restaurado. O histórico permanece.
+                              {row.delete_mode === "hard"
+                                ? "Exclusão hard: a restauração reinsere o snapshot. Filhos vinculados (ex.: anexos da OS) podem não voltar."
+                                : "Registro soft-deleted pode ser restaurado. O histórico permanece."}
                             </p>
                           ) : null}
                         </div>
@@ -497,8 +646,16 @@ export default function HistoricoExclusoesPage() {
         open={Boolean(pendingRestore)}
         confirming={restoring}
         useReasonCodes={false}
-        title="Restaurar registro"
-        description="O cadastro volta à lista ativa. O evento de exclusão permanece no histórico (imutável), com status Restaurado."
+        title={
+          pendingRestore?.delete_mode === "hard"
+            ? "Restaurar exclusão hard (snapshot)"
+            : "Restaurar registro"
+        }
+        description={
+          pendingRestore?.delete_mode === "hard"
+            ? "O sistema reinsere o registro a partir do snapshot. O evento de exclusão permanece com status Restaurado."
+            : "O cadastro volta à lista ativa. O evento de exclusão permanece no histórico (imutável), com status Restaurado."
+        }
         confirmLabel="Restaurar com registro"
         onCancel={() => {
           if (!restoring) setPendingRestore(null);
@@ -508,7 +665,7 @@ export default function HistoricoExclusoesPage() {
           setRestoring(true);
           setError(null);
           setMsg(null);
-          const result = await restoreSoftDeletedFromAudit(
+          const result = await restoreDeletedFromAudit(
             supabase,
             pendingRestore.id,
             payload.reason

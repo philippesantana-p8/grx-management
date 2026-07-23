@@ -20,6 +20,9 @@ import { useAccess } from "@/lib/access-context";
 import { formatDuplicateCodeError, isEntityCodeTaken, resolveEntityNumericCode } from "@/lib/codes";
 import { useCompany } from "@/lib/company-context";
 import { glassField } from "@/lib/liquid-glass-styles";
+import { assertCriticalDeleteGate } from "@/lib/deletion-gate";
+import { enqueueDeletionAlert } from "@/lib/deletion-alerts";
+import { isMasterSessionUnlocked } from "@/lib/master-password";
 import { softDeletePartnerByCode } from "@/lib/partners";
 import {
   documentLabelForDigits,
@@ -32,7 +35,7 @@ import { PARTNER_TYPES, STATUS_OPTIONS } from "@/types/database";
 
 function SociosPageContent() {
   const { companyId, loading: companyLoading } = useCompany();
-  const { canDeleteScreen, loading: accessLoading } = useAccess();
+  const { canDeleteScreen, isAdmin, loading: accessLoading } = useAccess();
   const canDelete = canDeleteScreen("cadastros.socios");
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -41,6 +44,7 @@ function SociosPageContent() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [pendingDeleteCode, setPendingDeleteCode] = useState<string | null>(null);
   const [deletingByCode, setDeletingByCode] = useState(false);
+  const [requireMasterForDelete, setRequireMasterForDelete] = useState(false);
 
   useEffect(() => {
     const deleteCode = searchParams.get("deleteCode");
@@ -53,7 +57,19 @@ function SociosPageContent() {
     }
 
     setPendingDeleteCode(deleteCode);
-  }, [accessLoading, canDelete, companyId, companyLoading, router, searchParams]);
+    void (async () => {
+      if (!isAdmin || !companyId) {
+        setRequireMasterForDelete(false);
+        return;
+      }
+      const { createClient } = await import("@/lib/supabase/client");
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      setRequireMasterForDelete(!(user?.id && isMasterSessionUnlocked(companyId, user.id)));
+    })();
+  }, [accessLoading, canDelete, companyId, companyLoading, isAdmin, router, searchParams]);
 
   return (
     <div className="space-y-4">
@@ -64,6 +80,8 @@ function SociosPageContent() {
         open={Boolean(pendingDeleteCode)}
         confirming={deletingByCode}
         critical
+        requireMasterPassword={requireMasterForDelete}
+        confirmLabel={isAdmin ? "Excluir com registro" : "Enviar para aprovação"}
         title={`Excluir sócio ${pendingDeleteCode ?? ""}`}
         description="Informe o motivo. O sócio sai da lista ativa e o registro fica no Histórico de Exclusões."
         onCancel={() => {
@@ -74,6 +92,28 @@ function SociosPageContent() {
         onConfirm={async (payload) => {
           if (!companyId || !pendingDeleteCode) return;
           setDeletingByCode(true);
+          const { createClient } = await import("@/lib/supabase/client");
+          const supabase = createClient();
+          const gate = await assertCriticalDeleteGate({
+            supabase,
+            companyId,
+            isAdmin,
+            masterPassword: payload.masterPassword,
+          });
+          if (!gate.ok) {
+            setDeletingByCode(false);
+            setActionError(gate.error);
+            return;
+          }
+          if (gate.mode === "approval") {
+            setDeletingByCode(false);
+            setPendingDeleteCode(null);
+            router.replace("/cadastros/socios");
+            setActionError(
+              "Exclusão de sócio por link exige administrador com Senha Máster. Use Excluir na lista."
+            );
+            return;
+          }
           const result = await softDeletePartnerByCode(companyId, pendingDeleteCode, {
             reason: payload.reason,
             reasonCode: payload.reasonCode,
@@ -82,6 +122,14 @@ function SociosPageContent() {
           setPendingDeleteCode(null);
           router.replace("/cadastros/socios");
           if (result.ok) {
+            await enqueueDeletionAlert({
+              supabase,
+              companyId,
+              alertType: "critical_deleted",
+              title: "Exclusão crítica: Sócio",
+              body: `Sócio ${result.code} (${result.name}) excluído. Motivo: ${payload.reason}`,
+              entityType: "partners",
+            });
             setActionMsg(`Sócio ${result.code} (${result.name}) excluído com sucesso.`);
             setActionError(null);
             setRefreshKey((k) => k + 1);

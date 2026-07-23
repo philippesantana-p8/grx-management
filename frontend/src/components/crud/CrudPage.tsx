@@ -11,9 +11,14 @@ import {
 } from "@/lib/codes";
 import {
   CRITICAL_DELETE_ENTITY_TYPES,
+  entityTypeLabel,
   recordDeletion,
   summarizeDeletedRow,
 } from "@/lib/deletion-audit";
+import { createDeletionApprovalRequest } from "@/lib/deletion-approvals";
+import { enqueueDeletionAlert } from "@/lib/deletion-alerts";
+import { assertCriticalDeleteGate } from "@/lib/deletion-gate";
+import { isMasterSessionUnlocked } from "@/lib/master-password";
 import {
   documentFieldForTable,
   documentLabelForDigits,
@@ -91,16 +96,19 @@ export function CrudPage<T extends { id: string }>({
   initialNewDraft = null,
 }: CrudPageProps<T>) {
   const { companyId, loading: companyLoading } = useCompany();
-  const { canEditScreen, canDeleteScreen, loading: accessLoading } = useAccess();
+  const { canEditScreen, canDeleteScreen, isAdmin, loading: accessLoading } = useAccess();
   const screenCanEdit = auditScreenKey ? canEditScreen(auditScreenKey) : true;
   const screenCanDelete = auditScreenKey ? canDeleteScreen(auditScreenKey) : true;
+  const isCriticalDelete = CRITICAL_DELETE_ENTITY_TYPES.has(table);
   const [items, setItems] = useState<T[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [infoMsg, setInfoMsg] = useState<string | null>(null);
   const [editing, setEditing] = useState<Partial<T> | null>(null);
   const [isNew, setIsNew] = useState(false);
   const [saving, setSaving] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [requireMasterForDelete, setRequireMasterForDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const formPanelRef = useRef<HTMLDivElement>(null);
   const openedEditIdRef = useRef<string | null>(null);
@@ -311,9 +319,26 @@ export function CrudPage<T extends { id: string }>({
       return;
     }
     setPendingDeleteId(id);
+    void (async () => {
+      if (!(isCriticalDelete && isAdmin && companyId)) {
+        setRequireMasterForDelete(false);
+        return;
+      }
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      const unlocked = Boolean(
+        user?.id && isMasterSessionUnlocked(companyId, user.id)
+      );
+      setRequireMasterForDelete(!unlocked);
+    })();
   };
 
-  const confirmDelete = async (payload: { reason: string; reasonCode: string }) => {
+  const confirmDelete = async (payload: {
+    reason: string;
+    reasonCode: string;
+    masterPassword?: string;
+  }) => {
     if (!companyId || !pendingDeleteId) return;
     if (!screenCanDelete) {
       setError("Seu acesso não inclui Exclusão nesta tela.");
@@ -324,9 +349,61 @@ export function CrudPage<T extends { id: string }>({
     const id = pendingDeleteId;
     setDeleting(true);
     setError(null);
+    setInfoMsg(null);
 
     const existing = items.find((row) => row.id === id) as Record<string, unknown> | undefined;
     const { entityCode, summary } = summarizeDeletedRow(existing, table);
+    const deleteMode = softDelete ? ("soft" as const) : ("hard" as const);
+
+    if (isCriticalDelete) {
+      const gate = await assertCriticalDeleteGate({
+        supabase,
+        companyId,
+        isAdmin,
+        masterPassword: payload.masterPassword,
+      });
+      if (!gate.ok) {
+        setDeleting(false);
+        setError(gate.error);
+        return;
+      }
+      if (gate.mode === "approval") {
+        const requested = await createDeletionApprovalRequest({
+          supabase,
+          companyId,
+          entityType: table,
+          entityId: id,
+          entityCode,
+          summary,
+          screenKey: auditScreenKey ?? null,
+          deleteMode,
+          reason: payload.reason,
+          reasonCode: payload.reasonCode,
+          payload: existing ?? null,
+        });
+        setDeleting(false);
+        setPendingDeleteId(null);
+        if (requested.error) {
+          setError(requested.error);
+          return;
+        }
+        await enqueueDeletionAlert({
+          supabase,
+          companyId,
+          alertType: "approval_requested",
+          title: `Pedido de exclusão: ${entityTypeLabel(table)}`,
+          body: `Há um pedido pendente de exclusão (${entityCode || summary || id}). Motivo: ${payload.reason}`,
+          entityType: table,
+          entityId: id,
+          meta: { requestId: requested.id },
+        });
+        setInfoMsg(
+          "Pedido enviado para aprovação do administrador. O registro permanece ativo até a aprovação."
+        );
+        return;
+      }
+    }
+
     const logged = await recordDeletion({
       supabase,
       companyId,
@@ -337,7 +414,7 @@ export function CrudPage<T extends { id: string }>({
       reason: payload.reason,
       reasonCode: payload.reasonCode,
       screenKey: auditScreenKey ?? null,
-      deleteMode: softDelete ? "soft" : "hard",
+      deleteMode,
       payload: existing ?? null,
     });
     if (logged.error) {
@@ -358,8 +435,24 @@ export function CrudPage<T extends { id: string }>({
       : await supabase.from(table).delete().eq("id", id);
     setDeleting(false);
     setPendingDeleteId(null);
-    if (err) setError(err.message);
-    else await load();
+    if (err) {
+      setError(err.message);
+      return;
+    }
+
+    if (isCriticalDelete) {
+      await enqueueDeletionAlert({
+        supabase,
+        companyId,
+        alertType: "critical_deleted",
+        title: `Exclusão crítica: ${entityTypeLabel(table)}`,
+        body: `${entityCode || summary || id} foi excluído. Motivo: ${payload.reason}`,
+        entityType: table,
+        entityId: id,
+      });
+    }
+
+    await load();
   };
 
   if (companyLoading) return <Loading />;
@@ -381,6 +474,7 @@ export function CrudPage<T extends { id: string }>({
       </div>
 
       {error && <Alert variant="error">{error}</Alert>}
+      {infoMsg ? <Alert variant="info">{infoMsg}</Alert> : null}
       {!accessLoading && auditScreenKey && !screenCanEdit ? (
         <Alert variant="info">
           Modo visualização: você pode consultar os registros, mas não criar nem alterar.
@@ -503,9 +597,19 @@ export function CrudPage<T extends { id: string }>({
       <DeleteReasonModal
         open={Boolean(pendingDeleteId)}
         confirming={deleting}
-        critical={CRITICAL_DELETE_ENTITY_TYPES.has(table)}
+        critical={isCriticalDelete}
+        requireMasterPassword={requireMasterForDelete}
+        confirmLabel={
+          isCriticalDelete && !isAdmin
+            ? "Enviar para aprovação"
+            : "Excluir com registro"
+        }
         title="Excluir registro"
-        description="Informe o motivo da exclusão. O registro sai da lista e o motivo fica no Histórico de Exclusões."
+        description={
+          isCriticalDelete && !isAdmin
+            ? "Este registro é crítico. O pedido ficará pendente até um administrador aprovar em Configurações → Histórico de Exclusões."
+            : "Informe o motivo da exclusão. O registro sai da lista e o motivo fica no Histórico de Exclusões."
+        }
         onCancel={() => {
           if (!deleting) setPendingDeleteId(null);
         }}

@@ -14,6 +14,7 @@ import { glassField } from "@/lib/liquid-glass-styles";
 export type DeleteReasonConfirmPayload = {
   reason: string;
   reasonCode: string;
+  masterPassword?: string;
 };
 
 type Props = {
@@ -23,6 +24,8 @@ type Props = {
   confirming?: boolean;
   /** Exibe aviso reforçado (sócio, veículo, motorista, etc.). */
   critical?: boolean;
+  /** Exige senha master no modal (admin excluindo crítico). */
+  requireMasterPassword?: boolean;
   confirmLabel?: string;
   /** Quando true, usa lista padronizada de motivos. */
   useReasonCodes?: boolean;
@@ -36,6 +39,7 @@ export function DeleteReasonModal({
   description = "Informe o motivo da exclusão. Esse texto fica registrado no histórico.",
   confirming = false,
   critical = false,
+  requireMasterPassword = false,
   confirmLabel = "Excluir com registro",
   useReasonCodes = true,
   onCancel,
@@ -44,6 +48,7 @@ export function DeleteReasonModal({
   const reasonId = useId();
   const [reasonCode, setReasonCode] = useState<string>("");
   const [detail, setDetail] = useState("");
+  const [masterPassword, setMasterPassword] = useState("");
   const [localError, setLocalError] = useState<string | null>(null);
 
   const auditStampLabel = useMemo(() => {
@@ -62,6 +67,7 @@ export function DeleteReasonModal({
     if (!open) {
       setReasonCode("");
       setDetail("");
+      setMasterPassword("");
       setLocalError(null);
     }
   }, [open]);
@@ -69,6 +75,11 @@ export function DeleteReasonModal({
   if (!open) return null;
 
   const submit = async () => {
+    if (requireMasterPassword && masterPassword.trim().length < 6) {
+      setLocalError("Informe a senha master para confirmar esta exclusão crítica.");
+      return;
+    }
+
     if (useReasonCodes) {
       const composed = composeDeletionReason(reasonCode, detail);
       if (composed.error) {
@@ -76,7 +87,11 @@ export function DeleteReasonModal({
         return;
       }
       setLocalError(null);
-      await onConfirm({ reason: composed.reason, reasonCode: composed.reasonCode });
+      await onConfirm({
+        reason: composed.reason,
+        reasonCode: composed.reasonCode,
+        masterPassword: requireMasterPassword ? masterPassword : undefined,
+      });
       return;
     }
 
@@ -87,7 +102,11 @@ export function DeleteReasonModal({
       return;
     }
     setLocalError(null);
-    await onConfirm({ reason: trimmed, reasonCode: "outro" });
+    await onConfirm({
+      reason: trimmed,
+      reasonCode: "outro",
+      masterPassword: requireMasterPassword ? masterPassword : undefined,
+    });
   };
 
   const detailRequired = !useReasonCodes || reasonCode === "outro";
@@ -123,9 +142,10 @@ export function DeleteReasonModal({
           </Alert>
           {critical ? (
             <Alert variant="error">
-              Exclusão crítica: este tipo de registro (sócio, veículo, motorista, cliente ou
-              financeiro) exige justificativa clara. Confirme que não há movimentação vinculada
-              antes de continuar.
+              Exclusão crítica: este tipo de registro exige justificativa clara
+              {requireMasterPassword
+                ? " e confirmação com a Senha Máster do administrador."
+                : ". Se você não for administrador, o pedido ficará pendente de aprovação."}
             </Alert>
           ) : null}
         </div>
@@ -170,6 +190,25 @@ export function DeleteReasonModal({
               : "Com motivo da lista, o detalhe é opcional — exceto em «Outro»."}
           </span>
         </label>
+
+        {requireMasterPassword ? (
+          <label className="mt-4 block space-y-1">
+            <span className="text-sm font-medium text-slate-700">Senha Máster *</span>
+            <input
+              type="password"
+              className={glassField(true)}
+              value={masterPassword}
+              disabled={confirming}
+              autoComplete="current-password"
+              placeholder="Confirme com a senha master da empresa"
+              onChange={(e) => {
+                setMasterPassword(e.target.value);
+                if (localError) setLocalError(null);
+              }}
+            />
+          </label>
+        ) : null}
+
         {localError ? <p className="mt-2 text-sm text-red-600">{localError}</p> : null}
 
         <div className="mt-5 flex flex-wrap justify-end gap-2">
@@ -177,7 +216,7 @@ export function DeleteReasonModal({
             Cancelar
           </Button>
           <Button type="button" disabled={confirming} onClick={() => void submit()}>
-            {confirming ? "Excluindo…" : confirmLabel}
+            {confirming ? "Processando…" : confirmLabel}
           </Button>
         </div>
       </div>
