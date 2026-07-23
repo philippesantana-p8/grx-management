@@ -55,6 +55,14 @@ const NAV: NavItem[] = [
       { href: "/configuracoes/parametros-patio", label: "Parâmetros do Pátio" },
       { href: "/configuracoes/parametros-frete", label: "Parâmetros de Frete" },
       {
+        href: "/configuracoes/documentos-licencas",
+        label: "Documentos e licenças",
+      },
+      {
+        href: "/configuracoes/documentos-a-vencer",
+        label: "Documentos a vencer",
+      },
+      {
         href: "/configuracoes/parametros",
         label: "Senha Máster - Concessão de Acessos",
       },
