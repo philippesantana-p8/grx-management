@@ -65,7 +65,7 @@ export function ComplianceDocumentEditor({
   const [expiresAt, setExpiresAt] = useState(initial?.expires_at ?? "");
   const [noExpiry, setNoExpiry] = useState(() => {
     if (initial) return Boolean(initial.no_expiry);
-    const t = types.find((x) => x.id === (initial?.document_type_id ?? types[0]?.id));
+    const t = types.find((x) => x.id === types[0]?.id);
     return t ? !t.requires_expiry : false;
   });
   const [renewalStart, setRenewalStart] = useState(initial?.renewal_start_date ?? "");
