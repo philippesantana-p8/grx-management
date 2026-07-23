@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Alert, Badge, Loading } from "@/components/ui/Badge";
+import { Alert, Loading } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { DeleteReasonModal } from "@/components/ui/DeleteReasonModal";
