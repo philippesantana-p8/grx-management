@@ -52,8 +52,7 @@ function SegmentCard({ seg, compact = false }: { seg: ScheduleSegment; compact?:
   const time = `${formatMinutes(seg.startMin)}–${formatMinutes(seg.endMin)}`;
   return (
     <Link
-      href={orderHref(seg.orderId)}
-      onClick={(e) => e.stopPropagation()}
+      href={orderHref(seg.orderId, seg.orderCode)}
       className={cn(
         "block rounded-md border leading-tight transition hover:ring-2 hover:ring-brand-300",
         compact ? "px-1.5 py-1 text-[0.68rem]" : "px-3 py-2 text-sm",
@@ -195,13 +194,11 @@ export function VehicleScheduleBoard({
 
                     return (
                       <td key={dayKey} className="max-w-[10.5rem] px-1.5 py-2">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            onSelect(
-                              isSelected ? null : { vehicleId: vehicle.id, dayKey }
-                            )
-                          }
+                        {/*
+                          Não usar <button> envolvendo o Link da OS — HTML inválido e o
+                          navegador pode abrir a OS errada / ignorar o href.
+                        */}
+                        <div
                           className={cn(
                             "min-h-[5.5rem] w-full max-w-full overflow-hidden rounded-lg border p-1.5 text-left transition",
                             isSelected
@@ -210,41 +207,62 @@ export function VehicleScheduleBoard({
                           )}
                         >
                           {cellSegments.length === 0 ? (
-                            <span className="block space-y-0.5 px-1 py-2 text-xs text-emerald-700">
-                              <span className="block font-medium">Livre o dia</span>
-                              <span className="block text-[0.65rem]">Manhã e tarde</span>
-                              {canCreateOs ? (
-                              <Link
-                                href={newOsFromScheduleHref({
-                                  vehicleId: vehicle.id,
-                                  dayKey,
-                                  startMin: SCHEDULE_WORK_START_MIN,
-                                  endMin: SCHEDULE_WORK_END_MIN,
-                                })}
-                                onClick={(e) => e.stopPropagation()}
-                                className={cn(glassAction("brand", true), "mt-1")}
+                            <div className="space-y-1 px-1 py-1">
+                              <button
+                                type="button"
+                                className="block w-full text-left text-xs text-emerald-700"
+                                onClick={() =>
+                                  onSelect(
+                                    isSelected ? null : { vehicleId: vehicle.id, dayKey }
+                                  )
+                                }
                               >
-                                Nova OS
-                              </Link>
+                                <span className="block font-medium">Livre o dia</span>
+                                <span className="block text-[0.65rem]">Manhã e tarde</span>
+                              </button>
+                              {canCreateOs ? (
+                                <Link
+                                  href={newOsFromScheduleHref({
+                                    vehicleId: vehicle.id,
+                                    dayKey,
+                                    startMin: SCHEDULE_WORK_START_MIN,
+                                    endMin: SCHEDULE_WORK_END_MIN,
+                                  })}
+                                  className={cn(glassAction("brand", true), "mt-1")}
+                                >
+                                  Nova OS
+                                </Link>
                               ) : null}
-                            </span>
+                            </div>
                           ) : (
                             <div className="min-w-0 space-y-1">
                               {cellSegments.map((seg) => (
-                                <SegmentCard key={`${seg.orderId}-${seg.dayKey}`} seg={seg} compact />
+                                <SegmentCard
+                                  key={`${seg.orderId}-${seg.dayKey}-${seg.startMin}`}
+                                  seg={seg}
+                                  compact
+                                />
                               ))}
-                              <span className="block px-1 text-[0.62rem] text-slate-600">
+                              <button
+                                type="button"
+                                className="block w-full px-1 text-left text-[0.62rem] text-slate-600"
+                                onClick={() =>
+                                  onSelect(
+                                    isSelected ? null : { vehicleId: vehicle.id, dayKey }
+                                  )
+                                }
+                              >
                                 Manhã: {periods.morningFree ? "livre" : "ocupada"} · Tarde:{" "}
                                 {periods.afternoonFree ? "livre" : "ocupada"}
-                              </span>
-                              {hasFree ? (
-                                <span className="block px-1 text-[0.65rem] text-emerald-700">
-                                  + horários livres no dia
-                                </span>
-                              ) : null}
+                                {hasFree ? (
+                                  <span className="mt-0.5 block text-[0.65rem] text-emerald-700">
+                                    + horários livres no dia
+                                  </span>
+                                ) : null}
+                              </button>
                             </div>
                           )}
-                        </button>
+                        </div>
                       </td>
                     );
                   })}
@@ -493,7 +511,7 @@ function VehicleDayTimeline({
     return (
       <Link
         key={`${layer}-${seg.orderId}`}
-        href={orderHref(seg.orderId)}
+        href={orderHref(seg.orderId, seg.orderCode)}
         title={`${seg.orderCode} ${formatMinutes(seg.startMin)}–${formatMinutes(seg.endMin)} — abrir OS`}
         className={cn(
           "absolute top-1 bottom-1 overflow-hidden rounded border px-1 text-[0.65rem] font-medium leading-tight hover:ring-2 hover:ring-brand-300",

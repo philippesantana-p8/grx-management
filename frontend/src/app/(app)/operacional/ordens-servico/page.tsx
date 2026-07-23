@@ -95,8 +95,9 @@ function SuggestedOsCode({
 function OrdensServicoPageContent() {
   const { companyId } = useCompany();
   const searchParams = useSearchParams();
-  const initialSearch = searchParams.get("q") ?? searchParams.get("code") ?? "";
+  const initialSearch = searchParams.get("q") ?? "";
   const initialEditId = searchParams.get("edit") ?? searchParams.get("id");
+  const initialEditCode = searchParams.get("code");
   const wantsNewFromSchedule = searchParams.get("new") === "1";
   const [searchQuery, setSearchQuery] = useState(initialSearch);
   const [statusFilter, setStatusFilter] = useState("");
@@ -467,6 +468,7 @@ function OrdensServicoPageContent() {
     <CrudPage<ServiceOrderListRow>
       refreshKey={listRefreshKey}
       initialEditId={initialEditId}
+      initialEditCode={initialEditCode}
       initialNewDraft={initialNewDraft}
       title="Ordem de Serviço — Transporte e Frete"
       description="Frete e Transporte — natureza do serviço vinculada às contas DRE (pátio e lava nos módulos próprios)"

@@ -235,8 +235,11 @@ export function scheduleSegmentLabel(seg: ScheduleSegment): string {
   return seg.isHistorical ? "Uso registrado" : "Agendado";
 }
 
-export function orderHref(orderId: string): string {
-  return `/operacional/ordens-servico?edit=${encodeURIComponent(orderId)}`;
+export function orderHref(orderId: string, orderCode?: string | null): string {
+  const params = new URLSearchParams();
+  params.set("edit", orderId);
+  if (orderCode?.trim()) params.set("code", orderCode.trim());
+  return `/operacional/ordens-servico?${params.toString()}`;
 }
 
 export type NewOsFromScheduleParams = {

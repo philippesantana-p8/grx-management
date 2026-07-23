@@ -69,6 +69,8 @@ type CrudPageProps<T extends { id: string }> = {
   refreshKey?: number;
   /** Abre o formulário de edição deste id após carregar (ex.: link da agenda). */
   initialEditId?: string | null;
+  /** Fallback se o id não estiver na lista carregada (ex.: `?code=` da agenda). */
+  initialEditCode?: string | null;
   /** Abre «Novo» com campos pré-preenchidos (ex.: placa/data da agenda). */
   initialNewDraft?: Partial<T> | null;
 };
@@ -93,6 +95,7 @@ export function CrudPage<T extends { id: string }>({
   deleteBlockedReason,
   refreshKey = 0,
   initialEditId = null,
+  initialEditCode = null,
   initialNewDraft = null,
 }: CrudPageProps<T>) {
   const { companyId, loading: companyLoading } = useCompany();
@@ -164,25 +167,36 @@ export function CrudPage<T extends { id: string }>({
   }, [companyId, load, refreshKey]);
 
   useEffect(() => {
-    if (!initialEditId || loading || accessLoading) return;
-    if (openedEditIdRef.current === initialEditId) return;
-    const row = items.find((item) => item.id === initialEditId);
+    if ((!initialEditId && !initialEditCode) || loading || accessLoading) return;
+    const openKey = initialEditId || `code:${initialEditCode}`;
+    if (openedEditIdRef.current === openKey) return;
+    const codeNorm = initialEditCode?.trim().toLowerCase() ?? "";
+    const row =
+      (initialEditId ? items.find((item) => item.id === initialEditId) : undefined) ??
+      (codeNorm
+        ? items.find((item) => {
+            const code = (item as { code?: string | null }).code;
+            return String(code ?? "")
+              .trim()
+              .toLowerCase() === codeNorm;
+          })
+        : undefined);
     if (!row) return;
-    if (!screenCanEdit) {
-      setError("Seu acesso é só visualização. Peça permissão de Alteração para editar.");
-      openedEditIdRef.current = initialEditId;
-      return;
-    }
-    if (canEditRow && !canEditRow(row)) {
-      setError(editBlockedReason?.(row) ?? "Esta OS não pode ser editada no momento.");
-      openedEditIdRef.current = initialEditId;
-      return;
-    }
+    // Deep link (ex.: Agenda): sempre abre o registro certo para consulta.
+    // Bloqueio de edição fica no aviso / ao salvar — não redireciona para outra OS.
     setEditing(row);
     setIsNew(false);
-    openedEditIdRef.current = initialEditId;
+    openedEditIdRef.current = openKey;
+    if (!screenCanEdit) {
+      setInfoMsg("Seu acesso é só visualização. Peça permissão de Alteração para editar.");
+    } else if (canEditRow && !canEditRow(row)) {
+      setInfoMsg(editBlockedReason?.(row) ?? "Registro em consulta (edição bloqueada neste status).");
+    } else {
+      setInfoMsg(null);
+    }
   }, [
     initialEditId,
+    initialEditCode,
     items,
     loading,
     accessLoading,
@@ -207,6 +221,10 @@ export function CrudPage<T extends { id: string }>({
     if (!companyId) return null;
     if (!screenCanEdit) {
       setError("Seu acesso é só visualização. Peça permissão de Alteração para salvar.");
+      return null;
+    }
+    if (editing?.id && canEditRow && !canEditRow(editing as T)) {
+      setError(editBlockedReason?.(editing as T) ?? "Este registro não pode ser alterado neste status.");
       return null;
     }
     setSaving(true);
