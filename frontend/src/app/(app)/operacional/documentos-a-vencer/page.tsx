@@ -35,6 +35,9 @@ export default function DocumentosAVencerOperacionalPage() {
   const [userId, setUserId] = useState<string | null>(null);
   const [scope, setScope] = useState<"all" | "vehicle" | "company">("all");
   const [plateFilter, setPlateFilter] = useState("");
+  const [situationFilter, setSituationFilter] = useState<
+    "all" | "expiring" | "expired" | "in_renewal" | "suspended"
+  >("all");
 
   const load = useCallback(async () => {
     if (!companyId) return;
@@ -73,9 +76,16 @@ export default function DocumentosAVencerOperacionalPage() {
         if (plate !== plateFilter) return false;
       }
       if (plateFilter && doc.owner_type === "company") return false;
+      if (situationFilter !== "all") {
+        const v = resolveComplianceSituation(doc, doc.document_type);
+        if (situationFilter === "expiring" && v.situation !== "expiring_soon") return false;
+        if (situationFilter === "expired" && v.situation !== "expired") return false;
+        if (situationFilter === "in_renewal" && v.situation !== "in_renewal") return false;
+        if (situationFilter === "suspended" && v.situation !== "suspended") return false;
+      }
       return true;
     });
-  }, [rows, scope, plateFilter, vehicles]);
+  }, [rows, scope, plateFilter, vehicles, situationFilter]);
 
   const plateOptions = useMemo(() => {
     const opts = [{ value: "", label: "Todas as placas" }];
@@ -110,7 +120,7 @@ export default function DocumentosAVencerOperacionalPage() {
 
       {error ? <Alert variant="error">{error}</Alert> : null}
 
-      <div className={`grid gap-3 sm:grid-cols-2 ${glassFilterPanel()}`}>
+      <div className={`grid gap-3 sm:grid-cols-3 ${glassFilterPanel()}`}>
         <GlassSelect
           label="Escopo"
           value={scope}
@@ -126,6 +136,22 @@ export default function DocumentosAVencerOperacionalPage() {
           value={plateFilter}
           onChange={setPlateFilter}
           options={plateOptions}
+        />
+        <GlassSelect
+          label="Situação"
+          value={situationFilter}
+          onChange={(v) =>
+            setSituationFilter(
+              v as "all" | "expiring" | "expired" | "in_renewal" | "suspended"
+            )
+          }
+          options={[
+            { value: "all", label: "Todas" },
+            { value: "expiring", label: "A vencer" },
+            { value: "expired", label: "Vencidos" },
+            { value: "in_renewal", label: "Em renovação" },
+            { value: "suspended", label: "Suspenso" },
+          ]}
         />
       </div>
 
@@ -195,9 +221,16 @@ export default function DocumentosAVencerOperacionalPage() {
                       {documentDisplayName(doc.document_type)}
                     </td>
                     <td className="px-2 py-2">{doc.document_number || "—"}</td>
-                    <td className="px-2 py-2">
-                      {doc.no_expiry ? "—" : formatExpiryDateBR(doc.expires_at)}
+                    <td className="px-2 py-2 whitespace-nowrap">
+                      {doc.no_expiry
+                        ? "Sem vencimento"
+                        : formatExpiryDateBR(doc.expires_at) || "—"}
                       {view.daysLeft != null ? ` (${view.daysLeft}d)` : ""}
+                      {view.renewalNote || view.situation === "suspended" ? (
+                        <span className="block text-[11px] text-slate-500">
+                          Validade original mantida
+                        </span>
+                      ) : null}
                     </td>
                     <td className="px-2 py-2">
                       <Badge variant={view.badge}>{view.label}</Badge>

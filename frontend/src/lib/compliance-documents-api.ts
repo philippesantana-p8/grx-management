@@ -344,7 +344,45 @@ export async function updateComplianceDocument(
   return error?.message ?? null;
 }
 
-/** Renova: arquiva versão atual e cria nova. */
+/** Marca alertas não lidos do documento como resolvidos (após renovação). */
+export async function resolveComplianceAlertsForDocument(
+  supabase: Sb,
+  companyId: string,
+  documentId: string,
+  userId?: string | null
+): Promise<void> {
+  await supabase
+    .from("compliance_alert_outbox")
+    .update({
+      read_at: new Date().toISOString(),
+      read_by: userId ?? null,
+    })
+    .eq("company_id", companyId)
+    .eq("document_id", documentId)
+    .is("read_at", null);
+}
+
+/** Lista todas as versões de um documento (histórico de renovação). */
+export async function listDocumentVersions(
+  supabase: Sb,
+  companyId: string,
+  rootId: string
+): Promise<{ rows: ComplianceDocument[]; error: string | null }> {
+  const { data, error } = await supabase
+    .from("compliance_documents")
+    .select("*, document_types(*)")
+    .eq("company_id", companyId)
+    .or(`root_id.eq.${rootId},id.eq.${rootId}`)
+    .is("deleted_at", null)
+    .order("version_number", { ascending: false });
+  if (error) return { rows: [], error: error.message };
+  return {
+    rows: ((data as unknown[]) ?? []).map((r) => mapDoc(r as Record<string, unknown>)),
+    error: null,
+  };
+}
+
+/** Renova: arquiva versão atual e cria nova (só uma is_current). */
 export async function renewComplianceDocument(
   supabase: Sb,
   companyId: string,
@@ -402,6 +440,10 @@ export async function renewComplianceDocument(
       .eq("id", current.id);
     return { id: null, error: error.message };
   }
+
+  // Alerta da versão antiga deixa de ser pendência ativa.
+  await resolveComplianceAlertsForDocument(supabase, companyId, current.id, userId);
+
   return { id: String(data.id), error: null };
 }
 

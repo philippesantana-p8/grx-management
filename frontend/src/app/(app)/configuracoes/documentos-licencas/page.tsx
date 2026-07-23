@@ -7,6 +7,7 @@ import {
   attachComplianceFile,
   ComplianceDocumentEditor,
 } from "@/components/compliance/ComplianceDocumentEditor";
+import { ComplianceDocumentHistory } from "@/components/compliance/ComplianceDocumentHistory";
 import { FleetComplianceDocumentsPanel } from "@/components/compliance/FleetComplianceDocumentsPanel";
 import { AttachmentGallery } from "@/components/drivers/AttachmentGallery";
 import { Alert, Badge, Loading } from "@/components/ui/Badge";
@@ -25,6 +26,7 @@ import {
   createComplianceDocument,
   listComplianceDocuments,
   listDocumentTypes,
+  listDocumentVersions,
   renewComplianceDocument,
   seedDefaultDocumentTypes,
   syncComplianceAlerts,
@@ -54,6 +56,9 @@ export default function DocumentosLicencasPage() {
   } | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [clipRefresh, setClipRefresh] = useState(0);
+  const [historyVersions, setHistoryVersions] = useState<ComplianceDocument[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyRootId, setHistoryRootId] = useState<string | null>(null);
   const [typeForm, setTypeForm] = useState({
     id: "" as string,
     name: "",
@@ -98,6 +103,16 @@ export default function DocumentosLicencasPage() {
   const companyDocsVisible = companyDocs.filter(
     (d) => d.document_type?.is_active !== false
   );
+
+  const openCompanyHistory = async (doc: ComplianceDocument) => {
+    const root = doc.root_id ?? doc.id;
+    setHistoryRootId(root);
+    setHistoryLoading(true);
+    const res = await listDocumentVersions(supabase, companyId!, root);
+    setHistoryVersions(res.rows);
+    setHistoryLoading(false);
+    if (res.error) setError(res.error);
+  };
 
   const saveType = async () => {
     if (!companyId || !canEdit) return;
@@ -495,6 +510,13 @@ export default function DocumentosLicencasPage() {
                               </Button>
                             </div>
                           ) : null}
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            onClick={() => void openCompanyHistory(doc)}
+                          >
+                            Histórico
+                          </Button>
                         </td>
                       </tr>
                     );
@@ -503,6 +525,17 @@ export default function DocumentosLicencasPage() {
               </table>
             </div>
           )}
+
+          <ComplianceDocumentHistory
+            companyId={companyId}
+            versions={historyVersions}
+            loading={historyLoading}
+            emptyHint={
+              historyRootId
+                ? "Sem versões neste documento."
+                : "Clique em Histórico no TA para ver versões (atual e anteriores)."
+            }
+          />
         </div>
       ) : null}
     </div>

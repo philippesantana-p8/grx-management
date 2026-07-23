@@ -7,7 +7,7 @@ import {
   attachComplianceFile,
   ComplianceDocumentEditor,
 } from "@/components/compliance/ComplianceDocumentEditor";
-import { AttachmentGallery } from "@/components/drivers/AttachmentGallery";
+import { ComplianceDocumentHistory } from "@/components/compliance/ComplianceDocumentHistory";
 import { Alert, Badge, Loading } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import {
@@ -22,6 +22,7 @@ import {
   listCompanyDocumentsForVehicleView,
   listComplianceDocuments,
   listDocumentTypes,
+  listDocumentVersions,
   renewComplianceDocument,
   seedDefaultDocumentTypes,
   syncComplianceAlerts,
@@ -57,6 +58,7 @@ export function VehicleComplianceDocumentsPanel({
   } | null>(null);
   const [historyRootId, setHistoryRootId] = useState<string | null>(null);
   const [history, setHistory] = useState<ComplianceDocument[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [clipRefresh, setClipRefresh] = useState(0);
 
@@ -103,13 +105,10 @@ export function VehicleComplianceDocumentsPanel({
   const openHistory = async (doc: ComplianceDocument) => {
     const root = doc.root_id ?? doc.id;
     setHistoryRootId(root);
-    const res = await listComplianceDocuments(supabase, companyId, {
-      ownerType: "vehicle",
-      ownerId: vehicleId!,
-      currentOnly: false,
-      rootId: root,
-    });
+    setHistoryLoading(true);
+    const res = await listDocumentVersions(supabase, companyId, root);
     setHistory(res.rows);
+    setHistoryLoading(false);
   };
 
   const saveEditor = async (input: ComplianceDocInput, file?: File | null) => {
@@ -360,40 +359,16 @@ export function VehicleComplianceDocumentsPanel({
         )}
       </section>
 
-      {/* C — Histórico */}
-      <section className={`space-y-3 ${glassFilterPanel()}`}>
-        <h3 className="text-sm font-semibold text-slate-900">C. Histórico de renovações</h3>
-        {!historyRootId ? (
-          <p className="text-sm text-slate-500">
-            Clique em Histórico em um documento para ver versões anteriores.
-          </p>
-        ) : history.length === 0 ? (
-          <p className="text-sm text-slate-500">Sem versões anteriores.</p>
-        ) : (
-          <ul className="space-y-2 text-sm">
-            {history.map((h) => (
-              <li key={h.id} className="rounded-lg border border-slate-100 px-3 py-2">
-                <p className="font-medium">
-                  v{h.version_number}
-                  {h.is_current ? " (atual)" : ""} · Nº {h.document_number || "—"}
-                </p>
-                <p className="text-xs text-slate-500">
-                  Emissão {formatExpiryDateBR(h.issued_at)} · Venc.{" "}
-                  {h.no_expiry ? "—" : formatExpiryDateBR(h.expires_at)} · Incluído{" "}
-                  {formatExpiryDateBR(h.created_at.slice(0, 10))}
-                </p>
-                <AttachmentGallery
-                  companyId={companyId}
-                  entityType="compliance_document"
-                  entityId={h.id}
-                  title="Anexo da versão"
-                  refreshKey={0}
-                />
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+      <ComplianceDocumentHistory
+        companyId={companyId}
+        versions={history}
+        loading={historyLoading}
+        emptyHint={
+          historyRootId
+            ? "Sem versões neste documento."
+            : "Clique em Histórico em um documento para ver versões (atual e anteriores)."
+        }
+      />
     </div>
   );
 }

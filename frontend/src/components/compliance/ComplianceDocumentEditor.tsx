@@ -61,20 +61,32 @@ export function ComplianceDocumentEditor({
       types.find((t) => t.id === initial?.document_type_id)?.issuing_body ??
       ""
   );
-  const [issuedAt, setIssuedAt] = useState(initial?.issued_at ?? "");
-  const [expiresAt, setExpiresAt] = useState(initial?.expires_at ?? "");
+  const [issuedAt, setIssuedAt] = useState(
+    mode === "renew" ? "" : (initial?.issued_at ?? "")
+  );
+  const [expiresAt, setExpiresAt] = useState(
+    mode === "renew" ? "" : (initial?.expires_at ?? "")
+  );
   const [noExpiry, setNoExpiry] = useState(() => {
+    if (mode === "renew") {
+      const t = types.find((x) => x.id === (initial?.document_type_id ?? types[0]?.id));
+      return t ? !t.requires_expiry : false;
+    }
     if (initial) return Boolean(initial.no_expiry);
     const t = types.find((x) => x.id === types[0]?.id);
     return t ? !t.requires_expiry : false;
   });
-  const [renewalStart, setRenewalStart] = useState(initial?.renewal_start_date ?? "");
-  const [renewalStatus, setRenewalStatus] = useState<"none" | "in_renewal">(
-    initial?.renewal_status ?? "none"
+  const [renewalStart, setRenewalStart] = useState(
+    mode === "renew" ? "" : (initial?.renewal_start_date ?? "")
   );
-  const [manualStatus, setManualStatus] = useState<string>(initial?.manual_status ?? "");
+  const [renewalStatus, setRenewalStatus] = useState<"none" | "in_renewal">(
+    mode === "renew" ? "none" : (initial?.renewal_status ?? "none")
+  );
+  const [manualStatus, setManualStatus] = useState<string>(
+    mode === "renew" ? "" : (initial?.manual_status ?? "")
+  );
   const [responsible, setResponsible] = useState(initial?.responsible_name ?? "");
-  const [notes, setNotes] = useState(initial?.notes ?? "");
+  const [notes, setNotes] = useState(mode === "renew" ? "" : (initial?.notes ?? ""));
   const [alertFirst, setAlertFirst] = useState(
     String(
       initial?.alert_days_first ??
@@ -82,7 +94,7 @@ export function ComplianceDocumentEditor({
         60
     )
   );
-  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(mode === "edit");
   const [file, setFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -160,6 +172,13 @@ export function ComplianceDocumentEditor({
   return (
     <div className="space-y-3 rounded-xl border border-slate-200 bg-white/80 p-4">
       <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
+      {mode === "renew" ? (
+        <Alert variant="info">
+          Renovação cria uma nova versão (versão anterior fica no histórico). Informe novo
+          número (se houver), nova data de vencimento e anexe a nova digitalização. A validade
+          antiga permanece na versão arquivada.
+        </Alert>
+      ) : null}
       {error ? <Alert variant="error">{error}</Alert> : null}
       {okMsg ? <Alert variant="success">{okMsg}</Alert> : null}
 
@@ -305,20 +324,25 @@ export function ComplianceDocumentEditor({
               ]}
             />
             <p className="text-xs text-slate-500">
-              Use Em renovação enquanto o processo está em andamento. Pode alterar depois
-              em Editar.
+              Em renovação: aparece no relatório Documentos a vencer sem apagar a data de
+              vencimento. Pode alterar depois em Editar.
             </p>
           </div>
-          <GlassSelect
-            label="Situação manual"
-            value={manualStatus}
-            onChange={setManualStatus}
-            options={[
-              { value: "", label: "Automática (por validade)" },
-              { value: "suspended", label: "Suspenso" },
-              { value: "not_applicable", label: "Não aplicável" },
-            ]}
-          />
+          <div className="space-y-1">
+            <GlassSelect
+              label="Situação manual"
+              value={manualStatus}
+              onChange={setManualStatus}
+              options={[
+                { value: "", label: "Automática (por validade)" },
+                { value: "suspended", label: "Suspenso" },
+                { value: "not_applicable", label: "Não aplicável" },
+              ]}
+            />
+            <p className="text-xs text-slate-500">
+              Suspenso também entra no relatório; a validade original continua visível.
+            </p>
+          </div>
           <label className="block space-y-1">
             <span className="text-sm font-medium text-slate-700">1º alerta (dias)</span>
             <input

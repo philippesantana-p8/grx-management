@@ -6,6 +6,7 @@ import {
   attachComplianceFile,
   ComplianceDocumentEditor,
 } from "@/components/compliance/ComplianceDocumentEditor";
+import { ComplianceDocumentHistory } from "@/components/compliance/ComplianceDocumentHistory";
 import { Alert, Badge, Loading } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { GlassSelect } from "@/components/ui/GlassSelect";
@@ -17,6 +18,7 @@ import {
 } from "@/lib/compliance-documents";
 import {
   createComplianceDocument,
+  listDocumentVersions,
   listVehicleFleetDocuments,
   renewComplianceDocument,
   syncComplianceAlerts,
@@ -60,6 +62,9 @@ export function FleetComplianceDocumentsPanel({
     doc?: ComplianceDocument | null;
     vehicleId: string;
   } | null>(null);
+  const [historyVersions, setHistoryVersions] = useState<ComplianceDocument[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyRootId, setHistoryRootId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -130,6 +135,16 @@ export function FleetComplianceDocumentsPanel({
       return d.document_type?.is_active !== false;
     });
   }, [docs, plateFilter, typeFilter]);
+
+  const openHistory = async (doc: ComplianceDocument) => {
+    const root = doc.root_id ?? doc.id;
+    setHistoryRootId(root);
+    setHistoryLoading(true);
+    const res = await listDocumentVersions(supabase, companyId, root);
+    setHistoryVersions(res.rows);
+    setHistoryLoading(false);
+    if (res.error) setError(res.error);
+  };
 
   const saveEditor = async (
     input: ComplianceDocInput,
@@ -364,6 +379,13 @@ export function FleetComplianceDocumentsPanel({
                           </Button>
                         </div>
                       ) : null}
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={() => void openHistory(doc)}
+                      >
+                        Histórico
+                      </Button>
                     </td>
                   </tr>
                 );
@@ -372,6 +394,17 @@ export function FleetComplianceDocumentsPanel({
           </tbody>
         </table>
       </div>
+
+      <ComplianceDocumentHistory
+        companyId={companyId}
+        versions={historyVersions}
+        loading={historyLoading}
+        emptyHint={
+          historyRootId
+            ? "Sem versões neste documento."
+            : "Clique em Histórico em um documento para ver versões (atual e anteriores)."
+        }
+      />
     </div>
   );
 }
