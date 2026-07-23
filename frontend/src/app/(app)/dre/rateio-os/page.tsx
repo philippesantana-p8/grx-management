@@ -287,46 +287,94 @@ export default function DreRateioOsPage() {
           </div>
         ) : null}
 
-        <section className="space-y-3">
-          <h2 className="text-sm font-semibold text-slate-900">Detalhe OS × sócio</h2>
+        <section className="min-w-0 space-y-3">
+          <div>
+            <h2 className="text-sm font-semibold text-slate-900">Detalhe OS × sócio</h2>
+            <p className="mt-1 text-xs text-slate-600">
+              Role o quadro abaixo (barra vertical/horizontal). Cabeçalho das colunas e a coluna{" "}
+              <strong>OS</strong> ficam fixos — mesmo padrão da Agenda da Frota. O menu lateral
+              permanece visível enquanto a área principal rola.
+            </p>
+          </div>
           {loading ? (
             <Loading />
           ) : flatRows.length === 0 ? (
             <p className="text-sm text-slate-500">Nenhuma OS de Frete/Transporte neste filtro.</p>
           ) : (
-            <div className="overflow-x-auto rounded-lg border border-slate-200">
-              <table className="w-full min-w-[980px] text-sm">
+            <div
+              className="rateio-detail-scroll relative w-full min-w-0 max-w-full overflow-auto rounded-xl border border-slate-200 bg-white shadow-sm [-webkit-overflow-scrolling:touch]"
+              style={{ maxHeight: "min(62vh, calc(100dvh - 14rem))" }}
+            >
+              <table
+                className="border-collapse text-sm"
+                style={{ width: "max(100%, 62rem)", tableLayout: "fixed" }}
+              >
+                <colgroup>
+                  <col style={{ width: "8.5rem" }} />
+                  <col style={{ width: "5.5rem" }} />
+                  <col style={{ width: "6.5rem" }} />
+                  <col style={{ width: "9rem" }} />
+                  <col style={{ width: "7rem" }} />
+                  <col style={{ width: "7rem" }} />
+                  <col style={{ width: "10rem" }} />
+                  <col style={{ width: "4.5rem" }} />
+                  <col style={{ width: "7rem" }} />
+                  <col style={{ width: "7rem" }} />
+                  <col style={{ width: "7.5rem" }} />
+                </colgroup>
                 <thead>
-                  <tr className="border-b border-slate-100 bg-slate-50 text-left">
-                    <th className="px-3 py-2 font-medium text-slate-600">OS</th>
-                    <th className="px-3 py-2 font-medium text-slate-600">Data</th>
-                    <th className="px-3 py-2 font-medium text-slate-600">Placa</th>
-                    <th className="px-3 py-2 font-medium text-slate-600">Cliente</th>
-                    <th className="px-3 py-2 font-medium text-slate-600">Receita OS</th>
-                    <th className="px-3 py-2 font-medium text-slate-600">Despesa OS</th>
-                    <th className="px-3 py-2 font-medium text-slate-600">Sócio</th>
-                    <th className="px-3 py-2 font-medium text-slate-600">%</th>
-                    <th className="px-3 py-2 font-medium text-slate-600">Cota receita</th>
-                    <th className="px-3 py-2 font-medium text-slate-600">Cota despesa</th>
-                    <th className="px-3 py-2 font-medium text-slate-600">Cota resultado</th>
+                  <tr className="border-b border-slate-200 text-left">
+                    <th className="sticky left-0 top-0 z-30 bg-slate-100 px-3 py-2.5 font-semibold text-slate-800 shadow-[2px_0_8px_rgba(15,23,42,0.08)]">
+                      OS
+                    </th>
+                    <th className="sticky top-0 z-20 bg-slate-100 px-3 py-2.5 font-semibold text-slate-800 shadow-[0_2px_6px_rgba(15,23,42,0.06)]">
+                      Data
+                    </th>
+                    <th className="sticky top-0 z-20 bg-slate-100 px-3 py-2.5 font-semibold text-slate-800 shadow-[0_2px_6px_rgba(15,23,42,0.06)]">
+                      Placa
+                    </th>
+                    <th className="sticky top-0 z-20 bg-slate-100 px-3 py-2.5 font-semibold text-slate-800 shadow-[0_2px_6px_rgba(15,23,42,0.06)]">
+                      Cliente
+                    </th>
+                    <th className="sticky top-0 z-20 bg-slate-100 px-3 py-2.5 font-semibold text-slate-800 shadow-[0_2px_6px_rgba(15,23,42,0.06)]">
+                      Receita OS
+                    </th>
+                    <th className="sticky top-0 z-20 bg-slate-100 px-3 py-2.5 font-semibold text-slate-800 shadow-[0_2px_6px_rgba(15,23,42,0.06)]">
+                      Despesa OS
+                    </th>
+                    <th className="sticky top-0 z-20 bg-slate-100 px-3 py-2.5 font-semibold text-slate-800 shadow-[0_2px_6px_rgba(15,23,42,0.06)]">
+                      Sócio
+                    </th>
+                    <th className="sticky top-0 z-20 bg-slate-100 px-3 py-2.5 font-semibold text-slate-800 shadow-[0_2px_6px_rgba(15,23,42,0.06)]">
+                      %
+                    </th>
+                    <th className="sticky top-0 z-20 bg-slate-100 px-3 py-2.5 font-semibold text-slate-800 shadow-[0_2px_6px_rgba(15,23,42,0.06)]">
+                      Cota receita
+                    </th>
+                    <th className="sticky top-0 z-20 bg-slate-100 px-3 py-2.5 font-semibold text-slate-800 shadow-[0_2px_6px_rgba(15,23,42,0.06)]">
+                      Cota despesa
+                    </th>
+                    <th className="sticky top-0 z-20 bg-slate-100 px-3 py-2.5 font-semibold text-slate-800 shadow-[0_2px_6px_rgba(15,23,42,0.06)]">
+                      Cota resultado
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {flatRows.map((row) => (
-                    <tr key={row.key} className="border-b border-slate-50 align-top">
-                      <td className="px-3 py-2 font-medium text-slate-900">
-                        <div>{row.order.code || "—"}</div>
+                    <tr key={row.key} className="border-b border-slate-100 align-top">
+                      <td className="sticky left-0 z-10 bg-white px-3 py-2 font-medium text-slate-900 shadow-[2px_0_8px_rgba(15,23,42,0.06)]">
+                        <div className="truncate">{row.order.code || "—"}</div>
                         {row.order.warnings.length ? (
-                          <p className="mt-0.5 text-[11px] text-amber-700">
+                          <p className="mt-0.5 text-[11px] leading-snug text-amber-700">
                             {row.order.warnings.join(" ")}
                           </p>
                         ) : null}
                       </td>
                       <td className="px-3 py-2 text-slate-700">{formatDate(row.order.serviceDate)}</td>
-                      <td className="px-3 py-2 font-medium text-slate-900">
+                      <td className="truncate px-3 py-2 font-medium text-slate-900">
                         {row.order.plate || "—"}
                       </td>
-                      <td className="max-w-[160px] truncate px-3 py-2 text-slate-600">
+                      <td className="truncate px-3 py-2 text-slate-600">
                         {row.order.clientName || "—"}
                       </td>
                       <td className="px-3 py-2 text-emerald-800">
@@ -335,7 +383,7 @@ export default function DreRateioOsPage() {
                       <td className="px-3 py-2 text-amber-800">
                         {formatCurrency(row.order.expense)}
                       </td>
-                      <td className="px-3 py-2 text-slate-800">{row.partnerName}</td>
+                      <td className="truncate px-3 py-2 text-slate-800">{row.partnerName}</td>
                       <td className="px-3 py-2 tabular-nums text-slate-700">
                         {row.partnerId ? `${row.ownershipPct.toFixed(2)}%` : "—"}
                       </td>

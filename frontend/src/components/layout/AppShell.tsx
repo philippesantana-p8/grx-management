@@ -23,11 +23,11 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, [mobileNavOpen]);
 
   return (
-    <div className="flex min-h-[100dvh] min-h-screen">
+    <div className="flex h-[100dvh] max-h-[100dvh] min-h-0 overflow-hidden">
       <Sidebar mobileOpen={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <Header onMenuClick={() => setMobileNavOpen(true)} />
-        <main className="app-main-scroll flex-1 overflow-auto bg-slate-50 p-3 pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-6">
+        <main className="app-main-scroll min-h-0 flex-1 overflow-auto bg-slate-50 p-3 pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-6">
           {children}
         </main>
       </div>
