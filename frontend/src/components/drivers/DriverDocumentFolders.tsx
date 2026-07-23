@@ -16,7 +16,7 @@ import {
   resolveDriverDocFolder,
   type DriverDocFolderKey,
 } from "@/lib/driver-document-folders";
-import { glassIconBtn } from "@/lib/liquid-glass-styles";
+import { glassIconBtn, glassTabLink, glassTabsNav } from "@/lib/liquid-glass-styles";
 
 export type PendingDriverFolderDoc = {
   file: File;
@@ -179,15 +179,13 @@ export function DriverDocumentFolders({
         </p>
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      <nav className={glassTabsNav()} aria-label="Pastas de documentos do motorista">
         {DRIVER_DOC_FOLDERS.map((f) => (
           <button
             key={f.key}
             type="button"
             onClick={() => setFolder(f.key)}
-            className={`rounded-lg px-3 py-1.5 text-sm font-medium ${
-              folder === f.key ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-700"
-            }`}
+            className={glassTabLink(folder === f.key)}
           >
             {f.label}
             <span className="ml-1 tabular-nums opacity-80">({counts[f.key]})</span>
@@ -198,7 +196,7 @@ export function DriverDocumentFolders({
             +{counts.outros} outro(s) sem pasta
           </span>
         ) : null}
-      </div>
+      </nav>
 
       <p className="text-xs text-slate-500">{activeMeta.hint}</p>
 

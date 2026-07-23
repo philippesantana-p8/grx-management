@@ -5,7 +5,7 @@ import {
   DRIVER_PAYMENT_PROOF_DESCRIPTION,
   uploadDriverPaymentProof,
 } from "@/lib/driver-payments-api";
-import { glassIconBtn } from "@/lib/liquid-glass-styles";
+import { glassAction, glassIconBtn } from "@/lib/liquid-glass-styles";
 import { getAttachmentSignedUrl, listEntityAttachments } from "@/lib/attachments";
 import { createClient } from "@/lib/supabase/client";
 
@@ -120,7 +120,7 @@ export function DriverPaymentProofUpload({
           type="button"
           disabled={opening}
           onClick={() => void handleViewLatest()}
-          className="text-xs font-medium text-brand-700 hover:underline disabled:opacity-50"
+          className={glassAction("brand", true)}
         >
           {opening ? "Abrindo…" : `${proofCount} anexo${proofCount === 1 ? "" : "s"}`}
         </button>

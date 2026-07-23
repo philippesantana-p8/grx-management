@@ -1,6 +1,6 @@
 "use client";
 
-import { cn } from "@/lib/utils";
+import { glassTabLink, glassTabsNav } from "@/lib/liquid-glass-styles";
 
 export type DashboardProductTab =
   | "geral"
@@ -20,13 +20,10 @@ type Props = {
   onChange: (tab: DashboardProductTab) => void;
 };
 
-/** Navegação por produto (subpastas do Dashboard). */
+/** Navegação por produto (subpastas do Dashboard) — Liquid Glass. */
 export function DashboardProductNav({ value, onChange }: Props) {
   return (
-    <nav
-      aria-label="Produtos do dashboard"
-      className="flex flex-wrap gap-2 border-b border-slate-200/80 pb-3"
-    >
+    <nav aria-label="Produtos do dashboard" className={glassTabsNav()}>
       {TABS.map((tab) => {
         const active = value === tab.id;
         return (
@@ -34,21 +31,11 @@ export function DashboardProductNav({ value, onChange }: Props) {
             key={tab.id}
             type="button"
             onClick={() => onChange(tab.id)}
-            className={cn(
-              "rounded-xl px-3.5 py-2 text-left transition",
-              active
-                ? "bg-brand-600 text-white shadow-sm"
-                : "bg-white/70 text-slate-700 ring-1 ring-slate-200/80 hover:bg-slate-50"
-            )}
+            className={glassTabLink(active)}
           >
-            <span className="block text-sm font-semibold">{tab.label}</span>
-            <span
-              className={cn(
-                "block text-[11px]",
-                active ? "text-white/80" : "text-slate-500"
-              )}
-            >
-              {tab.hint}
+            <span className="flex flex-col items-start text-left">
+              <span className="text-sm font-semibold leading-tight">{tab.label}</span>
+              <span className="text-[11px] font-normal opacity-80">{tab.hint}</span>
             </span>
           </button>
         );

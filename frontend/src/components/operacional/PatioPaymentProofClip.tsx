@@ -7,7 +7,7 @@ import {
   uploadEntityAttachment,
   type AttachmentEntityType,
 } from "@/lib/attachments";
-import { glassIconBtn } from "@/lib/liquid-glass-styles";
+import { glassAction, glassIconBtn } from "@/lib/liquid-glass-styles";
 
 export const PATIO_PAYMENT_PROOF_DESCRIPTION = "Comprovante pagamento pátio";
 
@@ -141,7 +141,7 @@ export function PatioPaymentProofClip({
           type="button"
           disabled={opening}
           onClick={() => void handleViewLatest()}
-          className="text-xs font-medium text-brand-700 hover:underline disabled:opacity-50"
+          className={glassAction("brand", true)}
         >
           {opening ? "Abrindo…" : `${proofCount}`}
         </button>

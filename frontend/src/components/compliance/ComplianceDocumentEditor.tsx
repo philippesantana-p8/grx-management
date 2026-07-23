@@ -7,7 +7,7 @@ import { GlassSelect } from "@/components/ui/GlassSelect";
 import { uploadEntityAttachment } from "@/lib/attachments";
 import type { ComplianceDocInput } from "@/lib/compliance-documents-api";
 import type { ComplianceDocument, DocumentType } from "@/lib/compliance-documents";
-import { glassField, glassIconBtn } from "@/lib/liquid-glass-styles";
+import { glassAction, glassField, glassIconBtn } from "@/lib/liquid-glass-styles";
 
 function PaperclipIcon({ className }: { className?: string }) {
   return (
@@ -283,7 +283,7 @@ export function ComplianceDocumentEditor({
           </button>
           <button
             type="button"
-            className="text-sm font-medium text-sky-700 underline"
+            className={glassAction("sky", true)}
             onClick={() => fileInputRef.current?.click()}
           >
             {file ? "Trocar arquivo" : "Selecionar arquivo"}
@@ -296,7 +296,7 @@ export function ComplianceDocumentEditor({
 
       <button
         type="button"
-        className="text-sm font-medium text-sky-700 underline"
+        className={glassAction("neutral", true)}
         onClick={() => setShowAdvanced((v) => !v)}
       >
         {showAdvanced ? "Ocultar opções avançadas" : "Opções avançadas (renovação / alertas)"}

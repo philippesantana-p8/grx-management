@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { Button } from "@/components/ui/Button";
 import {
   copyTextToClipboardSync,
   formatWhatsAppPhoneDisplay,
@@ -102,21 +103,23 @@ export default function AbrirWhatsAppPage() {
 
       {!error && phone ? (
         <div className="flex w-full flex-col gap-2">
-          <button
+          <Button
             type="button"
+            variant="moss"
+            className="w-full px-5 py-3 text-base font-semibold"
             disabled={busy || !fullMessage}
             onClick={() => void handleSend()}
-            className="inline-flex w-full items-center justify-center rounded-lg bg-emerald-600 px-5 py-3 text-base font-semibold text-white shadow hover:bg-emerald-700 disabled:opacity-60"
           >
             {busy ? "Abrindo…" : "Copiar e enviar no WhatsApp"}
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
+            variant="secondary"
+            className="w-full px-5 py-3 text-sm font-semibold"
             onClick={copyMessage}
-            className="inline-flex w-full items-center justify-center rounded-lg border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-800 hover:bg-slate-50"
           >
             {copied ? "Mensagem copiada" : "Só copiar mensagem completa"}
-          </button>
+          </Button>
 
           {fullMessage ? (
             <textarea

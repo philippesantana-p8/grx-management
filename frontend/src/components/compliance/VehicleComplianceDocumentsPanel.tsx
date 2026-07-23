@@ -30,7 +30,7 @@ import {
   type ComplianceDocInput,
 } from "@/lib/compliance-documents-api";
 import { formatExpiryDateBR } from "@/lib/expiry-status";
-import { glassFilterPanel } from "@/lib/liquid-glass-styles";
+import { glassAction, glassFilterPanel } from "@/lib/liquid-glass-styles";
 import { createClient } from "@/lib/supabase/client";
 
 type Props = {
@@ -313,7 +313,7 @@ export function VehicleComplianceDocumentsPanel({
           </h3>
           <Link
             href="/configuracoes/documentos-licencas"
-            className="text-sm font-medium text-sky-700 underline"
+            className={glassAction("sky", true)}
           >
             Gerenciar em Parâmetros → Documentos e licenças
           </Link>

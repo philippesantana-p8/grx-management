@@ -30,7 +30,7 @@ import {
   seedDefaultDocumentTypes,
 } from "@/lib/compliance-documents-api";
 import { resolveComplianceSituation } from "@/lib/compliance-documents";
-import { glassField, glassFilterPanel } from "@/lib/liquid-glass-styles";
+import { glassAction, glassField, glassFilterPanel } from "@/lib/liquid-glass-styles";
 import { isMasterSessionUnlocked } from "@/lib/master-password";
 import { createClient } from "@/lib/supabase/client";
 import { formatCurrency } from "@/lib/utils";
@@ -511,7 +511,7 @@ export default function DashboardPage() {
                   </p>
                   <Link
                     href="/operacional/documentos-a-vencer"
-                    className="text-sm font-medium text-sky-700 underline"
+                    className={glassAction("sky", true)}
                   >
                     Ver relatório
                   </Link>

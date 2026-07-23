@@ -11,7 +11,7 @@ import { useAccess } from "@/lib/access-context";
 import { useCompany } from "@/lib/company-context";
 import { createClient } from "@/lib/supabase/client";
 import { formatCurrency } from "@/lib/utils";
-import { glassField, glassFilterPanel, glassStatCard } from "@/lib/liquid-glass-styles";
+import { glassAction, glassField, glassFilterPanel, glassStatCard } from "@/lib/liquid-glass-styles";
 
 function formatDate(value: string): string {
   if (!value) return "—";
@@ -108,10 +108,10 @@ export default function DreDespesasMotoristaPage() {
           <p className="text-sm text-slate-500">
             Período DRE: <strong className="capitalize text-slate-700">{monthLabel}</strong>
           </p>
-          <Link href="/cadastros/contas-dre" className="text-sm text-brand-700 hover:underline">
+          <Link href="/cadastros/contas-dre" className={glassAction("brand", true)}>
             Contas DRE
           </Link>
-          <Link href="/cadastros/motoristas/pagamentos" className="text-sm text-brand-700 hover:underline">
+          <Link href="/cadastros/motoristas/pagamentos" className={glassAction("brand", true)}>
             Acompanhamento de pagamentos
           </Link>
         </div>

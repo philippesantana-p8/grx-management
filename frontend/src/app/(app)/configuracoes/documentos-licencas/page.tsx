@@ -34,7 +34,13 @@ import {
   upsertDocumentType,
 } from "@/lib/compliance-documents-api";
 import { formatExpiryDateBR } from "@/lib/expiry-status";
-import { glassField, glassFilterPanel } from "@/lib/liquid-glass-styles";
+import {
+  glassAction,
+  glassField,
+  glassFilterPanel,
+  glassTabLink,
+  glassTabsNav,
+} from "@/lib/liquid-glass-styles";
 import { createClient } from "@/lib/supabase/client";
 
 type Tab = "frota" | "empresa" | "tipos";
@@ -164,14 +170,14 @@ export default function DocumentosLicencasPage() {
         <p className="text-sm text-slate-600">
           Controle de licenças: vincule documentos às placas, informe a data de vencimento e
           anexe a digitalização (clipe). Só o TA é da empresa. Relatório:{" "}
-          <Link href="/operacional/documentos-a-vencer" className="text-sky-700 underline">
+          <Link href="/operacional/documentos-a-vencer" className={glassAction("sky", true)}>
             Operacional → Documentos a vencer
           </Link>
           .
         </p>
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      <nav className={glassTabsNav()} aria-label="Documentos e licenças">
         {(
           [
             ["tipos", "Tipos de documento"],
@@ -183,14 +189,12 @@ export default function DocumentosLicencasPage() {
             key={key}
             type="button"
             onClick={() => setTab(key)}
-            className={`rounded-lg px-3 py-1.5 text-sm font-medium ${
-              tab === key ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-700"
-            }`}
+            className={glassTabLink(tab === key)}
           >
             {label}
           </button>
         ))}
-      </div>
+      </nav>
 
       {error ? <Alert variant="error">{error}</Alert> : null}
       {msg ? <Alert variant="success">{msg}</Alert> : null}

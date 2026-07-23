@@ -21,7 +21,7 @@ import { enqueueDeletionAlert } from "@/lib/deletion-alerts";
 import { assertCriticalDeleteGate } from "@/lib/deletion-gate";
 import { summarizeDeletedRow } from "@/lib/deletion-audit";
 import { isMasterSessionUnlocked } from "@/lib/master-password";
-import { glassField, glassFilterPanel, glassStatCard } from "@/lib/liquid-glass-styles";
+import { glassAction, glassField, glassFilterPanel, glassStatCard } from "@/lib/liquid-glass-styles";
 import { createClient } from "@/lib/supabase/client";
 import { formatCurrency } from "@/lib/utils";
 import {
@@ -321,7 +321,7 @@ export default function DreDespesasVeiculoPage() {
           <p className="text-sm text-slate-500">
             Período: <strong className="capitalize text-slate-700">{monthLabel}</strong>
           </p>
-          <Link href="/cadastros/contas-dre" className="text-sm text-brand-700 hover:underline">
+          <Link href="/cadastros/contas-dre" className={glassAction("brand", true)}>
             Contas DRE
           </Link>
         </div>

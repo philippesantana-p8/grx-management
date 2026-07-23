@@ -10,7 +10,7 @@ import {
   listDriverDocumentsFollowup,
   type DriverFollowupRow,
 } from "@/lib/driver-documents-followup";
-import { glassFilterPanel } from "@/lib/liquid-glass-styles";
+import { glassAction, glassFilterPanel } from "@/lib/liquid-glass-styles";
 import { createClient } from "@/lib/supabase/client";
 
 type Filter =
@@ -104,7 +104,7 @@ export function DriverDocumentsFollowupPanel({ companyId }: Props) {
         <div className="flex items-end">
           <button
             type="button"
-            className="text-sm font-medium text-sky-700 underline"
+            className={glassAction("sky", true)}
             onClick={() => void load()}
           >
             Atualizar lista
@@ -166,10 +166,7 @@ export function DriverDocumentsFollowupPanel({ companyId }: Props) {
                     {row.reasons.length ? row.reasons.join(" · ") : "—"}
                   </td>
                   <td className="px-2 py-2">
-                    <Link
-                      href="/cadastros/motoristas"
-                      className="text-xs font-medium text-sky-700 underline"
-                    >
+                    <Link href="/cadastros/motoristas" className={glassAction("sky", true)}>
                       Abrir cadastro
                     </Link>
                   </td>

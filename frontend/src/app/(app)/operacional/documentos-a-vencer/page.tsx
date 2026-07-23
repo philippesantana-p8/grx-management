@@ -18,7 +18,7 @@ import {
   seedDefaultDocumentTypes,
 } from "@/lib/compliance-documents-api";
 import { formatExpiryDateBR } from "@/lib/expiry-status";
-import { glassFilterPanel } from "@/lib/liquid-glass-styles";
+import { glassAction, glassFilterPanel, glassTabLink, glassTabsNav } from "@/lib/liquid-glass-styles";
 import { createClient } from "@/lib/supabase/client";
 
 type MainTab = "fleet" | "drivers";
@@ -119,26 +119,22 @@ export default function DocumentosAVencerOperacionalPage() {
         </p>
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      <nav className={glassTabsNav()} aria-label="Escopo dos documentos">
         <button
           type="button"
           onClick={() => setTab("fleet")}
-          className={`rounded-lg px-3 py-1.5 text-sm font-medium ${
-            tab === "fleet" ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-700"
-          }`}
+          className={glassTabLink(tab === "fleet")}
         >
           Frota e empresa
         </button>
         <button
           type="button"
           onClick={() => setTab("drivers")}
-          className={`rounded-lg px-3 py-1.5 text-sm font-medium ${
-            tab === "drivers" ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-700"
-          }`}
+          className={glassTabLink(tab === "drivers")}
         >
           Motoristas (CNH / CNH-AVC)
         </button>
-      </div>
+      </nav>
 
       {tab === "drivers" ? (
         <DriverDocumentsFollowupPanel companyId={companyId} />
@@ -146,7 +142,7 @@ export default function DocumentosAVencerOperacionalPage() {
         <>
           <p className="text-sm text-slate-600">
             Vencimentos por placa (Prefixo, CRLV…) e o TA da empresa. Tipos em{" "}
-            <Link href="/configuracoes/documentos-licencas" className="text-sky-700 underline">
+            <Link href="/configuracoes/documentos-licencas" className={glassAction("sky", true)}>
               Parâmetros → Documentos e licenças
             </Link>
             .
@@ -205,7 +201,7 @@ export default function DocumentosAVencerOperacionalPage() {
                   </div>
                   <button
                     type="button"
-                    className="text-xs font-medium text-sky-700 underline"
+                    className={glassAction("sky", true)}
                     onClick={async () => {
                       await markComplianceAlertRead(supabase, companyId, a.id, userId);
                       await load();

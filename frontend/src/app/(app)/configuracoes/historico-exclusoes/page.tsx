@@ -30,7 +30,7 @@ import {
   markDeletionAlertRead,
   type DeletionAlert,
 } from "@/lib/deletion-alerts";
-import { glassField, glassFilterPanel } from "@/lib/liquid-glass-styles";
+import { glassAction, glassField, glassFilterPanel } from "@/lib/liquid-glass-styles";
 import { createClient } from "@/lib/supabase/client";
 import { formatDateBR } from "@/lib/utils";
 
@@ -482,7 +482,7 @@ export default function HistoricoExclusoesPage() {
                           <span className="font-medium">{row.entity_code}</span>
                           <button
                             type="button"
-                            className="text-xs text-brand-700 hover:underline"
+                            className={glassAction("brand", true)}
                             onClick={() => {
                               void copyText(row.entity_code!).then((ok) => {
                                 setMsg(ok ? "Código copiado." : "Não foi possível copiar.");

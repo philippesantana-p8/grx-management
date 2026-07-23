@@ -16,10 +16,11 @@ import {
 import { ANTT_AXLE_OPTIONS } from "@/lib/antt-freight";
 import { vehicleDocSummaryMap } from "@/lib/compliance-documents-api";
 import { useCompany } from "@/lib/company-context";
+import { glassTabLink, glassTabsNav } from "@/lib/liquid-glass-styles";
 import { useSeedNumericCode } from "@/lib/use-seed-numeric-code";
 import { createClient } from "@/lib/supabase/client";
 import { uploadVehiclePhoto } from "@/lib/vehicle-photo";
-import { cn, normalizePlate } from "@/lib/utils";
+import { normalizePlate } from "@/lib/utils";
 import type { Partner, Vehicle } from "@/types/database";
 import { STATUS_OPTIONS, VEHICLE_CATEGORIES } from "@/types/database";
 
@@ -242,23 +243,18 @@ function VehicleForm({
           <>
             {codeDupError ? <Alert variant="error">{codeDupError}</Alert> : null}
 
-            <div className="flex flex-wrap gap-1 border-b border-slate-200 pb-2">
+            <nav className={glassTabsNav()} aria-label="Cadastro do veículo">
               {tabs.map((t) => (
                 <button
                   key={t.key}
                   type="button"
                   onClick={() => setTab(t.key)}
-                  className={cn(
-                    "rounded-lg px-3 py-1.5 text-sm font-medium transition",
-                    tab === t.key
-                      ? "bg-slate-900 text-white"
-                      : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                  )}
+                  className={glassTabLink(tab === t.key)}
                 >
                   {t.label}
                 </button>
               ))}
-            </div>
+            </nav>
 
             {tab === "dados" ? (
               <div className="space-y-4">

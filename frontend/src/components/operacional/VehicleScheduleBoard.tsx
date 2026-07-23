@@ -251,10 +251,7 @@ export function VehicleScheduleBoard({
                 Frete concluído não bloqueia; só registra o uso.
               </p>
             </div>
-            <Link
-              href="/operacional/ordens-servico"
-              className="text-sm font-medium text-brand-700 underline-offset-2 hover:underline"
-            >
+            <Link href="/operacional/ordens-servico" className={glassAction("brand", true)}>
               Lista de OS
             </Link>
           </div>

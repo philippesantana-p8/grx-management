@@ -12,7 +12,7 @@ import {
   type OsRateioPartnerTotal,
   type OsRateioRow,
 } from "@/lib/dre-os-rateio-api";
-import { glassField, glassFilterPanel, glassStatCard } from "@/lib/liquid-glass-styles";
+import { glassAction, glassField, glassFilterPanel, glassStatCard } from "@/lib/liquid-glass-styles";
 import { createClient } from "@/lib/supabase/client";
 import { formatCurrency } from "@/lib/utils";
 
@@ -217,7 +217,7 @@ export default function DreRateioOsPage() {
           <p className="text-sm text-slate-500">
             Período: <strong className="capitalize text-slate-700">{monthLabel}</strong>
           </p>
-          <Link href="/cadastros/participacoes" className="text-sm text-brand-700 hover:underline">
+          <Link href="/cadastros/participacoes" className={glassAction("brand", true)}>
             Participações
           </Link>
         </div>

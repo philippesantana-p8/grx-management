@@ -296,20 +296,20 @@ body {
   border-radius: 0.875rem;
   padding: 0.4375rem 0.875rem;
   font-size: 0.875rem;
-  font-weight: 500;
+  font-weight: 600;
   line-height: 1.25;
   font-family: inherit;
   appearance: none;
-  color: #475569;
+  color: #1e293b;
   text-decoration: none;
   cursor: pointer;
-  background: linear-gradient(145deg, rgba(255, 255, 255, 0.62) 0%, rgba(248, 250, 252, 0.42) 100%);
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.92) 0%, rgba(241, 245, 249, 0.82) 100%);
   backdrop-filter: blur(16px) saturate(160%);
   -webkit-backdrop-filter: blur(16px) saturate(160%);
-  border: 1px solid rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(148, 163, 184, 0.55);
   box-shadow:
-    0 4px 14px rgba(15, 23, 42, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.75);
+    0 4px 14px rgba(15, 23, 42, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
   transition:
     transform 0.14s ease,
     box-shadow 0.14s ease,
