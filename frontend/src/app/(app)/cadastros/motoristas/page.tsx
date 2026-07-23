@@ -110,6 +110,7 @@ function MotoristasPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const autoImport = searchParams.get("importDrivers") === "1";
+  const initialEditId = searchParams.get("edit") ?? searchParams.get("id");
   const [refreshKey, setRefreshKey] = useState(0);
   const [categoryFilter, setCategoryFilter] = useState("");
   const [availabilityFilter, setAvailabilityFilter] =
@@ -235,6 +236,7 @@ function MotoristasPageContent() {
         table="drivers"
         auditScreenKey="cadastros.motoristas"
         orderBy="name"
+        initialEditId={initialEditId}
         transformItems={transformItems}
         filterItem={filterItem}
         toolbar={

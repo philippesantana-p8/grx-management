@@ -166,7 +166,10 @@ export function DriverDocumentsFollowupPanel({ companyId }: Props) {
                     {row.reasons.length ? row.reasons.join(" · ") : "—"}
                   </td>
                   <td className="px-2 py-2">
-                    <Link href="/cadastros/motoristas" className={glassAction("sky", true)}>
+                    <Link
+                      href={`/cadastros/motoristas?edit=${encodeURIComponent(row.id)}`}
+                      className={glassAction("sky", true)}
+                    >
                       Abrir cadastro
                     </Link>
                   </td>
