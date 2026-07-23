@@ -13,7 +13,8 @@ export type AttachmentEntityType =
   | "car_wash_service"
   | "service_order"
   | "vehicle_event"
-  | "traffic_infraction";
+  | "traffic_infraction"
+  | "compliance_document";
 
 export type Attachment = {
   id: string;

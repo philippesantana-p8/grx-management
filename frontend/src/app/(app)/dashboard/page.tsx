@@ -24,6 +24,12 @@ import type {
   DashboardSnapshot,
 } from "@/lib/dashboard-metrics";
 import { periodRange } from "@/lib/dashboard-metrics";
+import {
+  listExpiringDocumentsReport,
+  listUnreadComplianceAlerts,
+  seedDefaultDocumentTypes,
+} from "@/lib/compliance-documents-api";
+import { resolveComplianceSituation } from "@/lib/compliance-documents";
 import { glassField, glassFilterPanel } from "@/lib/liquid-glass-styles";
 import { isMasterSessionUnlocked } from "@/lib/master-password";
 import { createClient } from "@/lib/supabase/client";
@@ -182,6 +188,11 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [authUserId, setAuthUserId] = useState<string | null>(null);
+  const [docAlertCounts, setDocAlertCounts] = useState({
+    expired: 0,
+    expiring: 0,
+    unread: 0,
+  });
   const masterUnlocked = Boolean(
     companyId && authUserId && isMasterSessionUnlocked(companyId, authUserId)
   );
@@ -226,6 +237,25 @@ export default function DashboardPage() {
       setAuthUserId(data.user?.id ?? null);
     });
   }, [supabase]);
+
+  useEffect(() => {
+    if (!companyId) return;
+    void (async () => {
+      await seedDefaultDocumentTypes(supabase, companyId);
+      const [rep, unread] = await Promise.all([
+        listExpiringDocumentsReport(supabase, companyId),
+        listUnreadComplianceAlerts(supabase, companyId, 50),
+      ]);
+      let expired = 0;
+      let expiring = 0;
+      for (const d of rep.rows) {
+        const v = resolveComplianceSituation(d, d.document_type);
+        if (v.situation === "expired" || v.situation === "suspended") expired += 1;
+        else expiring += 1;
+      }
+      setDocAlertCounts({ expired, expiring, unread: unread.rows.length });
+    })();
+  }, [companyId, supabase]);
 
   const handleSeedDemo = async () => {
     if (!companyId) return;
@@ -462,6 +492,31 @@ export default function DashboardPage() {
           {product === "geral" ? (
             <div className="space-y-4">
               <KpiStrip snapshot={snapshot} />
+              {(docAlertCounts.expired > 0 ||
+                docAlertCounts.expiring > 0 ||
+                docAlertCounts.unread > 0) && (
+                <div className={`flex flex-wrap items-center justify-between gap-2 ${glassFilterPanel()}`}>
+                  <p className="text-sm text-slate-700">
+                    Documentos:{" "}
+                    <span className="font-semibold text-red-700">
+                      {docAlertCounts.expired} vencido(s)
+                    </span>
+                    {" · "}
+                    <span className="font-semibold text-amber-700">
+                      {docAlertCounts.expiring} a vencer
+                    </span>
+                    {docAlertCounts.unread > 0
+                      ? ` · ${docAlertCounts.unread} alerta(s) não lido(s)`
+                      : ""}
+                  </p>
+                  <Link
+                    href="/configuracoes/documentos-a-vencer"
+                    className="text-sm font-medium text-sky-700 underline"
+                  >
+                    Ver relatório
+                  </Link>
+                </div>
+              )}
               <div className="grid gap-3 lg:grid-cols-3">
                 <div className={`space-y-2 ${glassFilterPanel()}`}>
                   <h2 className="text-sm font-semibold text-slate-900">

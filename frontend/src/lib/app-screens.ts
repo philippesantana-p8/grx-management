@@ -115,6 +115,18 @@ export const APP_SCREENS: AppScreen[] = [
     href: "/configuracoes/parametros-frete",
   },
   {
+    key: "configuracoes.documentos-licencas",
+    label: "Documentos e licenças",
+    group: "Parâmetros",
+    href: "/configuracoes/documentos-licencas",
+  },
+  {
+    key: "configuracoes.documentos-a-vencer",
+    label: "Documentos a vencer",
+    group: "Parâmetros",
+    href: "/configuracoes/documentos-a-vencer",
+  },
+  {
     key: "configuracoes.parametros",
     label: "Senha Máster - Concessão de Acessos",
     group: "Parâmetros",

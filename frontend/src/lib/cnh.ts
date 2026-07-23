@@ -1,5 +1,7 @@
 /** Utilitários de validação da CNH brasileira (11 dígitos + DV). */
 
+import { getExpiryTierByMonths } from "@/lib/expiry-status";
+
 export const CNH_CATEGORIES = [
   { value: "A", label: "A — Motocicletas" },
   { value: "B", label: "B — Automóveis" },
@@ -88,46 +90,8 @@ export function toggleCnhCategory(current: string[], value: CnhCategory): string
   return sortCnhCategories([...next]);
 }
 
-function parseDateOnly(value: string): Date | null {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
-  if (!match) return null;
-  const year = Number(match[1]);
-  const month = Number(match[2]) - 1;
-  const day = Number(match[3]);
-  const date = new Date(year, month, day);
-  if (date.getFullYear() !== year || date.getMonth() !== month || date.getDate() !== day) {
-    return null;
-  }
-  return date;
-}
-
-function startOfToday(): Date {
-  const now = new Date();
-  return new Date(now.getFullYear(), now.getMonth(), now.getDate());
-}
-
-function addMonths(date: Date, months: number): Date {
-  const result = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-  result.setMonth(result.getMonth() + months);
-  return result;
-}
-
 export function getCnhExpiryStatus(date: string | null | undefined): CnhExpiryStatus {
-  if (!date) return "none";
-
-  const expiry = parseDateOnly(date);
-  if (!expiry) return "none";
-
-  const today = startOfToday();
-  if (expiry < today) return "expired";
-
-  const criticalLimit = addMonths(today, CNH_EXPIRY_CRITICAL_MONTHS);
-  if (expiry <= criticalLimit) return "critical";
-
-  const warningLimit = addMonths(today, CNH_EXPIRY_WARNING_MONTHS);
-  if (expiry <= warningLimit) return "warning";
-
-  return "ok";
+  return getExpiryTierByMonths(date, CNH_EXPIRY_WARNING_MONTHS, CNH_EXPIRY_CRITICAL_MONTHS);
 }
 
 export function getCnhExpiryMessage(date: string | null | undefined): string | null {

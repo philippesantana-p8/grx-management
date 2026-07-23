@@ -2,32 +2,35 @@
 
 import { useEffect, useState } from "react";
 import { NumericCodeField } from "@/components/cadastros/NumericCodeField";
+import { VehicleComplianceDocumentsPanel } from "@/components/compliance/VehicleComplianceDocumentsPanel";
 import { CrudPage } from "@/components/crud/CrudPage";
 import { EntityForm, FormFields } from "@/components/crud/EntityForm";
 import { Alert, Badge } from "@/components/ui/Badge";
-import {
-  uploadPendingVehicleDocuments,
-  VehicleDocumentsSection,
-  type PendingVehicleDocument,
-} from "@/components/vehicles/VehicleDocumentsSection";
 import { VehiclePhotoUpload } from "@/components/vehicles/VehiclePhotoUpload";
+import { useAccess } from "@/lib/access-context";
 import {
   formatDuplicateCodeError,
   isEntityCodeTaken,
   resolveEntityNumericCode,
 } from "@/lib/codes";
 import { ANTT_AXLE_OPTIONS } from "@/lib/antt-freight";
+import { vehicleDocSummaryMap } from "@/lib/compliance-documents-api";
 import { useCompany } from "@/lib/company-context";
 import { useSeedNumericCode } from "@/lib/use-seed-numeric-code";
 import { createClient } from "@/lib/supabase/client";
 import { uploadVehiclePhoto } from "@/lib/vehicle-photo";
-import { normalizePlate } from "@/lib/utils";
+import { cn, normalizePlate } from "@/lib/utils";
 import type { Partner, Vehicle } from "@/types/database";
 import { STATUS_OPTIONS, VEHICLE_CATEGORIES } from "@/types/database";
+
+type FormTab = "dados" | "documentos" | "manutencao" | "fotos";
 
 export default function VeiculosPage() {
   const { companyId } = useCompany();
   const [partners, setPartners] = useState<Partner[]>([]);
+  const [docBadges, setDocBadges] = useState<
+    Map<string, { expired: number; expiring: number; missingRequired: number }>
+  >(new Map());
   const supabase = createClient();
 
   useEffect(() => {
@@ -43,15 +46,49 @@ export default function VeiculosPage() {
   return (
     <CrudPage<Vehicle>
       title="Veículos"
-      description="Código numérico sequencial de 8 dígitos (editável e único por empresa)"
+      description="Código 8 dígitos · documentos e licenças na aba Documentos"
       table="vehicles"
       auditScreenKey="cadastros.veiculos"
       orderBy="plate"
+      transformItems={async (items) => {
+        if (!companyId || !items.length) {
+          setDocBadges(new Map());
+          return items;
+        }
+        const map = await vehicleDocSummaryMap(
+          supabase,
+          companyId,
+          items.map((r) => r.id)
+        );
+        setDocBadges(map);
+        return items;
+      }}
       columns={[
         { key: "code", label: "Código" },
         { key: "plate", label: "Placa" },
         { key: "model", label: "Modelo" },
         { key: "vehicle_category", label: "Categoria" },
+        {
+          key: "docs",
+          label: "Documentos",
+          render: (r) => {
+            const s = docBadges.get(r.id);
+            if (!s) return <span className="text-slate-400">—</span>;
+            if (s.expired > 0 || s.missingRequired > 0) {
+              return (
+                <Badge variant="danger">
+                  {s.expired > 0 ? `${s.expired} venc.` : ""}
+                  {s.expired > 0 && s.missingRequired > 0 ? " · " : ""}
+                  {s.missingRequired > 0 ? `${s.missingRequired} falt.` : ""}
+                </Badge>
+              );
+            }
+            if (s.expiring > 0) {
+              return <Badge variant="warning">{s.expiring} a vencer</Badge>;
+            }
+            return <Badge variant="success">OK</Badge>;
+          },
+        },
         {
           key: "status",
           label: "Status",
@@ -89,27 +126,35 @@ function VehicleForm({
   onSave: (data: Record<string, unknown>) => Promise<string | null>;
   onCancel: () => void;
 }) {
+  const { canEditScreen } = useAccess();
+  const canEdit = canEditScreen("cadastros.veiculos");
   const { seedCode, codeReady } = useSeedNumericCode("vehicles", companyId, item);
   const [codeDupError, setCodeDupError] = useState<string | null>(null);
   const [photoStoragePath, setPhotoStoragePath] = useState<string | null>(
     item?.photo_storage_path ?? null
   );
   const [pendingPhotoFile, setPendingPhotoFile] = useState<File | null>(null);
-  const [pendingDocs, setPendingDocs] = useState<PendingVehicleDocument[]>([]);
-  const [docsRefreshKey, setDocsRefreshKey] = useState(0);
+  const [tab, setTab] = useState<FormTab>("dados");
+  const [savedVehicleId, setSavedVehicleId] = useState<string | null>(item?.id ?? null);
 
   useEffect(() => {
     setPhotoStoragePath(item?.photo_storage_path ?? null);
     setPendingPhotoFile(null);
     setCodeDupError(null);
-    pendingDocs.forEach((d) => URL.revokeObjectURL(d.previewUrl));
-    setPendingDocs([]);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- reset só ao trocar veículo
+    setSavedVehicleId(item?.id ?? null);
+    setTab("dados");
   }, [item?.id, item?.photo_storage_path]);
 
   if (!codeReady) {
     return <p className="text-sm text-slate-500">Gerando próximo código...</p>;
   }
+
+  const tabs: { key: FormTab; label: string }[] = [
+    { key: "dados", label: "Dados Principais" },
+    { key: "documentos", label: "Documentos" },
+    { key: "manutencao", label: "Manutenção" },
+    { key: "fotos", label: "Fotos" },
+  ];
 
   return (
     <EntityForm
@@ -166,6 +211,7 @@ function VehicleForm({
 
         const vehicleId = await onSave(data);
         if (!vehicleId || !companyId) return;
+        setSavedVehicleId(vehicleId);
 
         if (pendingPhotoFile) {
           const { error: photoError } = await uploadVehiclePhoto({
@@ -180,22 +226,6 @@ function VehicleForm({
             setPendingPhotoFile(null);
           }
         }
-
-        if (pendingDocs.length > 0) {
-          const { uploaded, errors } = await uploadPendingVehicleDocuments({
-            companyId,
-            vehicleId,
-            docs: pendingDocs,
-          });
-          pendingDocs.forEach((d) => URL.revokeObjectURL(d.previewUrl));
-          setPendingDocs([]);
-          setDocsRefreshKey((k) => k + 1);
-          if (errors > 0) {
-            window.alert(
-              `Veículo salvo. Documentos: ${uploaded} enviados, ${errors} com falha.`
-            );
-          }
-        }
       }}
     >
       {({ form, set }) => {
@@ -206,101 +236,136 @@ function VehicleForm({
           }
           set(key, value);
         };
+        const vehicleId = savedVehicleId ?? item?.id ?? null;
 
         return (
           <>
             {codeDupError ? <Alert variant="error">{codeDupError}</Alert> : null}
 
-            <NumericCodeField
-              value={String(form.code ?? "")}
-              onChange={(v) => {
-                set("code", v);
-                setCodeDupError(null);
-              }}
-              onBlur={async (code) => {
-                if (!companyId || !code) return;
-                const check = await isEntityCodeTaken(
-                  "vehicles",
-                  companyId,
-                  code,
-                  item?.id ?? null
-                );
-                setCodeDupError(check.taken ? formatDuplicateCodeError(code) : null);
-              }}
-            />
+            <div className="flex flex-wrap gap-1 border-b border-slate-200 pb-2">
+              {tabs.map((t) => (
+                <button
+                  key={t.key}
+                  type="button"
+                  onClick={() => setTab(t.key)}
+                  className={cn(
+                    "rounded-lg px-3 py-1.5 text-sm font-medium transition",
+                    tab === t.key
+                      ? "bg-slate-900 text-white"
+                      : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                  )}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
 
-            <VehiclePhotoUpload
-              companyId={companyId}
-              vehicleId={item?.id ?? null}
-              photoStoragePath={photoStoragePath}
-              pendingFile={pendingPhotoFile}
-              onPendingFileChange={setPendingPhotoFile}
-              onPhotoPathChange={setPhotoStoragePath}
-            />
-
-            <VehicleDocumentsSection
-              companyId={companyId}
-              vehicleId={item?.id ?? null}
-              disabled={saving}
-              pendingDocs={pendingDocs}
-              onPendingDocsChange={setPendingDocs}
-              refreshKey={docsRefreshKey}
-              onUploaded={() => setDocsRefreshKey((k) => k + 1)}
-            />
-
-            <FormFields
-              form={form}
-              set={setField}
-              fields={[
-                { name: "plate", label: "Placa", required: true },
-                { name: "plate_display", label: "Placa (exibição)" },
-                { name: "model", label: "Modelo" },
-                { name: "year", label: "Ano", type: "number" },
-                {
-                  name: "vehicle_category",
-                  label: "Categoria",
-                  type: "select",
-                  options: VEHICLE_CATEGORIES.map((c) => ({ value: c, label: c })),
-                },
-                {
-                  name: "operational_partner_id",
-                  label: "Responsável operacional",
-                  type: "select",
-                  options: [
-                    { value: "", label: "— Nenhum —" },
-                    ...partners.map((p) => ({ value: p.id, label: p.name })),
-                  ],
-                },
-                {
-                  name: "status",
-                  label: "Status",
-                  type: "select",
-                  options: STATUS_OPTIONS.map((s) => ({ value: s, label: s })),
-                },
-                { name: "notes", label: "Observações", type: "textarea" },
-              ]}
-            />
-            {isCaminhao && (
-              <div className="grid gap-4 sm:grid-cols-2">
-                <label className="block space-y-1">
-                  <span className="text-sm font-medium text-slate-700">Quantidade de eixos</span>
-                  <select
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                    value={String(form.axle_count ?? "")}
-                    onChange={(e) =>
-                      setField("axle_count", e.target.value ? Number(e.target.value) : "")
-                    }
-                  >
-                    <option value="">— Selecione —</option>
-                    {ANTT_AXLE_OPTIONS.map((axle) => (
-                      <option key={axle} value={axle}>
-                        {axle} eixos
-                      </option>
-                    ))}
-                  </select>
-                </label>
+            {tab === "dados" ? (
+              <div className="space-y-4">
+                <NumericCodeField
+                  value={String(form.code ?? "")}
+                  onChange={(v) => {
+                    set("code", v);
+                    setCodeDupError(null);
+                  }}
+                  onBlur={async (code) => {
+                    if (!companyId || !code) return;
+                    const check = await isEntityCodeTaken(
+                      "vehicles",
+                      companyId,
+                      code,
+                      item?.id ?? null
+                    );
+                    setCodeDupError(check.taken ? formatDuplicateCodeError(code) : null);
+                  }}
+                />
+                <FormFields
+                  form={form}
+                  set={setField}
+                  fields={[
+                    { name: "plate", label: "Placa", required: true },
+                    { name: "plate_display", label: "Placa (exibição)" },
+                    { name: "model", label: "Modelo" },
+                    { name: "year", label: "Ano", type: "number" },
+                    {
+                      name: "vehicle_category",
+                      label: "Categoria",
+                      type: "select",
+                      options: VEHICLE_CATEGORIES.map((c) => ({ value: c, label: c })),
+                    },
+                    {
+                      name: "operational_partner_id",
+                      label: "Responsável operacional",
+                      type: "select",
+                      options: [
+                        { value: "", label: "— Nenhum —" },
+                        ...partners.map((p) => ({ value: p.id, label: p.name })),
+                      ],
+                    },
+                    {
+                      name: "status",
+                      label: "Status",
+                      type: "select",
+                      options: STATUS_OPTIONS.map((s) => ({ value: s, label: s })),
+                    },
+                    { name: "notes", label: "Observações", type: "textarea" },
+                  ]}
+                />
+                {isCaminhao && (
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <label className="block space-y-1">
+                      <span className="text-sm font-medium text-slate-700">
+                        Quantidade de eixos
+                      </span>
+                      <select
+                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                        value={String(form.axle_count ?? "")}
+                        onChange={(e) =>
+                          setField("axle_count", e.target.value ? Number(e.target.value) : "")
+                        }
+                      >
+                        <option value="">— Selecione —</option>
+                        {ANTT_AXLE_OPTIONS.map((axle) => (
+                          <option key={axle} value={axle}>
+                            {axle} eixos
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+                )}
               </div>
-            )}
+            ) : null}
+
+            {tab === "documentos" && companyId ? (
+              <VehicleComplianceDocumentsPanel
+                companyId={companyId}
+                vehicleId={vehicleId}
+                vehicleCategory={String(form.vehicle_category || "")}
+                canEdit={canEdit}
+              />
+            ) : null}
+
+            {tab === "manutencao" ? (
+              <Alert variant="info">
+                Histórico de manutenção operacional continua em{" "}
+                <a href="/dre/despesas-veiculo" className="font-medium underline">
+                  DRE → Despesas do Veículo
+                </a>
+                . Esta aba agrupa a navegação do cadastro.
+              </Alert>
+            ) : null}
+
+            {tab === "fotos" ? (
+              <VehiclePhotoUpload
+                companyId={companyId}
+                vehicleId={vehicleId}
+                photoStoragePath={photoStoragePath}
+                pendingFile={pendingPhotoFile}
+                onPendingFileChange={setPendingPhotoFile}
+                onPhotoPathChange={setPhotoStoragePath}
+              />
+            ) : null}
           </>
         );
       }}
