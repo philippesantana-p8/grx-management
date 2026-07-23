@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Alert, Loading } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
@@ -19,6 +20,9 @@ import { summarizeDeletedRow } from "@/lib/deletion-audit";
 import { createDeletionApprovalRequest } from "@/lib/deletion-approvals";
 import { enqueueDeletionAlert } from "@/lib/deletion-alerts";
 import { assertCriticalDeleteGate } from "@/lib/deletion-gate";
+import {
+  pickDreAccountIdForDriverExpense,
+} from "@/lib/legacy-driver-expense";
 import { isMasterSessionUnlocked } from "@/lib/master-password";
 import { glassAction, glassField, glassFilterPanel, glassStatCard } from "@/lib/liquid-glass-styles";
 import { createClient } from "@/lib/supabase/client";
@@ -38,10 +42,21 @@ type AccountOption = {
 };
 
 export default function DreLancamentosPage() {
+  return (
+    <Suspense fallback={<Loading />}>
+      <DreLancamentosPageContent />
+    </Suspense>
+  );
+}
+
+function DreLancamentosPageContent() {
   const { companyId } = useCompany();
   const { canEditScreen, canDeleteScreen, isAdmin } = useAccess();
   const canEdit = canEditScreen("dre.lancamentos");
   const canDelete = canDeleteScreen("dre.lancamentos");
+  const searchParams = useSearchParams();
+  const legacyPay = searchParams.get("legacyPay") === "1";
+  const prefillAppliedRef = useRef(false);
   const [requireMasterForDelete, setRequireMasterForDelete] = useState(false);
   const supabase = useMemo(() => createClient(), []);
   const now = new Date();
@@ -147,6 +162,29 @@ export default function DreLancamentosPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  /** Prefill a partir da OS legado (Despesas Motorista / ações da OS). */
+  useEffect(() => {
+    if (!legacyPay || prefillAppliedRef.current || accounts.length === 0) return;
+    prefillAppliedRef.current = true;
+
+    const accountPref =
+      searchParams.get("account") === "ajudante" ? "ajudante" : "motorista";
+    const accountId = pickDreAccountIdForDriverExpense(accounts, accountPref);
+    if (accountId) setChartOfAccountId(accountId);
+
+    const date = searchParams.get("date")?.trim();
+    if (date && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      setTransactionDate(date);
+      setYear(Number(date.slice(0, 4)));
+      setMonth(Number(date.slice(5, 7)));
+    }
+
+    const desc = searchParams.get("desc")?.trim();
+    if (desc) setDescription(desc);
+
+    setTypeFilter("Despesa");
+  }, [accounts, legacyPay, searchParams]);
 
   const submit = async () => {
     if (!companyId) return;
@@ -283,9 +321,16 @@ export default function DreLancamentosPage() {
     <Card>
       <CardHeader
         title="Lançamentos da Empresa"
-        description="Controle mensal da GRX: receitas e despesas gerais (geladeira, material de escritório, aluguel, etc.) — sem vínculo obrigatório com veículo. Use as contas do plano DRE."
+        description="Controle mensal da GRX: receitas e despesas gerais (geladeira, material de escritório, aluguel, etc.) — sem vínculo obrigatório com veículo. Use as contas do plano DRE. OS importadas sem valor de motorista/ajudante: lançar aqui na conta Motorista ou Ajudante (autorização legado)."
       />
       <CardBody className="space-y-6">
+        {legacyPay ? (
+          <Alert variant="info">
+            Lançamento autorizado para OS legado/importada sem valor na designação. Confira a conta{" "}
+            <strong>Motorista</strong> ou <strong>Ajudante</strong>, informe o valor pago, mantenha a
+            OS na observação e salve. Novas OS devem usar o fluxo de designação com valores.
+          </Alert>
+        ) : null}
         <div className="flex flex-wrap items-end gap-3">
           <label className="space-y-1 text-sm">
             <span className="font-medium text-slate-700">Mês</span>

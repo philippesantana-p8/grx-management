@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { uploadEntityAttachment } from "@/lib/attachments";
+import { needsManualCompanyDriverExpense } from "@/lib/legacy-driver-expense";
 
 export const DRIVER_PAYMENT_PROOF_DESCRIPTION = "Comprovante pagamento motorista";
 
@@ -19,6 +20,11 @@ export type DriverPaymentRow = {
   driver_assignment_assistant_pay_amount: number | null;
   driver_payment_paid_at: string | null;
   payment_proof_count: number;
+  legacy_number: string | null;
+  notes: string | null;
+  driver_assignment_sent_at: string | null;
+  /** Sem valor na designação — usar DRE Lançamentos da empresa (conta Motorista/Ajudante). */
+  needs_manual_company_expense: boolean;
 };
 
 export type DriverPaymentFilter = "all" | "pending" | "paid";
@@ -38,6 +44,9 @@ type RawOrderRow = {
   service_date: string;
   status: string;
   driver_id: string;
+  legacy_number?: string | null;
+  notes?: string | null;
+  driver_assignment_sent_at?: string | null;
   driver_assignment_pay_amount: number | string | null;
   driver_assignment_assistant_pay_amount: number | string | null;
   driver_payment_paid_at: string | null;
@@ -45,10 +54,10 @@ type RawOrderRow = {
 };
 
 const ORDER_FIELDS =
-  "id, code, service_date, status, driver_id, driver_assignment_pay_amount, driver_assignment_assistant_pay_amount, driver_payment_paid_at";
+  "id, code, service_date, status, driver_id, legacy_number, notes, driver_assignment_sent_at, driver_assignment_pay_amount, driver_assignment_assistant_pay_amount, driver_payment_paid_at";
 
 const ORDER_FIELDS_WITH_DRIVER = `
-  id, code, service_date, status, driver_id,
+  id, code, service_date, status, driver_id, legacy_number, notes, driver_assignment_sent_at,
   driver_assignment_pay_amount, driver_assignment_assistant_pay_amount, driver_payment_paid_at,
   drivers!service_orders_driver_id_fkey ( code, name, pix_key, bank_code, bank_agency, bank_account )
 `;
@@ -187,6 +196,9 @@ async function fetchPaymentOrders(
     return {
       data: (minimal.data ?? []).map((row) => ({
         ...(row as RawOrderRow),
+        legacy_number: null,
+        notes: null,
+        driver_assignment_sent_at: null,
         driver_assignment_pay_amount: null,
         driver_assignment_assistant_pay_amount: null,
         driver_payment_paid_at: null,
@@ -231,7 +243,7 @@ function mapOrderToPaymentRow(
     assistantPay = parsePayAmount(assistantPayRaw) ?? (Number(assistantPayRaw) > 0 ? Number(assistantPayRaw) : null);
   }
 
-  return {
+  const mappedBase = {
     id: row.id,
     code: row.code,
     service_date: row.service_date,
@@ -247,6 +259,18 @@ function mapOrderToPaymentRow(
     driver_assignment_assistant_pay_amount: assistantPay,
     driver_payment_paid_at: row.driver_payment_paid_at ?? null,
     payment_proof_count: proofCounts.get(row.id) ?? 0,
+    legacy_number: row.legacy_number ?? null,
+    notes: row.notes ?? null,
+    driver_assignment_sent_at: row.driver_assignment_sent_at ?? null,
+  };
+
+  return {
+    ...mappedBase,
+    needs_manual_company_expense: needsManualCompanyDriverExpense({
+      ...mappedBase,
+      driver_assignment_pay_amount: driverPay,
+      driver_assignment_assistant_pay_amount: assistantPay,
+    }),
   };
 }
 
@@ -320,12 +344,17 @@ export function filterDriverPaymentRows(
   filter: DriverPaymentFilter
 ): DriverPaymentRow[] {
   if (filter === "pending") {
-    return rows.filter((row) => !row.driver_payment_paid_at);
+    return rows.filter((row) => !row.driver_payment_paid_at && !row.needs_manual_company_expense);
   }
   if (filter === "paid") {
     return rows.filter((row) => Boolean(row.driver_payment_paid_at));
   }
   return rows;
+}
+
+/** OS legado sem valor na designação — fora da fila «Marcar pago». */
+export function filterLegacyManualDriverExpenseRows(rows: DriverPaymentRow[]): DriverPaymentRow[] {
+  return rows.filter((row) => !row.driver_payment_paid_at && row.needs_manual_company_expense);
 }
 
 export function driverPaymentTotal(row: DriverPaymentRow): number {

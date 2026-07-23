@@ -5,6 +5,7 @@ import { useState } from "react";
 import { AssignDriverModal } from "@/components/operacional/AssignDriverModal";
 import { glassAction } from "@/lib/liquid-glass-styles";
 import { cn } from "@/lib/utils";
+import { companyLedgerDriverExpenseHref, needsManualCompanyDriverExpense } from "@/lib/legacy-driver-expense";
 import {
   canAssignDriverToServiceOrder,
   canViewDriverVoucher,
@@ -161,6 +162,14 @@ export function ServiceOrderRowActions({
   const canCompleteFreight = isFreightInExecution(row);
   const completed = isServiceOrderCompleted(row);
   const showDriverVoucher = canViewDriverVoucher(row) || completed;
+  const manualCompanyDriverExpense = needsManualCompanyDriverExpense(row);
+  const manualLedgerHref = companyLedgerDriverExpenseHref({
+    code: row.code,
+    legacyNumber: row.legacy_number,
+    serviceDate: row.service_date,
+    driverName: row.driver_name,
+    account: "motorista",
+  });
 
   const requireProposalToken = (): string | null => {
     const token = row.proposal_token?.trim();
@@ -353,6 +362,12 @@ export function ServiceOrderRowActions({
     }
 
     onServiceOrderCompleted?.(row.id, completedAt);
+    if (manualCompanyDriverExpense) {
+      window.alert(
+        `Frete concluído (OS ${row.code}).\n\nEsta OS é legado/importada e não tem valor de motorista/ajudante na designação.\n\nAutorizado: lançar manualmente em DRE → Lançamentos da empresa, na conta Motorista (ou Ajudante), citando a OS.\nNovas OS devem seguir o fluxo do sistema (valores na designação).`
+      );
+      return;
+    }
     window.alert(
       `Frete concluído (OS ${row.code}).\n\nO pagamento ao motorista está disponível em DRE → Despesas motorista / ajudante, com Pix e dados bancários para o Rafael efetuar o pagamento.`
     );
@@ -412,14 +427,20 @@ export function ServiceOrderRowActions({
           Voucher motorista
         </Link>
       )}
-      {completed && (
-        <Link
-          href="/dre/despesas-motorista"
-          className={glassAction("brand")}
-        >
+      {completed && !manualCompanyDriverExpense ? (
+        <Link href="/dre/despesas-motorista" className={glassAction("brand")}>
           Pagamento DRE
         </Link>
-      )}
+      ) : null}
+      {manualCompanyDriverExpense && (completed || canCompleteFreight) ? (
+        <Link
+          href={manualLedgerHref}
+          className={glassAction("amber")}
+          title="OS sem valor na designação — lançar despesa Motorista/Ajudante no DRE da empresa"
+        >
+          Lançar no DRE empresa
+        </Link>
+      ) : null}
       {canAssignDriver && (
         <button
           type="button"

@@ -3,10 +3,15 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { DriverPaymentsTable } from "@/components/motoristas/DriverPaymentsTable";
-import { Loading } from "@/components/ui/Badge";
+import { Alert, Loading } from "@/components/ui/Badge";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { fetchDreDriverExpenses } from "@/lib/dre-driver-expenses-api";
-import { fetchDriverPaymentRows, summarizeDriverPayments } from "@/lib/driver-payments-api";
+import {
+  fetchDriverPaymentRows,
+  filterLegacyManualDriverExpenseRows,
+  summarizeDriverPayments,
+} from "@/lib/driver-payments-api";
+import { companyLedgerDriverExpenseHref } from "@/lib/legacy-driver-expense";
 import { useAccess } from "@/lib/access-context";
 import { useCompany } from "@/lib/company-context";
 import { createClient } from "@/lib/supabase/client";
@@ -42,7 +47,15 @@ export default function DreDespesasMotoristaPage() {
   });
 
   const pendingPayments = useMemo(
-    () => allPayments.filter((row) => !row.driver_payment_paid_at),
+    () =>
+      allPayments.filter(
+        (row) => !row.driver_payment_paid_at && !row.needs_manual_company_expense
+      ),
+    [allPayments]
+  );
+
+  const legacyManualPayments = useMemo(
+    () => filterLegacyManualDriverExpenseRows(allPayments),
     [allPayments]
   );
 
@@ -86,7 +99,7 @@ export default function DreDespesasMotoristaPage() {
     <Card>
       <CardHeader
         title="Despesas Motorista / Ajudante"
-        description="Após concluir o frete, a OS entra aqui com valores e dados bancários do motorista. Anexe o comprovante, marque pago e o lançamento DRE é gerado automaticamente."
+        description="Após concluir o frete, a OS entra aqui com valores e dados bancários do motorista. Anexe o comprovante, marque pago e o lançamento DRE é gerado automaticamente. OS importadas sem valor: lançamento manual no DRE da empresa (conta Motorista/Ajudante)."
       />
       <CardBody className="space-y-6">
         <div className="flex flex-wrap items-end gap-3">
@@ -111,10 +124,69 @@ export default function DreDespesasMotoristaPage() {
           <Link href="/cadastros/contas-dre" className={glassAction("brand", true)}>
             Contas DRE
           </Link>
+          <Link href="/dre/lancamentos?legacyPay=1&account=motorista" className={glassAction("amber", true)}>
+            Lançamentos da empresa
+          </Link>
           <Link href="/cadastros/motoristas/pagamentos" className={glassAction("brand", true)}>
             Acompanhamento de pagamentos
           </Link>
         </div>
+
+        {legacyManualPayments.length > 0 ? (
+          <section className={`space-y-3 p-4 ${glassFilterPanel()}`}>
+            <Alert variant="info">
+              <strong>{legacyManualPayments.length}</strong> OS legado/importada sem valor de
+              motorista/ajudante na designação. Autorizado lançar manualmente em{" "}
+              <strong>DRE → Lançamentos da empresa</strong> (conta Motorista ou Ajudante), até as
+              novas OS usarem o fluxo do sistema.
+            </Alert>
+            <div className="overflow-x-auto rounded-lg border border-slate-200">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200 text-left text-slate-600">
+                    <th className="px-3 py-2 font-medium">OS</th>
+                    <th className="px-3 py-2 font-medium">Nº legado</th>
+                    <th className="px-3 py-2 font-medium">Data</th>
+                    <th className="px-3 py-2 font-medium">Motorista</th>
+                    <th className="px-3 py-2 font-medium">Ação</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {legacyManualPayments.slice(0, 40).map((row) => (
+                    <tr key={row.id} className="border-b border-slate-100">
+                      <td className="px-3 py-2 font-medium">{row.code}</td>
+                      <td className="px-3 py-2">{row.legacy_number || "—"}</td>
+                      <td className="px-3 py-2">{formatDate(row.service_date)}</td>
+                      <td className="px-3 py-2">
+                        {row.driver_code} — {row.driver_name}
+                      </td>
+                      <td className="px-3 py-2">
+                        <Link
+                          href={companyLedgerDriverExpenseHref({
+                            code: row.code,
+                            legacyNumber: row.legacy_number,
+                            serviceDate: row.service_date,
+                            driverName: row.driver_name,
+                            account: "motorista",
+                          })}
+                          className={glassAction("amber", true)}
+                        >
+                          Lançar no DRE empresa
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {legacyManualPayments.length > 40 ? (
+              <p className="text-xs text-slate-500">
+                Mostrando 40 de {legacyManualPayments.length}. Use o atalho na OS ou filtre em
+                Lançamentos da empresa.
+              </p>
+            ) : null}
+          </section>
+        ) : null}
 
         {paymentsWarning ? (
           <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">

@@ -25,6 +25,7 @@ import { createClient } from "@/lib/supabase/client";
 import { fetchActiveFleetVehicles, fleetVehicleLabel } from "@/lib/fleet-vehicles";
 import { requiresPerDiem } from "@/lib/freight-per-diem";
 import { isTruckCategory } from "@/lib/transport-van-estimate";
+import { needsManualCompanyDriverExpense } from "@/lib/legacy-driver-expense";
 import {
   canEditServiceOrder,
   canDeleteServiceOrder,
@@ -640,6 +641,13 @@ function OrdensServicoPageContent() {
         {readOnly ? (
           <div className="mb-4 space-y-3 rounded-xl border border-slate-200 bg-slate-50/80 p-3">
             {blockedReason ? <Alert variant="info">{blockedReason}</Alert> : null}
+            {listRow && needsManualCompanyDriverExpense(listRow) ? (
+              <Alert variant="info">
+                OS legado/importada sem valor de motorista/ajudante. Após concluir, lance o pagamento
+                manualmente em <strong>DRE → Lançamentos da empresa</strong> (conta Motorista ou
+                Ajudante). Novas OS usam o fluxo com valores na designação.
+              </Alert>
+            ) : null}
             <p className="text-xs text-slate-600">
               Ações disponíveis nesta OS (concluir, voucher, etc.). Depois use <strong>Fechar</strong>.
             </p>

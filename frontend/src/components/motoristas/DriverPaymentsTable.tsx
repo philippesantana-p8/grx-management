@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import { DriverPaymentProofUpload } from "@/components/motoristas/DriverPaymentProofUpload";
 import { Badge } from "@/components/ui/Badge";
@@ -12,7 +13,8 @@ import {
   type DriverPaymentFilter,
   type DriverPaymentRow,
 } from "@/lib/driver-payments-api";
-import { glassCard, glassFilterPanel, glassTabLink, glassTabsNav } from "@/lib/liquid-glass-styles";
+import { companyLedgerDriverExpenseHref } from "@/lib/legacy-driver-expense";
+import { glassAction, glassCard, glassFilterPanel, glassTabLink, glassTabsNav } from "@/lib/liquid-glass-styles";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { formatCurrency } from "@/lib/utils";
 
@@ -63,9 +65,15 @@ export function DriverPaymentsTable({
       window.alert("Seu acesso é só visualização. Peça permissão de Alteração para marcar pago.");
       return;
     }
+    if (row.needs_manual_company_expense) {
+      window.alert(
+        `OS ${row.code} é legado/importada sem valor na designação.\n\nLance manualmente em DRE → Lançamentos da empresa (conta Motorista/Ajudante).`
+      );
+      return;
+    }
     if (!row.driver_assignment_pay_amount || row.driver_assignment_pay_amount <= 0) {
       window.alert(
-        `OS ${row.code} não possui valor de pagamento registrado no sistema. Redesigne o motorista informando os valores.`
+        `OS ${row.code} não possui valor de pagamento registrado. Redesigne o motorista informando os valores, ou lance no DRE da empresa se for legado.`
       );
       return;
     }
@@ -338,6 +346,19 @@ export function DriverPaymentsTable({
                           ? new Date(row.driver_payment_paid_at).toLocaleString("pt-BR")
                           : "—"}
                       </span>
+                    ) : row.needs_manual_company_expense ? (
+                      <Link
+                        href={companyLedgerDriverExpenseHref({
+                          code: row.code,
+                          legacyNumber: row.legacy_number,
+                          serviceDate: row.service_date,
+                          driverName: row.driver_name,
+                          account: "motorista",
+                        })}
+                        className={glassAction("amber", true)}
+                      >
+                        DRE empresa
+                      </Link>
                     ) : (
                       <span className="text-xs text-amber-700">Sem valor</span>
                     )}
