@@ -72,6 +72,8 @@ export type DashboardSnapshot = {
   frete: BucketTotals;
   estacionamento: BucketTotals;
   lava: BucketTotals;
+  /** Despesas/receitas gerais (salários, aluguel, empréstimos…) — entram no KPI, fora dos 3 produtos. */
+  outros: BucketTotals;
   freteTrend: MonthlyPoint[];
   estacionamentoTrend: MonthlyPoint[];
   lavaTrend: MonthlyPoint[];
@@ -336,6 +338,7 @@ export function buildSnapshot(params: {
   const frete = emptyTotals();
   const estacionamento = emptyTotals();
   const lava = emptyTotals();
+  const outros = emptyTotals();
   const kpis = emptyTotals();
   const freteRows: FtRow[] = [];
   const estacRows: FtRow[] = [];
@@ -374,6 +377,7 @@ export function buildSnapshot(params: {
       lavaRows.push(row);
       addToTotals(kpis, row);
     } else if (!filters.plate && !filters.partnerId && !filters.ownershipPct) {
+      addToTotals(outros, row);
       addToTotals(kpis, row);
     }
   }
@@ -442,6 +446,7 @@ export function buildSnapshot(params: {
     frete,
     estacionamento,
     lava,
+    outros,
     freteTrend: buildTrend(freteRows, params.from, params.to),
     estacionamentoTrend: buildTrend(estacRows, params.from, params.to),
     lavaTrend: buildTrend(lavaRows, params.from, params.to),

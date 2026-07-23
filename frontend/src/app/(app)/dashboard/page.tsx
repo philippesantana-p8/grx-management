@@ -48,6 +48,7 @@ const PRODUCT_COLORS = {
   frete: "#1e3a8a",
   estacionamento: "#f97316",
   lava: "#ef4444",
+  outros: "#64748b",
 } as const;
 
 const PARTNER_COLORS = ["#1e3a8a", "#f97316", "#ef4444", "#22c55e", "#eab308"] as const;
@@ -515,6 +516,12 @@ export default function DashboardPage() {
                         value: snapshot.lava.expense,
                         color: PRODUCT_COLORS.lava,
                       },
+                      {
+                        key: "outros-d",
+                        label: "Outros / Administrativo",
+                        value: snapshot.outros.expense,
+                        color: PRODUCT_COLORS.outros,
+                      },
                     ]}
                   />
                 </div>
@@ -553,6 +560,7 @@ export default function DashboardPage() {
                         ["Frete / Transporte", snapshot.frete],
                         ["Estacionamento", snapshot.estacionamento],
                         ["Lava-rápido", snapshot.lava],
+                        ["Outros / Administrativo", snapshot.outros],
                       ] as const
                     ).map(([label, totals]) => {
                       const share =
@@ -571,6 +579,19 @@ export default function DashboardPage() {
                         </tr>
                       );
                     })}
+                    <tr className="border-t-2 border-slate-200 bg-slate-50/80 font-semibold">
+                      <td className="px-2 py-2">Total (cards)</td>
+                      <td className="px-2 py-2">
+                        {formatCurrency(snapshot.kpis.revenue)}
+                      </td>
+                      <td className="px-2 py-2">
+                        {formatCurrency(snapshot.kpis.expense)}
+                      </td>
+                      <td className="px-2 py-2">
+                        {formatCurrency(snapshot.kpis.result)}
+                      </td>
+                      <td className="px-2 py-2">100%</td>
+                    </tr>
                   </tbody>
                 </table>
               </div>
