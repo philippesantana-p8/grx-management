@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { ComplianceDocumentClip } from "@/components/compliance/ComplianceDocumentClip";
 import {
   attachComplianceFile,
   ComplianceDocumentEditor,
@@ -51,6 +52,7 @@ export default function DocumentosLicencasPage() {
     doc?: ComplianceDocument | null;
   } | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+  const [clipRefresh, setClipRefresh] = useState(0);
   const [typeForm, setTypeForm] = useState({
     id: "" as string,
     name: "",
@@ -176,6 +178,11 @@ export default function DocumentosLicencasPage() {
 
       {tab === "tipos" && !loading ? (
         <div className="space-y-4">
+          <Alert variant="info">
+            Tipos só definem o catálogo (nome, aplicação, se exige vencimento). A{" "}
+            data de vencimento e a digitalização (ícone de clipe) são cadastradas em cada
+            documento — aba Documentos da empresa ou Cadastros → Veículos → Documentos.
+          </Alert>
           <div className={`space-y-3 ${glassFilterPanel()}`}>
             <h2 className="text-sm font-semibold">
               {typeForm.id ? "Editar tipo" : "Novo tipo"}
@@ -405,47 +412,81 @@ export default function DocumentosLicencasPage() {
           {companyDocs.length === 0 ? (
             <p className="text-sm text-slate-500">Nenhum documento da empresa.</p>
           ) : (
-            companyDocs.map((doc) => {
-              const view = resolveComplianceSituation(doc, doc.document_type);
-              return (
-                <div key={doc.id} className={`space-y-2 ${glassFilterPanel()}`}>
-                  <div className="flex flex-wrap items-start justify-between gap-2">
-                    <div>
-                      <p className="font-medium">{documentDisplayName(doc.document_type)}</p>
-                      <p className="text-xs text-slate-500">
-                        Nº {doc.document_number || "—"} · Validade{" "}
-                        {doc.no_expiry ? "sem vencimento" : formatExpiryDateBR(doc.expires_at)}
-                      </p>
-                    </div>
-                    <Badge variant={view.badge}>{view.label}</Badge>
-                  </div>
-                  {canEdit ? (
-                    <div className="flex flex-wrap gap-2">
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        onClick={() => setEditor({ mode: "edit", doc })}
-                      >
-                        Editar
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        onClick={() => setEditor({ mode: "renew", doc })}
-                      >
-                        Renovar
-                      </Button>
-                    </div>
-                  ) : null}
-                  <AttachmentGallery
-                    companyId={companyId}
-                    entityType="compliance_document"
-                    entityId={doc.id}
-                    title="Anexo"
-                  />
-                </div>
-              );
-            })
+            <div className={`overflow-x-auto ${glassFilterPanel()}`}>
+              <table className="min-w-full text-left text-sm">
+                <thead className="text-xs uppercase text-slate-500">
+                  <tr>
+                    <th className="px-2 py-2">Documento</th>
+                    <th className="px-2 py-2">Nº</th>
+                    <th className="px-2 py-2">Data de vencimento</th>
+                    <th className="px-2 py-2">Situação</th>
+                    <th className="px-2 py-2" title="Digitalização">
+                      Clipe
+                    </th>
+                    <th className="px-2 py-2" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {companyDocs.map((doc) => {
+                    const view = resolveComplianceSituation(doc, doc.document_type);
+                    return (
+                      <tr key={doc.id} className="border-t border-slate-100">
+                        <td className="px-2 py-2 font-medium">
+                          {documentDisplayName(doc.document_type)}
+                          <div className="mt-2 max-w-sm">
+                            <AttachmentGallery
+                              companyId={companyId}
+                              entityType="compliance_document"
+                              entityId={doc.id}
+                              title="Arquivos anexados"
+                              refreshKey={clipRefresh}
+                            />
+                          </div>
+                        </td>
+                        <td className="px-2 py-2">{doc.document_number || "—"}</td>
+                        <td className="px-2 py-2 whitespace-nowrap">
+                          {doc.no_expiry
+                            ? "Sem vencimento"
+                            : formatExpiryDateBR(doc.expires_at)}
+                        </td>
+                        <td className="px-2 py-2">
+                          <Badge variant={view.badge}>{view.label}</Badge>
+                        </td>
+                        <td className="px-2 py-2">
+                          <ComplianceDocumentClip
+                            companyId={companyId}
+                            documentId={doc.id}
+                            canUpload={canEdit}
+                            refreshKey={clipRefresh}
+                            onUploaded={() => setClipRefresh((k) => k + 1)}
+                          />
+                        </td>
+                        <td className="px-2 py-2">
+                          {canEdit ? (
+                            <div className="flex flex-wrap gap-1">
+                              <Button
+                                type="button"
+                                variant="secondary"
+                                onClick={() => setEditor({ mode: "edit", doc })}
+                              >
+                                Editar
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="secondary"
+                                onClick={() => setEditor({ mode: "renew", doc })}
+                              >
+                                Renovar
+                              </Button>
+                            </div>
+                          ) : null}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       ) : null}

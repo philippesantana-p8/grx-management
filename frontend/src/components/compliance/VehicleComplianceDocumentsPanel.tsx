@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { ComplianceDocumentClip } from "@/components/compliance/ComplianceDocumentClip";
 import {
   attachComplianceFile,
   ComplianceDocumentEditor,
@@ -57,6 +58,7 @@ export function VehicleComplianceDocumentsPanel({
   const [historyRootId, setHistoryRootId] = useState<string | null>(null);
   const [history, setHistory] = useState<ComplianceDocument[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
+  const [clipRefresh, setClipRefresh] = useState(0);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -157,6 +159,7 @@ export function VehicleComplianceDocumentsPanel({
     }
 
     setEditor(null);
+    setClipRefresh((k) => k + 1);
     await load();
     return null;
   };
@@ -212,71 +215,93 @@ export function VehicleComplianceDocumentsPanel({
           />
         ) : null}
 
-        <div className="space-y-2">
+        <div className="overflow-x-auto">
           {vehicleDocs.length === 0 ? (
             <p className="text-sm text-slate-500">Nenhum documento cadastrado neste veículo.</p>
           ) : (
-            vehicleDocs.map((doc) => {
-              const view = resolveComplianceSituation(doc, doc.document_type);
-              return (
-                <div
-                  key={doc.id}
-                  className="rounded-xl border border-slate-200 bg-white/70 px-3 py-3"
-                >
-                  <div className="flex flex-wrap items-start justify-between gap-2">
-                    <div>
-                      <p className="font-medium text-slate-900">
-                        {documentDisplayName(doc.document_type)}
-                      </p>
-                      <p className="text-xs text-slate-500">
-                        {doc.issuing_body || doc.document_type?.issuing_body || "—"}
-                        {doc.document_number ? ` · Nº ${doc.document_number}` : ""}
-                      </p>
-                      <p className="mt-1 text-sm text-slate-700">
-                        Validade:{" "}
+            <table className="min-w-full text-left text-sm">
+              <thead className="text-xs uppercase text-slate-500">
+                <tr>
+                  <th className="px-2 py-2">Documento</th>
+                  <th className="px-2 py-2">Nº</th>
+                  <th className="px-2 py-2">Data de vencimento</th>
+                  <th className="px-2 py-2">Situação</th>
+                  <th className="px-2 py-2" title="Digitalização">
+                    Clipe
+                  </th>
+                  <th className="px-2 py-2" />
+                </tr>
+              </thead>
+              <tbody>
+                {vehicleDocs.map((doc) => {
+                  const view = resolveComplianceSituation(doc, doc.document_type);
+                  return (
+                    <tr key={doc.id} className="border-t border-slate-100 align-top">
+                      <td className="px-2 py-2">
+                        <p className="font-medium text-slate-900">
+                          {documentDisplayName(doc.document_type)}
+                        </p>
+                        <p className="text-xs text-slate-500">
+                          {doc.issuing_body || doc.document_type?.issuing_body || "—"}
+                        </p>
+                      </td>
+                      <td className="px-2 py-2">{doc.document_number || "—"}</td>
+                      <td className="px-2 py-2 whitespace-nowrap">
                         {doc.no_expiry
                           ? "Sem vencimento"
                           : formatExpiryDateBR(doc.expires_at)}
-                        {view.daysLeft != null ? ` · ${view.daysLeft} dia(s)` : ""}
-                      </p>
-                    </div>
-                    <Badge variant={view.badge}>{view.label}</Badge>
-                  </div>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {canEdit ? (
-                      <>
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          onClick={() => setEditor({ mode: "edit", doc })}
-                        >
-                          Editar
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          onClick={() => setEditor({ mode: "renew", doc })}
-                        >
-                          Renovar
-                        </Button>
-                      </>
-                    ) : null}
-                    <Button type="button" variant="secondary" onClick={() => void openHistory(doc)}>
-                      Histórico
-                    </Button>
-                  </div>
-                  <div className="mt-2">
-                    <AttachmentGallery
-                      companyId={companyId}
-                      entityType="compliance_document"
-                      entityId={doc.id}
-                      title="Anexo"
-                      refreshKey={0}
-                    />
-                  </div>
-                </div>
-              );
-            })
+                        {view.daysLeft != null ? (
+                          <span className="block text-xs text-slate-500">
+                            {view.daysLeft} dia(s)
+                          </span>
+                        ) : null}
+                      </td>
+                      <td className="px-2 py-2">
+                        <Badge variant={view.badge}>{view.label}</Badge>
+                      </td>
+                      <td className="px-2 py-2">
+                        <ComplianceDocumentClip
+                          companyId={companyId}
+                          documentId={doc.id}
+                          canUpload={canEdit}
+                          refreshKey={clipRefresh}
+                          onUploaded={() => setClipRefresh((k) => k + 1)}
+                        />
+                      </td>
+                      <td className="px-2 py-2">
+                        <div className="flex flex-wrap gap-1">
+                          {canEdit ? (
+                            <>
+                              <Button
+                                type="button"
+                                variant="secondary"
+                                onClick={() => setEditor({ mode: "edit", doc })}
+                              >
+                                Editar
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="secondary"
+                                onClick={() => setEditor({ mode: "renew", doc })}
+                              >
+                                Renovar
+                              </Button>
+                            </>
+                          ) : null}
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            onClick={() => void openHistory(doc)}
+                          >
+                            Histórico
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           )}
         </div>
       </section>
@@ -300,24 +325,37 @@ export function VehicleComplianceDocumentsPanel({
         {companyDocs.length === 0 ? (
           <p className="text-sm text-slate-500">Nenhum documento da empresa cadastrado.</p>
         ) : (
-          companyDocs.map((doc) => {
-            const view = resolveComplianceSituation(doc, doc.document_type);
-            return (
-              <div
-                key={doc.id}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-100 px-3 py-2"
-              >
-                <div>
-                  <p className="text-sm font-medium">{documentDisplayName(doc.document_type)}</p>
-                  <p className="text-xs text-slate-500">
-                    Validade:{" "}
-                    {doc.no_expiry ? "Sem vencimento" : formatExpiryDateBR(doc.expires_at)}
-                  </p>
-                </div>
-                <Badge variant={view.badge}>{view.label}</Badge>
-              </div>
-            );
-          })
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-left text-sm">
+              <thead className="text-xs uppercase text-slate-500">
+                <tr>
+                  <th className="px-2 py-2">Documento</th>
+                  <th className="px-2 py-2">Data de vencimento</th>
+                  <th className="px-2 py-2">Situação</th>
+                </tr>
+              </thead>
+              <tbody>
+                {companyDocs.map((doc) => {
+                  const view = resolveComplianceSituation(doc, doc.document_type);
+                  return (
+                    <tr key={doc.id} className="border-t border-slate-100">
+                      <td className="px-2 py-2 font-medium">
+                        {documentDisplayName(doc.document_type)}
+                      </td>
+                      <td className="px-2 py-2 whitespace-nowrap">
+                        {doc.no_expiry
+                          ? "Sem vencimento"
+                          : formatExpiryDateBR(doc.expires_at)}
+                      </td>
+                      <td className="px-2 py-2">
+                        <Badge variant={view.badge}>{view.label}</Badge>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </section>
 
