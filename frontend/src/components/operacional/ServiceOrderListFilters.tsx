@@ -51,7 +51,7 @@ export function ServiceOrderListFilters({
       <div className="min-w-[240px] flex-1">
         <Input
           label="Pesquisar"
-          placeholder="Código (ex.: OS001), placa, cliente, rota…"
+          placeholder="Código, nº legado (Invoice/COT), placa, cliente…"
           value={search}
           onChange={(e) => onSearchChange(e.target.value)}
         />

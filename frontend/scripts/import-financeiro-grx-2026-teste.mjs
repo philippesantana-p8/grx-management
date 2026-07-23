@@ -280,6 +280,7 @@ async function main() {
       description: parts.join(" · ").slice(0, 1800),
       entry_source: ENTRY_SOURCE,
       allocation_vehicle_id: vehicleId,
+      legacy_number: cot || null,
       approval_status: "approved",
       submitted_at: new Date().toISOString(),
       reviewed_at: new Date().toISOString(),

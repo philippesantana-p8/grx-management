@@ -131,6 +131,8 @@ export type ServiceOrder = {
   company_id: string;
   branch_id: string | null;
   code: string;
+  /** Invoice/OS do sistema legado (ex.: COT) — consulta do Rafael. */
+  legacy_number: string | null;
   service_type: string;
   service_date: string;
   plate: string;

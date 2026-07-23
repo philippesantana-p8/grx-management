@@ -28,6 +28,7 @@ function serviceOrderSearchHaystack(row: ServiceOrderListRow): string {
 
   return [
     row.code,
+    row.legacy_number,
     row.plate,
     row.client_name,
     row.driver_name,

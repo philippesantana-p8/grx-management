@@ -496,6 +496,11 @@ function OrdensServicoPageContent() {
       )}
       columns={[
         { key: "code", label: "Código" },
+        {
+          key: "legacy_number",
+          label: "Nº legado",
+          render: (r) => r.legacy_number || "—",
+        },
         { key: "service_date", label: "Data" },
         { key: "plate", label: "Placa" },
         {
@@ -568,6 +573,7 @@ function OrdensServicoPageContent() {
           onCancel={onCancel}
           initial={{
             code: item?.code ?? "",
+            legacy_number: item?.legacy_number ?? "",
             service_type: item?.service_type ?? "Transporte",
             service_date: item?.service_date ?? new Date().toISOString().slice(0, 10),
             vehicle_id: item?.vehicle_id ?? "",
@@ -763,8 +769,12 @@ function OrdensServicoPageContent() {
               "flight_data",
               "monitoring_contact",
               "notes",
+              "legacy_number",
             ]) {
               if (data[key] === "") data[key] = null;
+            }
+            if (typeof data.legacy_number === "string") {
+              data.legacy_number = data.legacy_number.trim() || null;
             }
 
             const serviceType = String(data.service_type ?? "");
@@ -891,8 +901,15 @@ function OrdensServicoPageContent() {
                       required: false,
                       placeholder: isNewOrder ? "Gerando código…" : undefined,
                       hint: isNewOrder
-                        ? "Preenchido automaticamente (OS001, OS002…). Pode alterar se precisar."
+                        ? "Código interno (8 dígitos / sequência). Pode alterar se precisar."
                         : undefined,
+                    },
+                    {
+                      name: "legacy_number",
+                      label: "Nº legado (Invoice / OS)",
+                      required: false,
+                      placeholder: "Ex.: COT ou nº do sistema antigo",
+                      hint: "Número que o Rafael já consulta no sistema legado. Não substitui o código interno.",
                     },
                     {
                       name: "service_type",
