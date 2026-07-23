@@ -255,6 +255,7 @@ export default function DreAprovacoesPage() {
                     <Button
                       type="button"
                       size="sm"
+                      variant="moss"
                       disabled={busyId === row.id}
                       onClick={() => {
                         void (async () => {
@@ -283,7 +284,7 @@ export default function DreAprovacoesPage() {
                     <Button
                       type="button"
                       size="sm"
-                      variant="ghost"
+                      variant="danger"
                       disabled={busyId === row.id}
                       onClick={() => {
                         setRejectId(row.id);
@@ -325,6 +326,7 @@ export default function DreAprovacoesPage() {
               </Button>
               <Button
                 type="button"
+                variant="danger"
                 disabled={busyId === rejectId}
                 onClick={() => {
                   void (async () => {
