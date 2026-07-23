@@ -89,7 +89,7 @@ Regra Cursor espelhada: `.cursor/rules/deploy-prod-and-dev.mdc`.
 | Multiempresa | `companies` + `company_members` + RLS desde o schema V1. |
 | Código cadastro | Padrão Philippe: código **numérico sequencial 8 posições** (`00000001…`), campo **aberto/editável**. Já em **Clientes, Fornecedores, Veículos, Sócios, Motoristas**. Unicidade por empresa (`UNIQUE company_id+code` no banco + bloqueio amigável no `CrudPage`). Códigos legados (`VEI001`/`SOC001`/`MOT001`) preservados na edição até o usuário trocar. |
 | Nº legado OS/Invoice | Campo `legacy_number` na **OS** e em **lançamentos DRE**: número do sistema antigo (Invoice/OS/COT) para o Rafael consultar; o código interno 8 dígitos continua separado. Pesquisa na lista de OS inclui esse número. SQL `apply-058-legacy-number.sql`. |
-| Documentos / licenças | **Parâmetros → Documentos e licenças**: aba **Documentos por placa** (placa cadastrada + tipo + data vencimento + clipe), **TA** da empresa, e **Tipos**. Relatório em **Operacional → Documentos a vencer**. Alertas 60/30/15/7. SQL `apply-059-compliance-documents.sql`. |
+| Documentos / licenças | **Parâmetros → Documentos e licenças**: abas **Tipos** → **Documentos por placa** (placa + tipo + vencimento + clipe; Salvar e próximo tipo) → **TA**. Relatório **Operacional → Documentos a vencer**. Alertas 60/30/15/7 (2º/3º/4º automáticos). SQL `apply-059`. |
 | Documento único | **CNPJ/CPF não pode repetir** na mesma empresa em Clientes, Fornecedores, Motoristas e Sócios. **Código único** (8 dígitos) em todos os cadastros com código, inclusive **Veículos** — o padrão Philippe é no código, não na placa. SQL: `apply-053-unique-party-documents.sql`. |
 
 ---

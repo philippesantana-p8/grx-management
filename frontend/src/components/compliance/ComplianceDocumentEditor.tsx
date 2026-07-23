@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Alert } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { GlassSelect } from "@/components/ui/GlassSelect";
@@ -26,13 +26,22 @@ function PaperclipIcon({ className }: { className?: string }) {
   );
 }
 
+export type ComplianceSaveOptions = { andNew?: boolean };
+
 type Props = {
   companyId: string;
   types: DocumentType[];
   initial?: ComplianceDocument | null;
   mode: "create" | "edit" | "renew";
+  /** Slot acima do tipo (ex.: seletor de placa). */
+  leadingSlot?: ReactNode;
+  allowSaveAndNew?: boolean;
   onCancel: () => void;
-  onSave: (input: ComplianceDocInput, file?: File | null) => Promise<string | null>;
+  onSave: (
+    input: ComplianceDocInput,
+    file?: File | null,
+    opts?: ComplianceSaveOptions
+  ) => Promise<string | null>;
 };
 
 export function ComplianceDocumentEditor({
@@ -40,17 +49,25 @@ export function ComplianceDocumentEditor({
   types,
   initial,
   mode,
+  leadingSlot,
+  allowSaveAndNew = false,
   onCancel,
   onSave,
 }: Props) {
   const [typeId, setTypeId] = useState(initial?.document_type_id ?? types[0]?.id ?? "");
   const [documentNumber, setDocumentNumber] = useState(initial?.document_number ?? "");
   const [issuingBody, setIssuingBody] = useState(
-    initial?.issuing_body ?? types.find((t) => t.id === initial?.document_type_id)?.issuing_body ?? ""
+    initial?.issuing_body ??
+      types.find((t) => t.id === initial?.document_type_id)?.issuing_body ??
+      ""
   );
   const [issuedAt, setIssuedAt] = useState(initial?.issued_at ?? "");
   const [expiresAt, setExpiresAt] = useState(initial?.expires_at ?? "");
-  const [noExpiry, setNoExpiry] = useState(Boolean(initial?.no_expiry));
+  const [noExpiry, setNoExpiry] = useState(() => {
+    if (initial) return Boolean(initial.no_expiry);
+    const t = types.find((x) => x.id === (initial?.document_type_id ?? types[0]?.id));
+    return t ? !t.requires_expiry : false;
+  });
   const [renewalStart, setRenewalStart] = useState(initial?.renewal_start_date ?? "");
   const [renewalStatus, setRenewalStatus] = useState<"none" | "in_renewal">(
     initial?.renewal_status ?? "none"
@@ -59,40 +76,97 @@ export function ComplianceDocumentEditor({
   const [responsible, setResponsible] = useState(initial?.responsible_name ?? "");
   const [notes, setNotes] = useState(initial?.notes ?? "");
   const [alertFirst, setAlertFirst] = useState(
-    String(initial?.alert_days_first ?? types.find((t) => t.id === typeId)?.alert_days_first ?? 60)
+    String(
+      initial?.alert_days_first ??
+        types.find((t) => t.id === typeId)?.alert_days_first ??
+        60
+    )
   );
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [okMsg, setOkMsg] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const selectedType = types.find((t) => t.id === typeId);
   const expiryRequired = Boolean(selectedType?.requires_expiry) && !noExpiry;
 
   useEffect(() => {
-    if (!initial && selectedType?.issuing_body && !issuingBody) {
-      setIssuingBody(selectedType.issuing_body);
-    }
-  }, [selectedType, initial, issuingBody]);
-
-  useEffect(() => {
     if (initial || !selectedType) return;
-    if (!selectedType.requires_expiry) {
+    setIssuingBody(selectedType.issuing_body ?? "");
+    setAlertFirst(String(selectedType.alert_days_first ?? 60));
+    if (selectedType.requires_expiry) {
+      setNoExpiry(false);
+    } else {
       setNoExpiry(true);
       setExpiresAt("");
     }
-  }, [selectedType, initial]);
+  }, [typeId, selectedType, initial]);
 
   const title =
     mode === "renew" ? "Renovar documento" : mode === "edit" ? "Editar documento" : "Novo documento";
+
+  const submit = async (andNew: boolean) => {
+    if (!noExpiry && !expiresAt && selectedType?.requires_expiry) {
+      setError("Informe a data de vencimento ou marque sem vencimento.");
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    setOkMsg(null);
+    const input: ComplianceDocInput = {
+      document_type_id: typeId,
+      document_number: documentNumber || null,
+      issuing_body: issuingBody || null,
+      issued_at: issuedAt || null,
+      expires_at: expiresAt || null,
+      no_expiry: noExpiry,
+      renewal_start_date: renewalStart || null,
+      renewal_status: renewalStatus,
+      manual_status: (manualStatus || null) as ComplianceDocInput["manual_status"],
+      alert_days_first: Number(alertFirst) || null,
+      alert_days_second: selectedType?.alert_days_second ?? 30,
+      alert_days_critical: selectedType?.alert_days_critical ?? 15,
+      alert_days_urgent: selectedType?.alert_days_urgent ?? 7,
+      responsible_name: responsible || null,
+      notes: notes || null,
+      is_active: true,
+    };
+    const err = await onSave(input, file, { andNew });
+    setSaving(false);
+    if (err) {
+      setError(err);
+      return;
+    }
+    if (andNew) {
+      setOkMsg("Salvo. Pode cadastrar o próximo tipo nesta mesma placa.");
+      setDocumentNumber("");
+      setIssuedAt("");
+      setExpiresAt("");
+      setRenewalStart("");
+      setRenewalStatus("none");
+      setManualStatus("");
+      setNotes("");
+      setFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      // avança para o próximo tipo da lista (se houver)
+      const idx = types.findIndex((t) => t.id === typeId);
+      const next = types[idx + 1];
+      if (next) setTypeId(next.id);
+    }
+  };
 
   return (
     <div className="space-y-3 rounded-xl border border-slate-200 bg-white/80 p-4">
       <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
       {error ? <Alert variant="error">{error}</Alert> : null}
+      {okMsg ? <Alert variant="success">{okMsg}</Alert> : null}
+
+      {leadingSlot}
 
       <GlassSelect
-        label="Tipo"
+        label="Tipo de documento"
         value={typeId}
         onChange={setTypeId}
         disabled={mode === "renew"}
@@ -103,6 +177,25 @@ export function ComplianceDocumentEditor({
       />
 
       <div className="grid gap-3 sm:grid-cols-2">
+        <label className="block space-y-1">
+          <span className="text-sm font-medium text-slate-700">
+            {selectedType?.acronym === "PREFIXO" ? "Número do prefixo" : "Número"}
+          </span>
+          <input
+            className={glassField()}
+            value={documentNumber}
+            placeholder={selectedType?.acronym === "PREFIXO" ? "Ex.: 0123" : undefined}
+            onChange={(e) => setDocumentNumber(e.target.value)}
+          />
+        </label>
+        <label className="block space-y-1">
+          <span className="text-sm font-medium text-slate-700">Órgão emissor</span>
+          <input
+            className={glassField()}
+            value={issuingBody}
+            onChange={(e) => setIssuingBody(e.target.value)}
+          />
+        </label>
         <label className="block space-y-1 sm:col-span-2">
           <span className="text-sm font-medium text-slate-900">
             Data de vencimento
@@ -117,7 +210,11 @@ export function ComplianceDocumentEditor({
             onChange={(e) => setExpiresAt(e.target.value)}
           />
           <span className="text-xs text-slate-500">
-            Campo próprio para a validade deste documento (usado nos alertas 60/30/15/7 dias).
+            Usada nos alertas automáticos{" "}
+            {selectedType
+              ? `${selectedType.alert_days_first}/${selectedType.alert_days_second}/${selectedType.alert_days_critical}/${selectedType.alert_days_urgent}`
+              : "60/30/15/7"}{" "}
+            dias. Não precisa cadastrar 2º alerta — já é automático.
           </span>
         </label>
         <label className="flex items-center gap-2 text-sm text-slate-700 sm:col-span-2">
@@ -132,32 +229,6 @@ export function ComplianceDocumentEditor({
           Documento sem vencimento
         </label>
         <label className="block space-y-1">
-          <span className="text-sm font-medium text-slate-700">
-            {selectedType?.acronym === "PREFIXO" ? "Número do prefixo" : "Número"}
-          </span>
-          <input
-            className={glassField()}
-            value={documentNumber}
-            placeholder={
-              selectedType?.acronym === "PREFIXO" ? "Ex.: 0123" : undefined
-            }
-            onChange={(e) => setDocumentNumber(e.target.value)}
-          />
-          {selectedType?.acronym === "PREFIXO" ? (
-            <span className="text-xs text-slate-500">
-              Cada veículo/placa tem o seu prefixo — anexe a digitalização pelo clipe.
-            </span>
-          ) : null}
-        </label>
-        <label className="block space-y-1">
-          <span className="text-sm font-medium text-slate-700">Órgão emissor</span>
-          <input
-            className={glassField()}
-            value={issuingBody}
-            onChange={(e) => setIssuingBody(e.target.value)}
-          />
-        </label>
-        <label className="block space-y-1">
           <span className="text-sm font-medium text-slate-700">Data de emissão</span>
           <input
             type="date"
@@ -168,68 +239,11 @@ export function ComplianceDocumentEditor({
         </label>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        <label className="block space-y-1">
-          <span className="text-sm font-medium text-slate-700">Início da renovação</span>
-          <input
-            type="date"
-            className={glassField()}
-            value={renewalStart}
-            onChange={(e) => setRenewalStart(e.target.value)}
-          />
-        </label>
-        <GlassSelect
-          label="Situação da renovação"
-          value={renewalStatus}
-          onChange={(v) => setRenewalStatus(v as "none" | "in_renewal")}
-          options={[
-            { value: "none", label: "Normal" },
-            { value: "in_renewal", label: "Em renovação" },
-          ]}
-        />
-        <GlassSelect
-          label="Situação manual"
-          value={manualStatus}
-          onChange={setManualStatus}
-          options={[
-            { value: "", label: "Automática (por validade)" },
-            { value: "suspended", label: "Suspenso" },
-            { value: "not_applicable", label: "Não aplicável" },
-          ]}
-        />
-        <label className="block space-y-1">
-          <span className="text-sm font-medium text-slate-700">1º alerta (dias)</span>
-          <input
-            type="number"
-            className={glassField()}
-            value={alertFirst}
-            onChange={(e) => setAlertFirst(e.target.value)}
-          />
-        </label>
-        <label className="block space-y-1 sm:col-span-2">
-          <span className="text-sm font-medium text-slate-700">Responsável</span>
-          <input
-            className={glassField()}
-            value={responsible}
-            onChange={(e) => setResponsible(e.target.value)}
-          />
-        </label>
-      </div>
-
-      <label className="block space-y-1">
-        <span className="text-sm font-medium text-slate-700">Observações</span>
-        <textarea
-          className={glassField()}
-          rows={2}
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-        />
-      </label>
-
       <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50/80 px-3 py-3">
-        <p className="text-sm font-medium text-slate-900">Digitalização (anexo)</p>
+        <p className="text-sm font-medium text-slate-900">Digitalização (clipe)</p>
         <p className="mb-2 text-xs text-slate-500">
-          Use o ícone de clipe para enviar PDF ou foto do documento.
+          Anexe PDF ou foto agora. Depois de salvar, o clipe também aparece na linha da
+          tabela para incluir ou abrir o arquivo.
         </p>
         <input
           ref={fileInputRef}
@@ -261,39 +275,104 @@ export function ComplianceDocumentEditor({
         </div>
       </div>
 
+      <button
+        type="button"
+        className="text-sm font-medium text-sky-700 underline"
+        onClick={() => setShowAdvanced((v) => !v)}
+      >
+        {showAdvanced ? "Ocultar opções avançadas" : "Opções avançadas (renovação / alertas)"}
+      </button>
+
+      {showAdvanced ? (
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="block space-y-1">
+            <span className="text-sm font-medium text-slate-700">Início da renovação</span>
+            <input
+              type="date"
+              className={glassField()}
+              value={renewalStart}
+              onChange={(e) => setRenewalStart(e.target.value)}
+            />
+          </label>
+          <div className="space-y-1">
+            <GlassSelect
+              label="Situação da renovação"
+              value={renewalStatus}
+              onChange={(v) => setRenewalStatus(v as "none" | "in_renewal")}
+              options={[
+                { value: "none", label: "Normal" },
+                { value: "in_renewal", label: "Em renovação" },
+              ]}
+            />
+            <p className="text-xs text-slate-500">
+              Use Em renovação enquanto o processo está em andamento. Pode alterar depois
+              em Editar.
+            </p>
+          </div>
+          <GlassSelect
+            label="Situação manual"
+            value={manualStatus}
+            onChange={setManualStatus}
+            options={[
+              { value: "", label: "Automática (por validade)" },
+              { value: "suspended", label: "Suspenso" },
+              { value: "not_applicable", label: "Não aplicável" },
+            ]}
+          />
+          <label className="block space-y-1">
+            <span className="text-sm font-medium text-slate-700">1º alerta (dias)</span>
+            <input
+              type="number"
+              className={glassField()}
+              value={alertFirst}
+              onChange={(e) => setAlertFirst(e.target.value)}
+            />
+            <span className="text-xs text-slate-500">
+              2º/3º/4º alertas vêm do tipo (
+              {selectedType
+                ? `${selectedType.alert_days_second}/${selectedType.alert_days_critical}/${selectedType.alert_days_urgent}`
+                : "30/15/7"}
+              ) — sem campo extra.
+            </span>
+          </label>
+          <label className="block space-y-1 sm:col-span-2">
+            <span className="text-sm font-medium text-slate-700">Responsável</span>
+            <input
+              className={glassField()}
+              value={responsible}
+              onChange={(e) => setResponsible(e.target.value)}
+            />
+          </label>
+          <label className="block space-y-1 sm:col-span-2">
+            <span className="text-sm font-medium text-slate-700">Observações</span>
+            <textarea
+              className={glassField()}
+              rows={2}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+            />
+          </label>
+        </div>
+      ) : null}
+
       <div className="flex flex-wrap gap-2">
         <Button
           type="button"
           disabled={saving || !typeId}
-          onClick={async () => {
-            if (!noExpiry && !expiresAt && selectedType?.requires_expiry) {
-              setError("Informe a data de vencimento ou marque sem vencimento.");
-              return;
-            }
-            setSaving(true);
-            setError(null);
-            const input: ComplianceDocInput = {
-              document_type_id: typeId,
-              document_number: documentNumber || null,
-              issuing_body: issuingBody || null,
-              issued_at: issuedAt || null,
-              expires_at: expiresAt || null,
-              no_expiry: noExpiry,
-              renewal_start_date: renewalStart || null,
-              renewal_status: renewalStatus,
-              manual_status: (manualStatus || null) as ComplianceDocInput["manual_status"],
-              alert_days_first: Number(alertFirst) || null,
-              responsible_name: responsible || null,
-              notes: notes || null,
-              is_active: true,
-            };
-            const err = await onSave(input, file);
-            setSaving(false);
-            if (err) setError(err);
-          }}
+          onClick={() => void submit(false)}
         >
           {saving ? "Salvando…" : "Salvar"}
         </Button>
+        {allowSaveAndNew && mode === "create" ? (
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={saving || !typeId}
+            onClick={() => void submit(true)}
+          >
+            Salvar e próximo tipo
+          </Button>
+        ) : null}
         <Button type="button" variant="secondary" onClick={onCancel} disabled={saving}>
           Cancelar
         </Button>

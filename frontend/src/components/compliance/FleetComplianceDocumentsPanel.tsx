@@ -112,9 +112,14 @@ export function FleetComplianceDocumentsPanel({
     });
   }, [docs, plateFilter, typeFilter]);
 
-  const saveEditor = async (input: ComplianceDocInput, file?: File | null) => {
+  const saveEditor = async (
+    input: ComplianceDocInput,
+    file?: File | null,
+    opts?: { andNew?: boolean }
+  ) => {
     if (!editor) return "Editor indisponível.";
     if (!editor.vehicleId) return "Selecione a placa do veículo.";
+    const keepPlate = editor.vehicleId;
 
     if (editor.mode === "create") {
       const { id, error: err } = await createComplianceDocument(
@@ -158,9 +163,14 @@ export function FleetComplianceDocumentsPanel({
       }
     }
 
-    setEditor(null);
     setClipRefresh((k) => k + 1);
     await load();
+    if (opts?.andNew && editor.mode === "create") {
+      setEditor({ mode: "create", doc: null, vehicleId: keepPlate });
+      setPlateFilter(keepPlate);
+      return null;
+    }
+    setEditor(null);
     return null;
   };
 
@@ -171,9 +181,9 @@ export function FleetComplianceDocumentsPanel({
   return (
     <div className="space-y-4">
       <Alert variant="info">
-        Cadastre Prefixo, CRLV e demais documentos vinculados à placa. Colunas Data de
-        vencimento e Clipe (digitalização) entram no controle de licenças / Documentos a
-        vencer.
+        Fluxo: escolha a placa → tipo (Prefixo, CVS, ANTT…) → vencimento → clipe → Salvar.
+        Para vários tipos na mesma placa use &quot;Salvar e próximo tipo&quot;. Depois confira em
+        Operacional → Documentos a vencer.
       </Alert>
 
       {error ? <Alert variant="error">{error}</Alert> : null}
@@ -219,26 +229,29 @@ export function FleetComplianceDocumentsPanel({
       </div>
 
       {editor ? (
-        <div className="space-y-3">
-          <GlassSelect
-            label="Placa do veículo"
-            value={editor.vehicleId}
-            onChange={(v) => setEditor((e) => (e ? { ...e, vehicleId: v } : e))}
-            disabled={editor.mode !== "create"}
-            options={vehicleOptions}
-          />
-          {!editor.vehicleId && editor.mode === "create" ? (
-            <Alert variant="warning">Selecione a placa antes de salvar.</Alert>
-          ) : null}
-          <ComplianceDocumentEditor
-            companyId={companyId}
-            types={activeTypes}
-            initial={editor.doc}
-            mode={editor.mode}
-            onCancel={() => setEditor(null)}
-            onSave={saveEditor}
-          />
-        </div>
+        <ComplianceDocumentEditor
+          companyId={companyId}
+          types={activeTypes}
+          initial={editor.doc}
+          mode={editor.mode}
+          allowSaveAndNew
+          leadingSlot={
+            <div className="space-y-2">
+              <GlassSelect
+                label="Placa do veículo"
+                value={editor.vehicleId}
+                onChange={(v) => setEditor((e) => (e ? { ...e, vehicleId: v } : e))}
+                disabled={editor.mode !== "create"}
+                options={vehicleOptions}
+              />
+              {!editor.vehicleId && editor.mode === "create" ? (
+                <Alert variant="warning">Selecione a placa antes de salvar.</Alert>
+              ) : null}
+            </div>
+          }
+          onCancel={() => setEditor(null)}
+          onSave={saveEditor}
+        />
       ) : null}
 
       <div className={`overflow-x-auto ${glassFilterPanel()}`}>
@@ -250,8 +263,8 @@ export function FleetComplianceDocumentsPanel({
               <th className="px-2 py-2">Nº</th>
               <th className="px-2 py-2">Data de vencimento</th>
               <th className="px-2 py-2">Situação</th>
-              <th className="px-2 py-2" title="Digitalização">
-                Clipe
+              <th className="px-2 py-2" title="Anexo da digitalização (por linha)">
+                Anexo
               </th>
               <th className="px-2 py-2" />
             </tr>
@@ -260,8 +273,9 @@ export function FleetComplianceDocumentsPanel({
             {filtered.length === 0 ? (
               <tr>
                 <td colSpan={7} className="px-2 py-4 text-slate-500">
-                  Nenhum documento por placa. Use &quot;Novo documento por placa&quot; e
-                  vincule à placa cadastrada.
+                  Nenhum documento ainda. Clique em &quot;Novo documento por placa&quot;,
+                  selecione a placa e anexe a digitalização no formulário. O ícone de clipe
+                  aparece na coluna Anexo depois que o documento for salvo.
                 </td>
               </tr>
             ) : (

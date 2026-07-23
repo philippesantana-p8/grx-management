@@ -42,7 +42,7 @@ export default function DocumentosLicencasPage() {
   const { canEditScreen } = useAccess();
   const canEdit = canEditScreen("configuracoes.documentos-licencas");
   const supabase = useMemo(() => createClient(), []);
-  const [tab, setTab] = useState<Tab>("frota");
+  const [tab, setTab] = useState<Tab>("tipos");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
@@ -159,9 +159,9 @@ export default function DocumentosLicencasPage() {
       <div className="flex flex-wrap gap-2">
         {(
           [
+            ["tipos", "Tipos de documento"],
             ["frota", "Documentos por placa"],
             ["empresa", "Documento da empresa (TA)"],
-            ["tipos", "Tipos de documento"],
           ] as const
         ).map(([key, label]) => (
           <button
