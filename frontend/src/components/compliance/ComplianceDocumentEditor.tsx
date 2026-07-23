@@ -390,7 +390,7 @@ export function ComplianceDocumentEditor({
         {allowSaveAndNew && mode === "create" ? (
           <Button
             type="button"
-            variant="secondary"
+            variant="navy"
             disabled={saving || !typeId}
             onClick={() => void submit(true)}
           >

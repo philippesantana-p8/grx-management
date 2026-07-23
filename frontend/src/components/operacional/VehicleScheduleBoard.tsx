@@ -136,17 +136,37 @@ export function VehicleScheduleBoard({
         />
       ) : null}
 
-      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white/80 [-webkit-overflow-scrolling:touch]">
-        <table className="min-w-[56rem] w-full border-collapse text-sm">
+      <p className="text-xs text-slate-600">
+        Arraste a barra horizontal/vertical do quadro para ver a semana toda em 100% de zoom.
+        Coluna da <strong>placa</strong> e <strong>cabeçalho dos dias</strong> ficam fixos.
+      </p>
+
+      <div
+        className="schedule-board-scroll relative w-full min-w-0 max-w-full overflow-auto rounded-xl border border-slate-200 bg-white shadow-sm [-webkit-overflow-scrolling:touch]"
+        style={{ maxHeight: "min(70vh, calc(100dvh - 14rem))" }}
+      >
+        <table
+          className="border-collapse text-sm"
+          style={{ width: "max(100%, 72rem)", tableLayout: "fixed" }}
+        >
+          <colgroup>
+            <col style={{ width: "9.5rem" }} />
+            {weekKeys.map((key) => (
+              <col key={key} style={{ width: "10.5rem" }} />
+            ))}
+          </colgroup>
           <thead>
-            <tr className="border-b border-slate-200 bg-slate-50/90">
-              <th className="sticky left-0 z-20 min-w-[8.5rem] bg-slate-50 px-3 py-3 text-left font-semibold text-slate-700">
+            <tr className="border-b border-slate-200">
+              <th className="sticky left-0 top-0 z-30 bg-slate-100 px-3 py-3 text-left font-semibold text-slate-800 shadow-[2px_0_8px_rgba(15,23,42,0.08)]">
                 Veículo
               </th>
               {weekKeys.map((key) => {
                 const { weekday, date } = dayLabel(key);
                 return (
-                  <th key={key} className="min-w-[9rem] px-2 py-3 text-center font-semibold text-slate-700">
+                  <th
+                    key={key}
+                    className="sticky top-0 z-20 bg-slate-100 px-2 py-3 text-center font-semibold text-slate-800 shadow-[0_2px_6px_rgba(15,23,42,0.06)]"
+                  >
                     <span className="block capitalize">{weekday}</span>
                     <span className="text-xs font-normal text-slate-500">{date}</span>
                   </th>
@@ -164,9 +184,11 @@ export function VehicleScheduleBoard({
             ) : (
               vehicles.map((vehicle) => (
                 <tr key={vehicle.id} className="border-b border-slate-100 align-top">
-                  <td className="sticky left-0 z-10 bg-white px-3 py-3">
-                    <p className="font-semibold text-slate-900">{vehicle.plate}</p>
-                    <p className="text-xs text-slate-500">{vehicle.model || vehicle.vehicle_category}</p>
+                  <td className="sticky left-0 z-10 bg-white px-3 py-3 shadow-[2px_0_8px_rgba(15,23,42,0.08)]">
+                    <p className="truncate font-semibold text-slate-900">{vehicle.plate}</p>
+                    <p className="truncate text-xs text-slate-500">
+                      {vehicle.model || vehicle.vehicle_category}
+                    </p>
                   </td>
                   {weekKeys.map((dayKey) => {
                     const cellSegments = segmentsForCell(segments, vehicle.id, dayKey);
@@ -177,7 +199,7 @@ export function VehicleScheduleBoard({
                     const hasFree = free.some((s) => s.endMin - s.startMin >= 60);
 
                     return (
-                      <td key={dayKey} className="px-1.5 py-2">
+                      <td key={dayKey} className="max-w-[10.5rem] px-1.5 py-2">
                         <button
                           type="button"
                           onClick={() =>
@@ -186,7 +208,7 @@ export function VehicleScheduleBoard({
                             )
                           }
                           className={cn(
-                            "min-h-[5.5rem] w-full rounded-lg border p-1.5 text-left transition",
+                            "min-h-[5.5rem] w-full max-w-full overflow-hidden rounded-lg border p-1.5 text-left transition",
                             isSelected
                               ? "border-brand-400 bg-brand-50/60 ring-2 ring-brand-200"
                               : "border-slate-200/80 bg-slate-50/40 hover:border-brand-200 hover:bg-white"
@@ -212,7 +234,7 @@ export function VehicleScheduleBoard({
                               ) : null}
                             </span>
                           ) : (
-                            <div className="space-y-1">
+                            <div className="min-w-0 space-y-1">
                               {cellSegments.map((seg) => (
                                 <SegmentCard key={`${seg.orderId}-${seg.dayKey}`} seg={seg} compact />
                               ))}

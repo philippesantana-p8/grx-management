@@ -117,12 +117,12 @@ export default function AgendaVeiculosPage() {
   );
 
   return (
-    <Card>
+    <Card className="min-w-0 max-w-full">
       <CardHeader
         title="Agenda da Frota"
         description="Quadro semanal por placa. Clique no código da OS para abrir o cadastro. Filtre por placa para ver manhã/tarde livres e se dá para usar o veículo mais de uma vez no dia."
       />
-      <CardBody className="space-y-4">
+      <CardBody className="min-w-0 space-y-4">
         <div className="rounded-lg border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm text-slate-700">
           <p className="font-medium text-slate-900">Como usar</p>
           <ol className="mt-1 list-decimal space-y-1 pl-5 text-xs sm:text-sm">
