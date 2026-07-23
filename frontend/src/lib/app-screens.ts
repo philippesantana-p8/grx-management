@@ -127,6 +127,12 @@ export const APP_SCREENS: AppScreen[] = [
     href: "/configuracoes/historico-exclusoes",
   },
   {
+    key: "configuracoes.usuarios",
+    label: "Usuários e acessos",
+    group: "Configurações",
+    href: "/configuracoes/usuarios",
+  },
+  {
     key: "configuracoes.empresa",
     label: "Empresa",
     group: "Configurações",
@@ -158,7 +164,8 @@ export function firstAllowedHref(canView: (screenKey: string) => boolean): strin
   for (const screen of APP_SCREENS) {
     if (
       screen.key === "configuracoes.parametros" ||
-      screen.key === "configuracoes.historico-exclusoes"
+      screen.key === "configuracoes.historico-exclusoes" ||
+      screen.key === "configuracoes.usuarios"
     ) {
       continue;
     }
