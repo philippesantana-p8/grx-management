@@ -79,6 +79,7 @@ Regra Cursor espelhada: `.cursor/rules/deploy-prod-and-dev.mdc`.
 | DRE motorista | Pagamentos + lançamento automático Motorista/Ajudante. |
 | DRE veículo | Aba **Despesas do veículo** por placa (pedágio, combustível, pneu, oficina, outros). Anti-duplicata: mesma **data + OS + conta DRE**. SQL: `apply-038-vehicle-expenses.sql`. |
 | DRE rateio OS | Aba **Rateio por OS** (consulta): por período/placa/sócio, calcula a cota de cada sócio na OS com base no % de participação vigente na data da OS. Receita = frete acordado (senão valor do serviço); despesa = FT Despesa com `service_order_id`. |
+| Aprovação lançamentos | Fase 4: despesas **manuais** (empresa/veículo) nascem `submitted` até Admin (e/ou Máster, parametrizável) aprovar em **DRE → Aprovações**. Receitas OS/pátio e pagamento motorista da designação = `approved` automático. Totais DRE/dashboard/rateio só `approved`. SQL `apply-056-financial-approval.sql`. Alçada `auto_approve_below_amount` opcional; default sem auto. |
 | Mobile web | Shell responsivo: menu ☰ (drawer), formulários com Salvar sticky, tabelas com scroll horizontal + ações fixas. Abrir/editar no celular pelo mesmo URL. |
 | Agenda frota | Aba **Agenda da frota** (semana por placa, horários livres, baseada em OS entrada/saída). |
 | DRE empresa | Aba **Lançamentos da empresa** — receitas/despesas gerais (geladeira, escritório…) sem placa. SQL: `apply-039-company-ledger.sql`. |

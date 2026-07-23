@@ -139,6 +139,7 @@ export async function fetchDashboardExportPayload(
       `
       )
       .eq("company_id", companyId)
+      .eq("approval_status", "approved")
       .gte("transaction_date", from)
       .lte("transaction_date", to)
       .order("transaction_date", { ascending: true })
@@ -151,7 +152,7 @@ export async function fetchDashboardExportPayload(
       };
     }
 
-    // Fallback if FK aliases / service_date column differ across environments.
+    // Fallback if FK aliases / service_date / approval_status column differ across environments.
     const basic = await supabase
       .from("financial_transactions")
       .select(

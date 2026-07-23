@@ -210,6 +210,14 @@ export async function createVehicleExpense(
   const categoryLabel =
     VEHICLE_EXPENSE_CATEGORIES.find((c) => c.key === input.categoryKey)?.label ?? "Despesa";
 
+  const { buildApprovalInsertFields } = await import("@/lib/financial-approval");
+  const approvalFields = await buildApprovalInsertFields(
+    supabase,
+    companyId,
+    amount,
+    VEHICLE_EXPENSE_ENTRY_SOURCE
+  );
+
   const payload: Record<string, unknown> = {
     company_id: companyId,
     transaction_date: input.transactionDate,
@@ -221,8 +229,9 @@ export async function createVehicleExpense(
     allocation_vehicle_id: input.vehicleId,
     service_order_id: input.serviceOrderId || null,
     service_date: input.transactionDate,
-    description: (input.description || `${categoryLabel} â€” veÃ­culo`).trim(),
+    description: (input.description || `${categoryLabel} — veículo`).trim(),
     entry_source: VEHICLE_EXPENSE_ENTRY_SOURCE,
+    ...approvalFields,
   };
 
   let { data, error } = await supabase
@@ -236,13 +245,24 @@ export async function createVehicleExpense(
       description,
       entry_source,
       service_order_id,
-      allocation_vehicle_id
+      allocation_vehicle_id,
+      approval_status
     `
     )
     .single();
 
-  if (error?.message.includes("entry_source")) {
-    delete payload.entry_source;
+  if (
+    error?.message.includes("entry_source") ||
+    error?.message.includes("approval_status")
+  ) {
+    if (error.message.includes("approval_status")) {
+      delete payload.approval_status;
+      delete payload.submitted_by;
+      delete payload.submitted_at;
+    }
+    if (error.message.includes("entry_source")) {
+      delete payload.entry_source;
+    }
     const retry = await supabase
       .from("financial_transactions")
       .insert(payload)
@@ -360,6 +380,7 @@ export async function fetchDreVehicleExpenses(
         amount,
         description,
         entry_source,
+        approval_status,
         service_order_id,
         allocation_vehicle_id,
         operational_vehicle_id,
@@ -446,8 +467,13 @@ export async function fetchDreVehicleExpenses(
     const amount = Number(item.amount);
     if (!Number.isFinite(amount)) continue;
 
-    totalExpense += amount;
-    byAccount[accountName] = (byAccount[accountName] ?? 0) + amount;
+    const approvalStatus =
+      ((item as { approval_status?: string | null }).approval_status as string | null) ??
+      "approved";
+    if (approvalStatus === "approved") {
+      totalExpense += amount;
+      byAccount[accountName] = (byAccount[accountName] ?? 0) + amount;
+    }
 
     const orderId = item.service_order_id as string | null;
     rows.push({

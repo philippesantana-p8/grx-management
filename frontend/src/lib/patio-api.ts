@@ -148,7 +148,7 @@ export async function postParkingRevenue(params: {
   );
   if ("error" in account) return { transactionId: null, error: account.error };
 
-  const { data, error } = await params.supabase
+  let { data, error } = await params.supabase
     .from("financial_transactions")
     .insert({
       company_id: params.companyId,
@@ -159,9 +159,30 @@ export async function postParkingRevenue(params: {
       transaction_type: "Receita",
       description: `Estacionamento ${params.entry.code} — ${params.entry.plate}`,
       entry_source: PATIO_ENTRY_SOURCE_PARKING,
+      approval_status: "approved",
+      submitted_at: new Date().toISOString(),
     })
     .select("id")
     .single();
+
+  if (error?.message?.includes("approval_status")) {
+    const retry = await params.supabase
+      .from("financial_transactions")
+      .insert({
+        company_id: params.companyId,
+        transaction_date: params.entry.exit_date ?? params.entry.entry_date,
+        amount,
+        chart_of_account_id: account.id,
+        classification: account.classification,
+        transaction_type: "Receita",
+        description: `Estacionamento ${params.entry.code} — ${params.entry.plate}`,
+        entry_source: PATIO_ENTRY_SOURCE_PARKING,
+      })
+      .select("id")
+      .single();
+    data = retry.data;
+    error = retry.error;
+  }
 
   if (error) return { transactionId: null, error: error.message };
 
@@ -192,7 +213,7 @@ export async function postCarWashRevenue(params: {
   );
   if ("error" in account) return { transactionId: null, error: account.error };
 
-  const { data, error } = await params.supabase
+  let { data, error } = await params.supabase
     .from("financial_transactions")
     .insert({
       company_id: params.companyId,
@@ -203,9 +224,30 @@ export async function postCarWashRevenue(params: {
       transaction_type: "Receita",
       description: `Lava-rápido ${params.row.code} — ${params.row.plate} — ${params.row.service_name}`,
       entry_source: PATIO_ENTRY_SOURCE_WASH,
+      approval_status: "approved",
+      submitted_at: new Date().toISOString(),
     })
     .select("id")
     .single();
+
+  if (error?.message?.includes("approval_status")) {
+    const retry = await params.supabase
+      .from("financial_transactions")
+      .insert({
+        company_id: params.companyId,
+        transaction_date: params.row.service_date,
+        amount,
+        chart_of_account_id: account.id,
+        classification: account.classification,
+        transaction_type: "Receita",
+        description: `Lava-rápido ${params.row.code} — ${params.row.plate} — ${params.row.service_name}`,
+        entry_source: PATIO_ENTRY_SOURCE_WASH,
+      })
+      .select("id")
+      .single();
+    data = retry.data;
+    error = retry.error;
+  }
 
   if (error) return { transactionId: null, error: error.message };
 

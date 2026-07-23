@@ -25,16 +25,36 @@ async function fetchAllFinancialRows(
   let offset = 0;
 
   for (;;) {
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from("financial_transactions")
       .select(
         "id, transaction_date, amount, transaction_type, classification, description, entry_source, allocation_vehicle_id, chart_of_account_id, chart_of_accounts ( name )"
       )
       .eq("company_id", companyId)
+      .eq("approval_status", "approved")
       .gte("transaction_date", from)
       .lte("transaction_date", to)
       .order("transaction_date", { ascending: true })
       .range(offset, offset + PAGE_SIZE - 1);
+
+    if (
+      error?.message?.toLowerCase().includes("approval_status") &&
+      (error.message.toLowerCase().includes("does not exist") ||
+        error.message.toLowerCase().includes("não existe"))
+    ) {
+      const retry = await supabase
+        .from("financial_transactions")
+        .select(
+          "id, transaction_date, amount, transaction_type, classification, description, entry_source, allocation_vehicle_id, chart_of_account_id, chart_of_accounts ( name )"
+        )
+        .eq("company_id", companyId)
+        .gte("transaction_date", from)
+        .lte("transaction_date", to)
+        .order("transaction_date", { ascending: true })
+        .range(offset, offset + PAGE_SIZE - 1);
+      data = retry.data;
+      error = retry.error;
+    }
 
     if (error) return { rows: [], error: error.message };
 

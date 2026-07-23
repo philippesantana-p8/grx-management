@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { COMPANY_LEDGER_ENTRY_SOURCE } from "@/lib/company-ledger";
 import { recordDeletion, summarizeDeletedRow } from "@/lib/deletion-audit";
+import { buildApprovalInsertFields } from "@/lib/financial-approval";
 
 export type CompanyLedgerRow = {
   id: string;
@@ -13,6 +14,7 @@ export type CompanyLedgerRow = {
   supplier_id: string | null;
   supplier_name: string | null;
   entry_source: string | null;
+  approval_status?: string | null;
 };
 
 export type CompanyLedgerSummary = {
@@ -84,6 +86,13 @@ export async function createCompanyLedgerEntry(
     (input.description || "").trim() ||
     `${account.transaction_type === "Receita" ? "Receita" : "Despesa"} — ${account.name}`;
 
+  const approvalFields = await buildApprovalInsertFields(
+    supabase,
+    companyId,
+    amount,
+    COMPANY_LEDGER_ENTRY_SOURCE
+  );
+
   const payload: Record<string, unknown> = {
     company_id: companyId,
     transaction_date: input.transactionDate,
@@ -96,20 +105,35 @@ export async function createCompanyLedgerEntry(
     client_id: null,
     description,
     entry_source: COMPANY_LEDGER_ENTRY_SOURCE,
+    ...approvalFields,
   };
 
   let { data, error } = await supabase
     .from("financial_transactions")
     .insert(payload)
-    .select("id, transaction_date, amount, transaction_type, classification, description, entry_source, supplier_id")
+    .select(
+      "id, transaction_date, amount, transaction_type, classification, description, entry_source, supplier_id, approval_status"
+    )
     .single();
 
-  if (error?.message.includes("entry_source")) {
-    delete payload.entry_source;
+  if (
+    error?.message.includes("entry_source") ||
+    error?.message.includes("approval_status")
+  ) {
+    if (error.message.includes("approval_status")) {
+      delete payload.approval_status;
+      delete payload.submitted_by;
+      delete payload.submitted_at;
+    }
+    if (error.message.includes("entry_source")) {
+      delete payload.entry_source;
+    }
     const retry = await supabase
       .from("financial_transactions")
       .insert(payload)
-      .select("id, transaction_date, amount, transaction_type, classification, description, supplier_id")
+      .select(
+        "id, transaction_date, amount, transaction_type, classification, description, supplier_id"
+      )
       .single();
     data = retry.data as typeof data;
     error = retry.error;
@@ -217,6 +241,7 @@ export async function fetchCompanyLedger(
       description,
       entry_source,
       supplier_id,
+      approval_status,
       chart_of_account:chart_of_accounts!financial_transactions_chart_of_account_id_fkey (name)
     `
     )
@@ -301,12 +326,17 @@ export async function fetchCompanyLedger(
     if (!Number.isFinite(amount)) continue;
     const type = item.transaction_type as CompanyLedgerRow["transaction_type"];
     const accountName = (item.chart_of_account as { name?: string } | null)?.name ?? "—";
+    const approvalStatus =
+      ((item as { approval_status?: string | null }).approval_status as string | null) ??
+      "approved";
 
-    if (type === "Receita") totalRevenue += amount;
-    if (type === "Despesa") totalExpense += amount;
-
-    const signed = type === "Receita" ? amount : type === "Despesa" ? -amount : 0;
-    byAccount[accountName] = (byAccount[accountName] ?? 0) + signed;
+    // Totais do período: somente aprovados
+    if (approvalStatus === "approved") {
+      if (type === "Receita") totalRevenue += amount;
+      if (type === "Despesa") totalExpense += amount;
+      const signed = type === "Receita" ? amount : type === "Despesa" ? -amount : 0;
+      byAccount[accountName] = (byAccount[accountName] ?? 0) + signed;
+    }
 
     const supplierId = (item.supplier_id as string | null) ?? null;
     rows.push({
@@ -320,6 +350,7 @@ export async function fetchCompanyLedger(
       supplier_id: supplierId,
       supplier_name: supplierId ? supplierNameById.get(supplierId) ?? null : null,
       entry_source: (item.entry_source as string | null) ?? COMPANY_LEDGER_ENTRY_SOURCE,
+      approval_status: approvalStatus,
     });
   }
 

@@ -131,12 +131,28 @@ export async function fetchOsRateio(
 
     const expenseByOrder = new Map<string, number>();
     if (orderIds.length) {
-      const { data: txs, error: txError } = await supabase
+      let { data: txs, error: txError } = await supabase
         .from("financial_transactions")
         .select("service_order_id, amount, transaction_type")
         .eq("company_id", companyId)
         .eq("transaction_type", "Despesa")
+        .eq("approval_status", "approved")
         .in("service_order_id", orderIds);
+
+      if (
+        txError?.message?.toLowerCase().includes("approval_status") &&
+        (txError.message.toLowerCase().includes("does not exist") ||
+          txError.message.toLowerCase().includes("não existe"))
+      ) {
+        const retry = await supabase
+          .from("financial_transactions")
+          .select("service_order_id, amount, transaction_type")
+          .eq("company_id", companyId)
+          .eq("transaction_type", "Despesa")
+          .in("service_order_id", orderIds);
+        txs = retry.data;
+        txError = retry.error;
+      }
 
       if (txError) {
         // Continua sem despesas se a query falhar (ex.: coluna ausente em ambiente antigo)
