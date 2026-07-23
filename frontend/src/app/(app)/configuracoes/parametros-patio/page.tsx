@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, Badge, Loading } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { DataTableScroll } from "@/components/ui/DataTableScroll";
 import { GlassSelect } from "@/components/ui/GlassSelect";
 import { useAccess } from "@/lib/access-context";
 import { useCompany } from "@/lib/company-context";
@@ -311,7 +312,7 @@ export default function ParametrosPatioPage() {
           + Porte
         </Button>
         ) : null}
-        <div className="overflow-x-auto">
+        <DataTableScroll stickyFirst>
           <table className="min-w-full text-left text-sm">
             <thead className="text-xs uppercase text-slate-500">
               <tr>
@@ -336,7 +337,7 @@ export default function ParametrosPatioPage() {
               ))}
             </tbody>
           </table>
-        </div>
+        </DataTableScroll>
       </section>
 
       <section className={`space-y-4 ${glassFilterPanel()}`}>
@@ -435,7 +436,7 @@ export default function ParametrosPatioPage() {
         </Button>
         ) : null}
 
-        <div className="overflow-x-auto">
+        <DataTableScroll stickyFirst stickyLast>
           <table className="min-w-full text-left text-sm">
             <thead className="text-xs uppercase text-slate-500">
               <tr>
@@ -488,7 +489,7 @@ export default function ParametrosPatioPage() {
               ))}
             </tbody>
           </table>
-        </div>
+        </DataTableScroll>
       </section>
     </div>
   );

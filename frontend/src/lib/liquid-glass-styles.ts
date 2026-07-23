@@ -68,3 +68,20 @@ export function glassCard(): string {
 export function glassIconBtn(): string {
   return "liquid-glass-icon-btn";
 }
+
+/**
+ * Quadro de tabela com scroll próprio + thead sticky
+ * (padrão Agenda / Rateio — evita “sumir” o menu ao rolar a página).
+ */
+export function dataTableScroll(opts?: {
+  stickyFirst?: boolean;
+  stickyLast?: boolean;
+  className?: string;
+}): string {
+  return cn(
+    "data-table-scroll",
+    opts?.stickyFirst && "data-table-scroll--sticky-first",
+    opts?.stickyLast && "data-table-scroll--sticky-last",
+    opts?.className
+  );
+}

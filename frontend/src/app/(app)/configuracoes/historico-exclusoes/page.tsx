@@ -3,6 +3,7 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, Badge, Loading } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { DataTableScroll } from "@/components/ui/DataTableScroll";
 import { DeleteReasonModal } from "@/components/ui/DeleteReasonModal";
 import { GlassSelect } from "@/components/ui/GlassSelect";
 import { useAccess } from "@/lib/access-context";
@@ -443,7 +444,7 @@ export default function HistoricoExclusoesPage() {
 
       {loading ? <Loading /> : null}
 
-      <section className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+      <DataTableScroll stickyLast>
         <table className="min-w-full text-left text-sm">
           <thead className="bg-slate-50 text-xs uppercase text-slate-500">
             <tr>
@@ -640,7 +641,7 @@ export default function HistoricoExclusoesPage() {
             ) : null}
           </tbody>
         </table>
-      </section>
+      </DataTableScroll>
 
       <DeleteReasonModal
         open={Boolean(pendingRestore)}

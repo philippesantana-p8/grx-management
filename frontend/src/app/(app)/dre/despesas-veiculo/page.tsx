@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, Loading } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
+import { DataTableScroll } from "@/components/ui/DataTableScroll";
 import { DeleteReasonModal } from "@/components/ui/DeleteReasonModal";
 import { GlassSelect } from "@/components/ui/GlassSelect";
 import {
@@ -490,7 +491,7 @@ export default function DreDespesasVeiculoPage() {
           ) : rows.length === 0 ? (
             <p className="text-sm text-slate-500">Nenhuma despesa de veículo neste filtro.</p>
           ) : (
-            <div className="overflow-x-auto rounded-lg border border-slate-200">
+            <DataTableScroll stickyFirst stickyLast>
               <table className="w-full min-w-[720px] text-sm">
                 <thead>
                   <tr className="border-b border-slate-100 bg-slate-50 text-left">
@@ -545,7 +546,7 @@ export default function DreDespesasVeiculoPage() {
                   ))}
                 </tbody>
               </table>
-            </div>
+            </DataTableScroll>
           )}
         </section>
       </CardBody>

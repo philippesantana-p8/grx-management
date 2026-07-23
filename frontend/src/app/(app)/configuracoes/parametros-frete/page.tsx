@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, Badge, Loading } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { DataTableScroll } from "@/components/ui/DataTableScroll";
 import { GlassSelect } from "@/components/ui/GlassSelect";
 import { useAccess } from "@/lib/access-context";
 import { useCompany } from "@/lib/company-context";
@@ -207,8 +208,9 @@ export default function ParametrosFretePage() {
       </section>
       ) : null}
 
-      <section className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
-        <table className="min-w-full text-left text-sm">
+      <section>
+        <DataTableScroll stickyFirst stickyLast>
+          <table className="min-w-full text-left text-sm">
           <thead className="bg-slate-50 text-xs uppercase text-slate-500">
             <tr>
               <th className="px-3 py-2">Cód.</th>
@@ -255,6 +257,7 @@ export default function ParametrosFretePage() {
             ) : null}
           </tbody>
         </table>
+        </DataTableScroll>
         <p className="px-3 py-2 text-xs text-slate-500">
           Exemplo: caminhão a {formatCurrency(7)}/km — rota de 600 km cobra 1.200 km (ida e volta).
         </p>

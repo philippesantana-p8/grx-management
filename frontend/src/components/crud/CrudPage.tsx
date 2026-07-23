@@ -27,6 +27,7 @@ import {
   isPartyDocumentTaken,
   isVehiclePlateTaken,
 } from "@/lib/party-document-uniqueness";
+import { dataTableScroll } from "@/lib/liquid-glass-styles";
 import { formatDisplayValueBR, normalizePlate } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
@@ -530,7 +531,7 @@ export function CrudPage<T extends { id: string }>({
       )}
 
       <Card>
-        <CardBody className="overflow-x-auto p-0 [-webkit-overflow-scrolling:touch]">
+        <CardBody className="min-w-0 p-0">
           {loading ? (
             <Loading />
           ) : visibleItems.length === 0 ? (
@@ -538,15 +539,16 @@ export function CrudPage<T extends { id: string }>({
               Nenhum registro encontrado.
             </p>
           ) : (
+            <div className={dataTableScroll({ stickyFirst: true, stickyLast: true })}>
             <table className="w-full min-w-[36rem] text-sm">
               <thead>
-                <tr className="border-b border-slate-100 bg-slate-50 text-left">
+                <tr className="border-b border-slate-100 text-left">
                   {columns.map((col) => (
                     <th key={String(col.key)} className="whitespace-nowrap px-3 py-3 font-medium text-slate-600 sm:px-4">
                       {col.label}
                     </th>
                   ))}
-                  <th className="sticky right-0 bg-slate-50 px-3 py-3 font-medium text-slate-600 sm:static sm:px-4">
+                  <th className="whitespace-nowrap px-3 py-3 font-medium text-slate-600 sm:px-4">
                     Ações
                   </th>
                 </tr>
@@ -579,7 +581,7 @@ export function CrudPage<T extends { id: string }>({
                             )}
                       </td>
                     ))}
-                    <td className="sticky right-0 bg-white/95 px-3 py-3 backdrop-blur-sm sm:static sm:bg-transparent sm:px-4 sm:backdrop-blur-none">
+                    <td className="px-3 py-3 sm:px-4">
                       {showActions ? (
                       <div className="flex flex-wrap gap-2">
                         {screenCanEdit ? renderRowActions?.(row) : null}
@@ -622,6 +624,7 @@ export function CrudPage<T extends { id: string }>({
                 })}
               </tbody>
             </table>
+            </div>
           )}
         </CardBody>
       </Card>

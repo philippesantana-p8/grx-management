@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, Loading } from "@/components/ui/Badge";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
+import { DataTableScroll } from "@/components/ui/DataTableScroll";
 import { GlassSelect } from "@/components/ui/GlassSelect";
 import { useAccess } from "@/lib/access-context";
 import { useCompany } from "@/lib/company-context";
@@ -258,7 +259,7 @@ export default function DreRateioOsPage() {
         {partnerTotals.length > 0 ? (
           <div className={`space-y-2 p-4 ${glassFilterPanel()}`}>
             <h3 className="text-sm font-semibold text-slate-900">Totais por sócio</h3>
-            <div className="overflow-x-auto">
+            <DataTableScroll stickyFirst maxHeight="min(40vh, 22rem)">
               <table className="w-full min-w-[560px] text-sm">
                 <thead>
                   <tr className="border-b border-slate-100 text-left text-slate-600">
@@ -283,86 +284,46 @@ export default function DreRateioOsPage() {
                   ))}
                 </tbody>
               </table>
-            </div>
+            </DataTableScroll>
           </div>
         ) : null}
 
         <section className="min-w-0 space-y-3">
-          <div>
-            <h2 className="text-sm font-semibold text-slate-900">Detalhe OS × sócio</h2>
-            <p className="mt-1 text-xs text-slate-600">
-              Role o quadro abaixo (barra vertical/horizontal). Cabeçalho das colunas e a coluna{" "}
-              <strong>OS</strong> ficam fixos — mesmo padrão da Agenda da Frota. O menu lateral
-              permanece visível enquanto a área principal rola.
-            </p>
-          </div>
+          <h2 className="text-sm font-semibold text-slate-900">Detalhe OS × sócio</h2>
           {loading ? (
             <Loading />
           ) : flatRows.length === 0 ? (
             <p className="text-sm text-slate-500">Nenhuma OS de Frete/Transporte neste filtro.</p>
           ) : (
-            <div
-              className="rateio-detail-scroll relative w-full min-w-0 max-w-full overflow-auto rounded-xl border border-slate-200 bg-white shadow-sm [-webkit-overflow-scrolling:touch]"
-              style={{ maxHeight: "min(62vh, calc(100dvh - 14rem))" }}
+            <DataTableScroll
+              stickyFirst
+              hint={
+                <>
+                  Role o quadro (barra vertical/horizontal). Cabeçalho e coluna <strong>OS</strong>{" "}
+                  ficam fixos — padrão Agenda da Frota. O menu lateral permanece visível.
+                </>
+              }
             >
-              <table
-                className="border-collapse text-sm"
-                style={{ width: "max(100%, 62rem)", tableLayout: "fixed" }}
-              >
-                <colgroup>
-                  <col style={{ width: "8.5rem" }} />
-                  <col style={{ width: "5.5rem" }} />
-                  <col style={{ width: "6.5rem" }} />
-                  <col style={{ width: "9rem" }} />
-                  <col style={{ width: "7rem" }} />
-                  <col style={{ width: "7rem" }} />
-                  <col style={{ width: "10rem" }} />
-                  <col style={{ width: "4.5rem" }} />
-                  <col style={{ width: "7rem" }} />
-                  <col style={{ width: "7rem" }} />
-                  <col style={{ width: "7.5rem" }} />
-                </colgroup>
+              <table className="w-full min-w-[62rem] text-sm">
                 <thead>
                   <tr className="border-b border-slate-200 text-left">
-                    <th className="sticky left-0 top-0 z-30 bg-slate-100 px-3 py-2.5 font-semibold text-slate-800 shadow-[2px_0_8px_rgba(15,23,42,0.08)]">
-                      OS
-                    </th>
-                    <th className="sticky top-0 z-20 bg-slate-100 px-3 py-2.5 font-semibold text-slate-800 shadow-[0_2px_6px_rgba(15,23,42,0.06)]">
-                      Data
-                    </th>
-                    <th className="sticky top-0 z-20 bg-slate-100 px-3 py-2.5 font-semibold text-slate-800 shadow-[0_2px_6px_rgba(15,23,42,0.06)]">
-                      Placa
-                    </th>
-                    <th className="sticky top-0 z-20 bg-slate-100 px-3 py-2.5 font-semibold text-slate-800 shadow-[0_2px_6px_rgba(15,23,42,0.06)]">
-                      Cliente
-                    </th>
-                    <th className="sticky top-0 z-20 bg-slate-100 px-3 py-2.5 font-semibold text-slate-800 shadow-[0_2px_6px_rgba(15,23,42,0.06)]">
-                      Receita OS
-                    </th>
-                    <th className="sticky top-0 z-20 bg-slate-100 px-3 py-2.5 font-semibold text-slate-800 shadow-[0_2px_6px_rgba(15,23,42,0.06)]">
-                      Despesa OS
-                    </th>
-                    <th className="sticky top-0 z-20 bg-slate-100 px-3 py-2.5 font-semibold text-slate-800 shadow-[0_2px_6px_rgba(15,23,42,0.06)]">
-                      Sócio
-                    </th>
-                    <th className="sticky top-0 z-20 bg-slate-100 px-3 py-2.5 font-semibold text-slate-800 shadow-[0_2px_6px_rgba(15,23,42,0.06)]">
-                      %
-                    </th>
-                    <th className="sticky top-0 z-20 bg-slate-100 px-3 py-2.5 font-semibold text-slate-800 shadow-[0_2px_6px_rgba(15,23,42,0.06)]">
-                      Cota receita
-                    </th>
-                    <th className="sticky top-0 z-20 bg-slate-100 px-3 py-2.5 font-semibold text-slate-800 shadow-[0_2px_6px_rgba(15,23,42,0.06)]">
-                      Cota despesa
-                    </th>
-                    <th className="sticky top-0 z-20 bg-slate-100 px-3 py-2.5 font-semibold text-slate-800 shadow-[0_2px_6px_rgba(15,23,42,0.06)]">
-                      Cota resultado
-                    </th>
+                    <th className="px-3 py-2.5 font-semibold text-slate-800">OS</th>
+                    <th className="px-3 py-2.5 font-semibold text-slate-800">Data</th>
+                    <th className="px-3 py-2.5 font-semibold text-slate-800">Placa</th>
+                    <th className="px-3 py-2.5 font-semibold text-slate-800">Cliente</th>
+                    <th className="px-3 py-2.5 font-semibold text-slate-800">Receita OS</th>
+                    <th className="px-3 py-2.5 font-semibold text-slate-800">Despesa OS</th>
+                    <th className="px-3 py-2.5 font-semibold text-slate-800">Sócio</th>
+                    <th className="px-3 py-2.5 font-semibold text-slate-800">%</th>
+                    <th className="px-3 py-2.5 font-semibold text-slate-800">Cota receita</th>
+                    <th className="px-3 py-2.5 font-semibold text-slate-800">Cota despesa</th>
+                    <th className="px-3 py-2.5 font-semibold text-slate-800">Cota resultado</th>
                   </tr>
                 </thead>
                 <tbody>
                   {flatRows.map((row) => (
                     <tr key={row.key} className="border-b border-slate-100 align-top">
-                      <td className="sticky left-0 z-10 bg-white px-3 py-2 font-medium text-slate-900 shadow-[2px_0_8px_rgba(15,23,42,0.06)]">
+                      <td className="px-3 py-2 font-medium text-slate-900">
                         <div className="truncate">{row.order.code || "—"}</div>
                         {row.order.warnings.length ? (
                           <p className="mt-0.5 text-[11px] leading-snug text-amber-700">
@@ -398,7 +359,7 @@ export default function DreRateioOsPage() {
                   ))}
                 </tbody>
               </table>
-            </div>
+            </DataTableScroll>
           )}
         </section>
       </CardBody>

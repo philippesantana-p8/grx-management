@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { Alert, Loading } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
+import { DataTableScroll } from "@/components/ui/DataTableScroll";
 import { DeleteReasonModal } from "@/components/ui/DeleteReasonModal";
 import { GlassSelect } from "@/components/ui/GlassSelect";
 import {
@@ -617,7 +618,7 @@ function DreLancamentosPageContent() {
               Nenhum lançamento da empresa neste filtro. Cadastre despesas/receitas gerais acima.
             </p>
           ) : (
-            <div className="overflow-x-auto rounded-lg border border-slate-200 [-webkit-overflow-scrolling:touch]">
+            <DataTableScroll stickyFirst stickyLast>
               <table className="w-full min-w-[720px] text-sm">
                 <thead>
                   <tr className="border-b border-slate-100 bg-slate-50 text-left">
@@ -686,7 +687,7 @@ function DreLancamentosPageContent() {
                   ))}
                 </tbody>
               </table>
-            </div>
+            </DataTableScroll>
           )}
         </section>
 

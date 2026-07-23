@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { DriverPaymentsTable } from "@/components/motoristas/DriverPaymentsTable";
 import { Alert, Loading } from "@/components/ui/Badge";
+import { DataTableScroll } from "@/components/ui/DataTableScroll";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { fetchDreDriverExpenses } from "@/lib/dre-driver-expenses-api";
 import {
@@ -141,7 +142,7 @@ export default function DreDespesasMotoristaPage() {
               <strong>Informe sempre o nº da OS</strong> — sem isso o rateio por sócios (quadro de
               participações) não aloca a despesa.
             </Alert>
-            <div className="overflow-x-auto rounded-lg border border-slate-200">
+            <DataTableScroll stickyFirst stickyLast>
               <table className="min-w-full text-sm">
                 <thead>
                   <tr className="border-b border-slate-200 text-left text-slate-600">
@@ -180,7 +181,7 @@ export default function DreDespesasMotoristaPage() {
                   ))}
                 </tbody>
               </table>
-            </div>
+            </DataTableScroll>
             {legacyManualPayments.length > 40 ? (
               <p className="text-xs text-slate-500">
                 Mostrando 40 de {legacyManualPayments.length}. Use o atalho na OS ou filtre em
@@ -294,7 +295,7 @@ export default function DreDespesasMotoristaPage() {
               Nenhum lançamento pago neste período. Marque um pagamento como pago na tabela acima.
             </p>
           ) : (
-            <div className="overflow-x-auto">
+            <DataTableScroll stickyFirst>
               <table className="min-w-full text-sm">
                 <thead>
                   <tr className="border-b border-slate-200 text-left text-slate-600">
@@ -329,7 +330,7 @@ export default function DreDespesasMotoristaPage() {
                   ))}
                 </tbody>
               </table>
-            </div>
+            </DataTableScroll>
           )}
         </section>
       </CardBody>

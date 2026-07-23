@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { DriverPaymentProofUpload } from "@/components/motoristas/DriverPaymentProofUpload";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { DataTableScroll } from "@/components/ui/DataTableScroll";
 import {
   driverPaymentTotal,
   filterDriverPaymentRows,
@@ -245,7 +246,7 @@ export function DriverPaymentsTable({
         <FilterTabs filter={filter} onFilterChange={onFilterChange} />
       ) : null}
 
-      <div className="overflow-x-auto">
+      <DataTableScroll stickyFirst stickyLast>
         <table className="min-w-full text-sm">
           <thead>
             <tr className="border-b border-slate-200 text-left text-slate-600">
@@ -369,7 +370,7 @@ export function DriverPaymentsTable({
             })}
           </tbody>
         </table>
-      </div>
+      </DataTableScroll>
     </div>
   );
 }

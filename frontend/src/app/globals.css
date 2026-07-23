@@ -1359,6 +1359,68 @@ body {
   }
 }
 
+/* ── Tabelas longas: scroll próprio + cabeçalho fixo (Agenda / Rateio) ── */
+
+.data-table-scroll {
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  max-height: min(62vh, calc(100dvh - 14rem));
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: 0.75rem;
+  border: 1px solid rgb(226 232 240);
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.data-table-scroll table {
+  border-collapse: collapse;
+  width: max(100%, 36rem);
+}
+
+.data-table-scroll thead th {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background-color: #f1f5f9;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.06);
+}
+
+.data-table-scroll--sticky-first thead th:first-child {
+  left: 0;
+  z-index: 30;
+  box-shadow:
+    2px 0 8px rgba(15, 23, 42, 0.08),
+    0 2px 6px rgba(15, 23, 42, 0.06);
+}
+
+.data-table-scroll--sticky-first tbody td:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 10;
+  background-color: #fff;
+  box-shadow: 2px 0 8px rgba(15, 23, 42, 0.06);
+}
+
+.data-table-scroll--sticky-last thead th:last-child {
+  right: 0;
+  z-index: 30;
+  box-shadow:
+    -2px 0 8px rgba(15, 23, 42, 0.08),
+    0 2px 6px rgba(15, 23, 42, 0.06);
+}
+
+.data-table-scroll--sticky-last tbody td:last-child {
+  position: sticky;
+  right: 0;
+  z-index: 10;
+  background-color: rgba(255, 255, 255, 0.96);
+  box-shadow: -2px 0 8px rgba(15, 23, 42, 0.06);
+  backdrop-filter: blur(6px);
+}
+
 @supports (padding: max(0px)) {
   .app-main-scroll {
     padding-bottom: max(1rem, env(safe-area-inset-bottom));

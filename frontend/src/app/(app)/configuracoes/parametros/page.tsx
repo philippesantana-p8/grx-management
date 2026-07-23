@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Alert, Loading } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
+import { DataTableScroll } from "@/components/ui/DataTableScroll";
 import { GlassSelect } from "@/components/ui/GlassSelect";
 import { APP_SCREENS } from "@/lib/app-screens";
 import { useCompany } from "@/lib/company-context";
@@ -701,7 +702,7 @@ export default function ParametrosPage() {
             </p>
           ) : (
             <>
-              <div className="overflow-x-auto rounded-lg border border-slate-200">
+              <DataTableScroll stickyFirst>
                 <table className="w-full min-w-[640px] text-sm">
                   <thead>
                     <tr className="border-b border-slate-100 bg-slate-50 text-left">
@@ -761,7 +762,7 @@ export default function ParametrosPage() {
                     ))}
                   </tbody>
                 </table>
-              </div>
+              </DataTableScroll>
               <div className="sticky bottom-0 z-10 -mx-1 border-t border-slate-200 bg-white/95 px-1 py-3 backdrop-blur">
                 {savePermissionsButton}
               </div>

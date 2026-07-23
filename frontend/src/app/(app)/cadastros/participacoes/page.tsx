@@ -5,6 +5,7 @@ import { EntityForm, FormFields } from "@/components/crud/EntityForm";
 import { Alert, Badge, Loading } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
+import { DataTableScroll } from "@/components/ui/DataTableScroll";
 import { DeleteReasonModal } from "@/components/ui/DeleteReasonModal";
 import { useAccess } from "@/lib/access-context";
 import { useCompany } from "@/lib/company-context";
@@ -498,7 +499,7 @@ export default function ParticipacoesPage() {
           )}
 
           <Card>
-            <CardBody className="overflow-x-auto p-0">
+            <CardBody className="p-0">
               {loading ? (
                 <Loading />
               ) : items.length === 0 ? (
@@ -506,7 +507,8 @@ export default function ParticipacoesPage() {
                   Nenhuma participação cadastrada para este veículo.
                 </p>
               ) : (
-                <table className="w-full text-sm">
+                <DataTableScroll stickyFirst stickyLast>
+                  <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-slate-100 bg-slate-50 text-left">
                       <th className="px-4 py-3 font-medium text-slate-600">Sócio</th>
@@ -566,6 +568,7 @@ export default function ParticipacoesPage() {
                     ))}
                   </tbody>
                 </table>
+                </DataTableScroll>
               )}
             </CardBody>
           </Card>

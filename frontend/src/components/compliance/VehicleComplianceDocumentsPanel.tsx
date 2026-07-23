@@ -10,6 +10,7 @@ import {
 import { ComplianceDocumentHistory } from "@/components/compliance/ComplianceDocumentHistory";
 import { Alert, Badge, Loading } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { DataTableScroll } from "@/components/ui/DataTableScroll";
 import {
   buildIndicators,
   documentDisplayName,
@@ -214,11 +215,11 @@ export function VehicleComplianceDocumentsPanel({
           />
         ) : null}
 
-        <div className="overflow-x-auto">
-          {vehicleDocs.length === 0 ? (
+        {vehicleDocs.length === 0 ? (
             <p className="text-sm text-slate-500">Nenhum documento cadastrado neste veículo.</p>
           ) : (
-            <table className="min-w-full text-left text-sm">
+            <DataTableScroll stickyFirst stickyLast>
+              <table className="min-w-full text-left text-sm">
               <thead className="text-xs uppercase text-slate-500">
                 <tr>
                   <th className="px-2 py-2">Documento</th>
@@ -301,8 +302,8 @@ export function VehicleComplianceDocumentsPanel({
                 })}
               </tbody>
             </table>
+            </DataTableScroll>
           )}
-        </div>
       </section>
 
       {/* B — Empresa (consulta) */}
@@ -325,7 +326,7 @@ export function VehicleComplianceDocumentsPanel({
         {companyDocs.length === 0 ? (
           <p className="text-sm text-slate-500">Nenhum documento da empresa cadastrado.</p>
         ) : (
-          <div className="overflow-x-auto">
+          <DataTableScroll stickyFirst>
             <table className="min-w-full text-left text-sm">
               <thead className="text-xs uppercase text-slate-500">
                 <tr>
@@ -355,7 +356,7 @@ export function VehicleComplianceDocumentsPanel({
                 })}
               </tbody>
             </table>
-          </div>
+          </DataTableScroll>
         )}
       </section>
 

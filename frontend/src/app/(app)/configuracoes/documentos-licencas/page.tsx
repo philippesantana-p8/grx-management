@@ -12,6 +12,7 @@ import { FleetComplianceDocumentsPanel } from "@/components/compliance/FleetComp
 import { AttachmentGallery } from "@/components/drivers/AttachmentGallery";
 import { Alert, Badge, Loading } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { DataTableScroll } from "@/components/ui/DataTableScroll";
 import { GlassSelect } from "@/components/ui/GlassSelect";
 import { useAccess } from "@/lib/access-context";
 import { useCompany } from "@/lib/company-context";
@@ -319,8 +320,9 @@ export default function DocumentosLicencasPage() {
             ) : null}
           </div>
 
-          <div className={`overflow-x-auto ${glassFilterPanel()}`}>
-            <table className="min-w-full text-left text-sm">
+          <div className={glassFilterPanel()}>
+            <DataTableScroll stickyFirst stickyLast>
+              <table className="min-w-full text-left text-sm">
               <thead className="text-xs uppercase text-slate-500">
                 <tr>
                   <th className="px-2 py-2">Sigla</th>
@@ -371,6 +373,7 @@ export default function DocumentosLicencasPage() {
                 ))}
               </tbody>
             </table>
+            </DataTableScroll>
           </div>
         </div>
       ) : null}
@@ -446,8 +449,9 @@ export default function DocumentosLicencasPage() {
               Nenhum documento da empresa. Cadastre o TA (Termo de Autorização).
             </p>
           ) : (
-            <div className={`overflow-x-auto ${glassFilterPanel()}`}>
-              <table className="min-w-full text-left text-sm">
+            <div className={glassFilterPanel()}>
+              <DataTableScroll stickyFirst stickyLast>
+                <table className="min-w-full text-left text-sm">
                 <thead className="text-xs uppercase text-slate-500">
                   <tr>
                     <th className="px-2 py-2">Documento</th>
@@ -527,6 +531,7 @@ export default function DocumentosLicencasPage() {
                   })}
                 </tbody>
               </table>
+              </DataTableScroll>
             </div>
           )}
 

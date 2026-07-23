@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { DriverDocumentsFollowupPanel } from "@/components/compliance/DriverDocumentsFollowupPanel";
 import { Alert, Badge, Loading } from "@/components/ui/Badge";
+import { DataTableScroll } from "@/components/ui/DataTableScroll";
 import { GlassSelect } from "@/components/ui/GlassSelect";
 import { useCompany } from "@/lib/company-context";
 import {
@@ -214,9 +215,10 @@ export default function DocumentosAVencerOperacionalPage() {
             )}
           </section>
 
-          <section className={`overflow-x-auto ${glassFilterPanel()}`}>
+          <section className={glassFilterPanel()}>
             <h2 className="mb-2 text-sm font-semibold">Documentos em atenção</h2>
-            <table className="min-w-full text-left text-sm">
+            <DataTableScroll stickyFirst>
+              <table className="min-w-full text-left text-sm">
               <thead className="text-xs uppercase text-slate-500">
                 <tr>
                   <th className="px-2 py-2">Placa / Escopo</th>
@@ -271,6 +273,7 @@ export default function DocumentosAVencerOperacionalPage() {
                 )}
               </tbody>
             </table>
+            </DataTableScroll>
           </section>
         </>
       )}

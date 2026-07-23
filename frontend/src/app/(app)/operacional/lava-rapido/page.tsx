@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Alert, Badge, Loading } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { DataTableScroll } from "@/components/ui/DataTableScroll";
 import { GlassSelect } from "@/components/ui/GlassSelect";
 import { useAccess } from "@/lib/access-context";
 import { useCompany } from "@/lib/company-context";
@@ -324,7 +325,7 @@ export default function LavaRapidoPage() {
       </section>
       ) : null}
 
-      <section className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+      <DataTableScroll stickyFirst stickyLast>
         <table className="min-w-full text-left text-sm">
           <thead className="bg-slate-50 text-xs uppercase text-slate-500">
             <tr>
@@ -392,7 +393,7 @@ export default function LavaRapidoPage() {
             ) : null}
           </tbody>
         </table>
-      </section>
+      </DataTableScroll>
     </div>
   );
 }

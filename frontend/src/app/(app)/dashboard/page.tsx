@@ -10,6 +10,7 @@ import {
 import { PieChart3D } from "@/components/dashboard/PieChart3D";
 import { Alert, Badge, Loading } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { DataTableScroll } from "@/components/ui/DataTableScroll";
 import { GlassSelect } from "@/components/ui/GlassSelect";
 import { useCompany } from "@/lib/company-context";
 import {
@@ -121,7 +122,7 @@ function OwnershipBlock({
           }))}
         />
       ) : null}
-      <div className="overflow-x-auto">
+      <DataTableScroll stickyFirst maxHeight="min(50vh, 28rem)">
         <table className="min-w-full text-left text-sm">
           <thead className="text-xs uppercase text-slate-500">
             <tr>
@@ -167,7 +168,7 @@ function OwnershipBlock({
             ) : null}
           </tbody>
         </table>
-      </div>
+      </DataTableScroll>
     </div>
   );
 }
@@ -595,10 +596,11 @@ export default function DashboardPage() {
                   />
                 </div>
               </div>
-              <div className={`overflow-x-auto ${glassFilterPanel()}`}>
-                <h3 className="mb-2 text-sm font-semibold text-slate-900">
+              <div className={`space-y-2 p-4 ${glassFilterPanel()}`}>
+                <h3 className="text-sm font-semibold text-slate-900">
                   Resumo por produto
                 </h3>
+                <DataTableScroll stickyFirst maxHeight="min(40vh, 20rem)">
                 <table className="min-w-full text-left text-sm">
                   <thead className="text-xs uppercase text-slate-500">
                     <tr>
@@ -649,6 +651,7 @@ export default function DashboardPage() {
                     </tr>
                   </tbody>
                 </table>
+                </DataTableScroll>
               </div>
               <OwnershipBlock snapshot={snapshot} hideChart />
             </div>

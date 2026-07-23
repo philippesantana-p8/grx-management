@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Alert, Badge, Loading } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
+import { DataTableScroll } from "@/components/ui/DataTableScroll";
 import { GlassSelect } from "@/components/ui/GlassSelect";
 import { Input } from "@/components/ui/Input";
 import { useAccess } from "@/lib/access-context";
@@ -150,7 +151,7 @@ export default function UsuariosAcessosPage() {
           ) : rows.length === 0 ? (
             <p className="text-sm text-slate-500">Nenhum usuário vinculado.</p>
           ) : (
-            <div className="overflow-x-auto">
+            <DataTableScroll stickyFirst stickyLast>
               <table className="min-w-full text-left text-sm">
                 <thead>
                   <tr className="border-b border-slate-200 text-slate-500">
@@ -226,7 +227,7 @@ export default function UsuariosAcessosPage() {
                   })}
                 </tbody>
               </table>
-            </div>
+            </DataTableScroll>
           )}
         </CardBody>
       </Card>

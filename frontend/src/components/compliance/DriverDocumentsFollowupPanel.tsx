@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, Badge, Loading } from "@/components/ui/Badge";
+import { DataTableScroll } from "@/components/ui/DataTableScroll";
 import { GlassSelect } from "@/components/ui/GlassSelect";
 import {
   driverFollowupBadgeVariant,
@@ -112,9 +113,10 @@ export function DriverDocumentsFollowupPanel({ companyId }: Props) {
         </div>
       </div>
 
-      <section className={`overflow-x-auto ${glassFilterPanel()}`}>
+      <section className={glassFilterPanel()}>
         <h2 className="mb-2 text-sm font-semibold">Motoristas em acompanhamento</h2>
-        <table className="min-w-full text-left text-sm">
+        <DataTableScroll stickyFirst stickyLast>
+          <table className="min-w-full text-left text-sm">
           <thead className="text-xs uppercase text-slate-500">
             <tr>
               <th className="px-2 py-2">Motorista</th>
@@ -178,6 +180,7 @@ export function DriverDocumentsFollowupPanel({ companyId }: Props) {
             )}
           </tbody>
         </table>
+        </DataTableScroll>
       </section>
     </div>
   );

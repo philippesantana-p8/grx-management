@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Alert, Loading } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
+import { DataTableScroll } from "@/components/ui/DataTableScroll";
 import { DeleteReasonModal } from "@/components/ui/DeleteReasonModal";
 import { GlassSelect } from "@/components/ui/GlassSelect";
 import { useAccess } from "@/lib/access-context";
@@ -230,7 +231,7 @@ export default function DreAprovacoesPage() {
 
       {loading ? <Loading /> : null}
 
-      <section className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+      <DataTableScroll stickyLast>
         <table className="w-full min-w-[720px] text-center text-sm">
           <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
             <tr>
@@ -368,7 +369,7 @@ export default function DreAprovacoesPage() {
             ) : null}
           </tbody>
         </table>
-      </section>
+      </DataTableScroll>
 
       {rejectId ? (
         <div className="fixed inset-0 z-[80] flex items-end justify-center bg-slate-950/50 p-4 sm:items-center">
