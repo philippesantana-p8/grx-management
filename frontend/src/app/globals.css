@@ -204,6 +204,37 @@ body {
     inset 0 -1px 0 rgba(0, 0, 0, 0.14);
 }
 
+/* Preto / tinta — ações secundárias fortes (ex.: Excluir na fila) */
+.liquid-glass-btn--ink {
+  color: #ffffff;
+  font-weight: 600;
+  background: linear-gradient(
+    145deg,
+    rgba(30, 41, 59, 0.94) 0%,
+    rgba(15, 23, 42, 0.96) 48%,
+    rgba(2, 6, 23, 0.97) 100%
+  );
+  border-color: rgba(255, 255, 255, 0.22);
+  box-shadow:
+    0 8px 24px rgba(15, 23, 42, 0.38),
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.28);
+}
+
+.liquid-glass-btn--ink:hover:not(:disabled) {
+  color: #ffffff;
+  background: linear-gradient(
+    145deg,
+    rgba(51, 65, 85, 0.96) 0%,
+    rgba(30, 41, 59, 0.98) 48%,
+    rgba(15, 23, 42, 0.97) 100%
+  );
+  box-shadow:
+    0 12px 28px rgba(15, 23, 42, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.22);
+}
+
 .liquid-glass-btn--ghost {
   color: #475569;
   background: rgba(255, 255, 255, 0.08);
@@ -237,6 +268,10 @@ body {
 
   .liquid-glass-btn--moss {
     background: linear-gradient(145deg, #217346 0%, #185c37 50%, #10462a 100%);
+  }
+
+  .liquid-glass-btn--ink {
+    background: linear-gradient(145deg, #1e293b 0%, #0f172a 50%, #020617 100%);
   }
 }
 

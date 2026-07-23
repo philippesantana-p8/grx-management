@@ -322,7 +322,7 @@ export default function DreAprovacoesPage() {
                     <Button
                       type="button"
                       size="sm"
-                      variant="secondary"
+                      variant="ink"
                       disabled={busyId === row.id || deleting}
                       onClick={() => {
                         setError(null);
