@@ -22,9 +22,12 @@ import { createDeletionApprovalRequest } from "@/lib/deletion-approvals";
 import { enqueueDeletionAlert } from "@/lib/deletion-alerts";
 import { assertCriticalDeleteGate } from "@/lib/deletion-gate";
 import {
+  alreadyLaunchedDriverExpenseMessage,
+  driverAssistantKindFromAccountName,
   isDriverOrAssistantDreAccount,
   pickDreAccountIdForDriverExpense,
 } from "@/lib/legacy-driver-expense";
+import { fetchExistingDriverAssistantExpenses } from "@/lib/legacy-driver-inline-launch";
 import { isMasterSessionUnlocked } from "@/lib/master-password";
 import { glassAction, glassField, glassFilterPanel, glassStatCard } from "@/lib/liquid-glass-styles";
 import { GroupedTableBodies } from "@/components/ui/GroupedTableBodies";
@@ -252,6 +255,40 @@ function DreLancamentosPageContent() {
     if (byCode) setServiceOrderId(byCode.value);
     else if (hit) setServiceOrderId(hit.value);
   }, [legacyPay, orderOptions, searchParams, serviceOrderId]);
+
+  /** Aviso se a OS do deep-link já tem despesa Motorista/Ajudante lançada. */
+  useEffect(() => {
+    if (!companyId || !legacyPay || !serviceOrderId || !chartOfAccountId) return;
+    const account = accounts.find((a) => a.value === chartOfAccountId);
+    const kind = account ? driverAssistantKindFromAccountName(account.label) : null;
+    if (!kind) return;
+
+    let cancelled = false;
+    void (async () => {
+      const { byOrder } = await fetchExistingDriverAssistantExpenses(supabase, companyId, [
+        serviceOrderId,
+      ]);
+      if (cancelled) return;
+      const existing = byOrder.get(serviceOrderId) ?? [];
+      const hit = existing.find((e) => e.kind === kind);
+      if (!hit) return;
+      const orderLabel =
+        orderOptions.find((o) => o.value === serviceOrderId)?.label.split(" · ")[0] ?? null;
+      setError(alreadyLaunchedDriverExpenseMessage(kind, orderLabel));
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    accounts,
+    chartOfAccountId,
+    companyId,
+    legacyPay,
+    orderOptions,
+    serviceOrderId,
+    supabase,
+  ]);
 
   const submit = async () => {
     if (!companyId) return;

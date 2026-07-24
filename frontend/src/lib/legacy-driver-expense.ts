@@ -78,6 +78,24 @@ export function isDriverOrAssistantDreAccount(label: string): boolean {
   return n.includes("motorista") || n.includes("ajudante") || n.includes("assistente");
 }
 
+export function driverAssistantKindFromAccountName(
+  name: string
+): "motorista" | "ajudante" | null {
+  const n = normalizeLabel(name);
+  if (n.includes("ajudante") || n.includes("assistente")) return "ajudante";
+  if (n.includes("motorista")) return "motorista";
+  return null;
+}
+
+export function alreadyLaunchedDriverExpenseMessage(
+  kind: "motorista" | "ajudante",
+  orderCode?: string | null
+): string {
+  const label = kind === "ajudante" ? "Ajudante" : "Motorista";
+  const os = orderCode?.trim() ? ` da OS ${orderCode.trim()}` : "";
+  return `A despesa de ${label}${os} já foi lançada. Não é necessário lançar de novo.`;
+}
+
 /** Deep-link para pré-preencher Lançamentos da empresa. */
 export function companyLedgerDriverExpenseHref(
   prefill: CompanyLedgerDriverExpensePrefill

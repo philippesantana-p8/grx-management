@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { DriverPaymentsTable } from "@/components/motoristas/DriverPaymentsTable";
 import { Alert, Loading } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
 import { DataTableScroll } from "@/components/ui/DataTableScroll";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { fetchDreDriverExpenses } from "@/lib/dre-driver-expenses-api";
@@ -11,8 +12,15 @@ import {
   fetchDriverPaymentRows,
   filterLegacyManualDriverExpenseRows,
   summarizeDriverPayments,
+  type DriverPaymentRow,
 } from "@/lib/driver-payments-api";
-import { companyLedgerDriverExpenseHref } from "@/lib/legacy-driver-expense";
+import {
+  fetchExistingDriverAssistantExpenses,
+  hasLaunchedKind,
+  launchedAmount,
+  launchLegacyDriverAssistantInline,
+  type ExistingDriverAssistantExpense,
+} from "@/lib/legacy-driver-inline-launch";
 import { useAccess } from "@/lib/access-context";
 import { useCompany } from "@/lib/company-context";
 import { createClient } from "@/lib/supabase/client";
@@ -48,6 +56,14 @@ export default function DreDespesasMotoristaPage() {
     ajudanteTotal: 0,
     combinedTotal: 0,
   });
+  const [legacyExistingByOrder, setLegacyExistingByOrder] = useState<
+    Map<string, ExistingDriverAssistantExpense[]>
+  >(() => new Map());
+  const [legacyDrafts, setLegacyDrafts] = useState<
+    Record<string, { motorista: string; ajudante: string }>
+  >({});
+  const [legacyBusyId, setLegacyBusyId] = useState<string | null>(null);
+  const [legacyMsg, setLegacyMsg] = useState<string | null>(null);
 
   const pendingPayments = useMemo(
     () =>
@@ -57,10 +73,16 @@ export default function DreDespesasMotoristaPage() {
     [allPayments]
   );
 
-  const legacyManualPayments = useMemo(
-    () => filterLegacyManualDriverExpenseRows(allPayments),
-    [allPayments]
-  );
+  const legacyManualPayments = useMemo(() => {
+    const base = filterLegacyManualDriverExpenseRows(allPayments);
+    // Mantém na lista se ainda falta Motorista ou Ajudante no DRE.
+    return base.filter((row) => {
+      const existing = legacyExistingByOrder.get(row.id);
+      const mot = hasLaunchedKind(existing, "motorista");
+      const aj = hasLaunchedKind(existing, "ajudante");
+      return !(mot && aj);
+    });
+  }, [allPayments, legacyExistingByOrder]);
 
   const pendingSummary = useMemo(() => summarizeDriverPayments(pendingPayments), [pendingPayments]);
 
@@ -69,6 +91,7 @@ export default function DreDespesasMotoristaPage() {
     setLoading(true);
     setError(null);
     setPaymentsWarning(null);
+    setLegacyMsg(null);
 
     const [dreResult, paymentsResult] = await Promise.all([
       fetchDreDriverExpenses(supabase, companyId, { year, month }),
@@ -86,8 +109,75 @@ export default function DreDespesasMotoristaPage() {
 
     setAllPayments(paymentsResult.rows);
     setPaymentsWarning(paymentsResult.schemaWarning);
+
+    const legacyIds = filterLegacyManualDriverExpenseRows(paymentsResult.rows).map((r) => r.id);
+    if (legacyIds.length) {
+      const existing = await fetchExistingDriverAssistantExpenses(supabase, companyId, legacyIds);
+      if (!existing.error) setLegacyExistingByOrder(existing.byOrder);
+      else setLegacyExistingByOrder(new Map());
+    } else {
+      setLegacyExistingByOrder(new Map());
+    }
+
     setLoading(false);
   }, [companyId, month, supabase, year]);
+
+  const updateLegacyDraft = (orderId: string, field: "motorista" | "ajudante", value: string) => {
+    setLegacyDrafts((prev) => ({
+      ...prev,
+      [orderId]: {
+        motorista: field === "motorista" ? value : prev[orderId]?.motorista ?? "",
+        ajudante: field === "ajudante" ? value : prev[orderId]?.ajudante ?? "",
+      },
+    }));
+  };
+
+  const launchLegacyRow = async (row: DriverPaymentRow) => {
+    if (!companyId || !canEdit) return;
+    const draft = legacyDrafts[row.id] ?? { motorista: "", ajudante: "" };
+    setLegacyBusyId(row.id);
+    setError(null);
+    setLegacyMsg(null);
+
+    const result = await launchLegacyDriverAssistantInline({
+      supabase,
+      companyId,
+      orderId: row.id,
+      orderCode: row.code,
+      legacyNumber: row.legacy_number,
+      serviceDate: row.service_date,
+      driverName: row.driver_name,
+      motoristaAmount: draft.motorista,
+      ajudanteAmount: draft.ajudante,
+    });
+
+    setLegacyBusyId(null);
+
+    if (result.error && !result.launched.length) {
+      setError(result.error);
+      return;
+    }
+
+    const parts: string[] = [];
+    if (result.launched.includes("motorista")) parts.push("Motorista");
+    if (result.launched.includes("ajudante")) parts.push("Ajudante");
+    const skipNotes = result.skipped.map((s) => s.reason).join(" ");
+    setLegacyMsg(
+      [
+        parts.length ? `OS ${row.code}: lançado ${parts.join(" e ")} no DRE.` : null,
+        skipNotes || null,
+      ]
+        .filter(Boolean)
+        .join(" ")
+    );
+
+    setLegacyDrafts((prev) => {
+      const next = { ...prev };
+      delete next[row.id];
+      return next;
+    });
+    await load();
+  };
 
   useEffect(() => {
     void load();
@@ -110,7 +200,7 @@ export default function DreDespesasMotoristaPage() {
     <Card>
       <CardHeader
         title="Despesas Motorista / Ajudante"
-        description="Após concluir o frete, a OS entra aqui com valores e dados bancários do motorista. Anexe o comprovante, marque pago e o lançamento DRE é gerado automaticamente. OS importadas sem valor: lançamento manual no DRE da empresa (conta Motorista/Ajudante)."
+        description="Após concluir o frete, a OS entra aqui com valores e dados bancários do motorista. Anexe o comprovante, marque pago e o lançamento DRE é gerado automaticamente. OS legado/importada: informe Valor motorista e/ou Valor ajudante na linha e lance direto no DRE (com nº da OS para o rateio)."
       />
       <CardBody className="space-y-6">
         <div className="flex flex-wrap items-end gap-3">
@@ -143,14 +233,16 @@ export default function DreDespesasMotoristaPage() {
           </Link>
         </div>
 
+        {legacyMsg ? <Alert variant="info">{legacyMsg}</Alert> : null}
+
         {legacyManualPayments.length > 0 ? (
           <section className={`space-y-3 p-4 ${glassFilterPanel()}`}>
             <Alert variant="info">
-              <strong>{legacyManualPayments.length}</strong> OS legado/importada sem valor de
-              motorista/ajudante na designação. Autorizado lançar em{" "}
-              <strong>DRE → Lançamentos da empresa</strong> (conta Motorista ou Ajudante).{" "}
-              <strong>Informe sempre o nº da OS</strong> — sem isso o rateio por sócios (quadro de
-              participações) não aloca a despesa.
+              <strong>{legacyManualPayments.length}</strong> OS legado/importada sem valor na
+              designação. Informe <strong>Valor motorista</strong> e/ou{" "}
+              <strong>Valor ajudante</strong> na linha e clique em <strong>Lançar no DRE</strong> —
+              a OS já fica vinculada para o rateio. Se a despesa já foi lançada, o sistema avisa e
+              bloqueia duplicata (também em Lançamentos da empresa).
             </Alert>
             <DataTableScroll stickyFirst stickyLast>
               <table className="min-w-full text-sm">
@@ -160,42 +252,103 @@ export default function DreDespesasMotoristaPage() {
                     <th className="px-3 py-2 font-medium">Nº legado</th>
                     <th className="px-3 py-2 font-medium">Data</th>
                     <th className="px-3 py-2 font-medium">Motorista</th>
+                    <th className="px-3 py-2 font-medium">Valor motorista</th>
+                    <th className="px-3 py-2 font-medium">Valor ajudante</th>
                     <th className="px-3 py-2 font-medium">Ação</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {legacyManualPayments.slice(0, 40).map((row) => (
-                    <tr key={row.id} className="border-b border-slate-100">
-                      <td className="px-3 py-2 font-medium">{row.code}</td>
-                      <td className="px-3 py-2">{row.legacy_number || "—"}</td>
-                      <td className="px-3 py-2">{formatDate(row.service_date)}</td>
-                      <td className="px-3 py-2">
-                        {row.driver_code} — {row.driver_name}
-                      </td>
-                      <td className="px-3 py-2">
-                        <Link
-                          href={companyLedgerDriverExpenseHref({
-                            orderId: row.id,
-                            code: row.code,
-                            legacyNumber: row.legacy_number,
-                            serviceDate: row.service_date,
-                            driverName: row.driver_name,
-                            account: "motorista",
-                          })}
-                          className={glassAction("amber", true)}
-                        >
-                          Lançar no DRE empresa
-                        </Link>
-                      </td>
-                    </tr>
-                  ))}
+                  {legacyManualPayments.slice(0, 40).map((row) => {
+                    const existing = legacyExistingByOrder.get(row.id);
+                    const motDone = hasLaunchedKind(existing, "motorista");
+                    const ajDone = hasLaunchedKind(existing, "ajudante");
+                    const draft = legacyDrafts[row.id] ?? { motorista: "", ajudante: "" };
+                    const busy = legacyBusyId === row.id;
+                    return (
+                      <tr key={row.id} className="border-b border-slate-100 align-top">
+                        <td className="px-3 py-2 font-medium tabular-nums">{row.code}</td>
+                        <td className="px-3 py-2">{row.legacy_number || "—"}</td>
+                        <td className="whitespace-nowrap px-3 py-2">
+                          {formatDate(row.service_date)}
+                        </td>
+                        <td className="px-3 py-2">
+                          {row.driver_code} — {row.driver_name}
+                        </td>
+                        <td className="px-3 py-2">
+                          {motDone ? (
+                            <span className="text-xs font-medium text-emerald-800">
+                              Já lançado
+                              {launchedAmount(existing, "motorista") != null
+                                ? ` · ${formatCurrency(launchedAmount(existing, "motorista")!)}`
+                                : ""}
+                            </span>
+                          ) : (
+                            <input
+                              type="number"
+                              min="0.01"
+                              step="0.01"
+                              className={`${glassField(true)} w-28`}
+                              placeholder="R$"
+                              value={draft.motorista}
+                              disabled={!canEdit || busy}
+                              onChange={(e) =>
+                                updateLegacyDraft(row.id, "motorista", e.target.value)
+                              }
+                            />
+                          )}
+                        </td>
+                        <td className="px-3 py-2">
+                          {ajDone ? (
+                            <span className="text-xs font-medium text-emerald-800">
+                              Já lançado
+                              {launchedAmount(existing, "ajudante") != null
+                                ? ` · ${formatCurrency(launchedAmount(existing, "ajudante")!)}`
+                                : ""}
+                            </span>
+                          ) : (
+                            <input
+                              type="number"
+                              min="0.01"
+                              step="0.01"
+                              className={`${glassField(false)} w-28`}
+                              placeholder="R$"
+                              value={draft.ajudante}
+                              disabled={!canEdit || busy}
+                              onChange={(e) =>
+                                updateLegacyDraft(row.id, "ajudante", e.target.value)
+                              }
+                            />
+                          )}
+                        </td>
+                        <td className="px-3 py-2">
+                          {motDone && ajDone ? (
+                            <span className="text-xs text-slate-500">Concluído</span>
+                          ) : (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="primary"
+                              disabled={
+                                !canEdit ||
+                                busy ||
+                                ((!draft.motorista.trim() || motDone) &&
+                                  (!draft.ajudante.trim() || ajDone))
+                              }
+                              onClick={() => void launchLegacyRow(row)}
+                            >
+                              {busy ? "Lançando…" : "Lançar no DRE"}
+                            </Button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </DataTableScroll>
             {legacyManualPayments.length > 40 ? (
               <p className="text-xs text-slate-500">
-                Mostrando 40 de {legacyManualPayments.length}. Use o atalho na OS ou filtre em
-                Lançamentos da empresa.
+                Mostrando 40 de {legacyManualPayments.length}. Lance os primeiros e a lista atualiza.
               </p>
             ) : null}
           </section>

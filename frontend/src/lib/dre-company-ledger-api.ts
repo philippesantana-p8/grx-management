@@ -36,9 +36,14 @@ export type CreateCompanyLedgerInput = {
   chartOfAccountId: string;
   description?: string | null;
   supplierId?: string | null;
-  /** Obrigatório para contas Motorista/Ajudante (rateio por OS/sócios). */
+  /** Obrigatório para contas Motorista/Ajudante (rateio por sócios). */
   serviceOrderId?: string | null;
   legacyNumber?: string | null;
+  /**
+   * Se false (padrão), bloqueia segunda despesa Motorista/Ajudante na mesma OS.
+   * Use true só em casos internos controlados.
+   */
+  skipOsDriverDuplicateCheck?: boolean;
 };
 
 function monthBounds(year: number, month: number) {
@@ -70,6 +75,75 @@ export async function createCompanyLedgerEntry(
   if (accountError || !account) return { row: null, error: "Conta DRE não encontrada." };
   if (account.transaction_type !== "Receita" && account.transaction_type !== "Despesa") {
     return { row: null, error: "A conta precisa ser Receita ou Despesa." };
+  }
+
+  const serviceOrderIdEarly = input.serviceOrderId?.trim() || null;
+  const accountName = (account.name as string) || "";
+
+  // Motorista/Ajudante + OS: uma despesa por conta/OS (evita lançar na linha e de novo em Lançamentos).
+  if (
+    !input.skipOsDriverDuplicateCheck &&
+    serviceOrderIdEarly &&
+    account.transaction_type === "Despesa"
+  ) {
+    const {
+      alreadyLaunchedDriverExpenseMessage,
+      driverAssistantKindFromAccountName,
+      isDriverOrAssistantDreAccount,
+    } = await import("@/lib/legacy-driver-expense");
+    const kind = driverAssistantKindFromAccountName(accountName);
+    if (kind && isDriverOrAssistantDreAccount(accountName)) {
+      let existingQuery = supabase
+        .from("financial_transactions")
+        .select("id, approval_status")
+        .eq("company_id", companyId)
+        .eq("transaction_type", "Despesa")
+        .eq("service_order_id", serviceOrderIdEarly)
+        .eq("chart_of_account_id", input.chartOfAccountId)
+        .limit(8);
+
+      let { data: existingRows, error: existingError } = await existingQuery;
+      if (
+        existingError?.message?.toLowerCase().includes("approval_status") &&
+        (existingError.message.toLowerCase().includes("does not exist") ||
+          existingError.message.toLowerCase().includes("não existe"))
+      ) {
+        const retry = await supabase
+          .from("financial_transactions")
+          .select("id")
+          .eq("company_id", companyId)
+          .eq("transaction_type", "Despesa")
+          .eq("service_order_id", serviceOrderIdEarly)
+          .eq("chart_of_account_id", input.chartOfAccountId)
+          .limit(8);
+        existingRows = (retry.data ?? []).map((r) => ({ ...r, approval_status: "approved" }));
+        existingError = retry.error;
+      }
+      if (existingError) return { row: null, error: existingError.message };
+
+      const stillOpen = (existingRows ?? []).some((r) => {
+        const status = String(
+          (r as { approval_status?: string | null }).approval_status ?? "approved"
+        ).toLowerCase();
+        return status !== "rejected" && status !== "cancelled";
+      });
+
+      if (stillOpen) {
+        const { data: order } = await supabase
+          .from("service_orders")
+          .select("code")
+          .eq("company_id", companyId)
+          .eq("id", serviceOrderIdEarly)
+          .maybeSingle();
+        return {
+          row: null,
+          error: alreadyLaunchedDriverExpenseMessage(
+            kind,
+            (order?.code as string | null) ?? null
+          ),
+        };
+      }
+    }
   }
 
   const { data: dup } = await supabase
