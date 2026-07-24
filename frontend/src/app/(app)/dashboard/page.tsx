@@ -34,6 +34,7 @@ import { resolveComplianceSituation } from "@/lib/compliance-documents";
 import { glassAction, glassField, glassFilterPanel } from "@/lib/liquid-glass-styles";
 import { isMasterSessionUnlocked } from "@/lib/master-password";
 import { createClient } from "@/lib/supabase/client";
+import { DATA_ROW_GROUP_CLASS, groupByKeySorted } from "@/lib/table-row-groups";
 import { formatCurrency } from "@/lib/utils";
 
 const PERIOD_OPTIONS: { value: DashboardPeriodKey; label: string }[] = [
@@ -103,6 +104,14 @@ function OwnershipBlock({
   snapshot: DashboardSnapshot;
   hideChart?: boolean;
 }) {
+  const participationGroups = useMemo(
+    () =>
+      groupByKeySorted(snapshot.participationRows, (row) => row.vehicleId, (a, b) =>
+        a.partnerName.localeCompare(b.partnerName, "pt-BR")
+      ),
+    [snapshot.participationRows]
+  );
+
   return (
     <div className={`space-y-3 ${glassFilterPanel()}`}>
       <div>
@@ -123,7 +132,7 @@ function OwnershipBlock({
         />
       ) : null}
       <DataTableScroll stickyFirst maxHeight="min(50vh, 28rem)">
-        <table className="min-w-full text-left text-sm">
+        <table className="w-full text-left text-xs sm:text-sm">
           <thead className="text-xs uppercase text-slate-500">
             <tr>
               <th className="px-2 py-2">Sócio</th>
@@ -134,39 +143,57 @@ function OwnershipBlock({
               <th className="px-2 py-2">Resultado</th>
             </tr>
           </thead>
-          <tbody>
-            {snapshot.participationRows.map((row) => (
-              <tr
-                key={`${row.partnerId}-${row.vehicleId}`}
-                className="border-t border-slate-100"
-              >
-                <td className="px-2 py-2 font-medium">
-                  {row.partnerName}
-                  {row.isFullOwner ? (
-                    <span className="ml-2 inline-block">
-                      <Badge variant="success">100%</Badge>
-                    </span>
-                  ) : Math.abs(row.ownershipPct - 50) < 0.51 ? (
-                    <span className="ml-2 inline-block">
-                      <Badge variant="default">50%</Badge>
-                    </span>
-                  ) : null}
-                </td>
-                <td className="px-2 py-2">{row.plate}</td>
-                <td className="px-2 py-2">{row.ownershipPct.toFixed(0)}%</td>
-                <td className="px-2 py-2">{formatCurrency(row.revenue)}</td>
-                <td className="px-2 py-2">{formatCurrency(row.expense)}</td>
-                <td className="px-2 py-2 font-medium">{formatCurrency(row.result)}</td>
-              </tr>
-            ))}
-            {snapshot.participationRows.length === 0 ? (
+          {participationGroups.length === 0 ? (
+            <tbody>
               <tr>
                 <td colSpan={6} className="px-2 py-6 text-center text-slate-500">
                   Nenhum rateio para os filtros selecionados.
                 </td>
               </tr>
-            ) : null}
-          </tbody>
+            </tbody>
+          ) : (
+            participationGroups.map((group) => (
+              <tbody
+                key={group.key}
+                className={group.multi ? DATA_ROW_GROUP_CLASS : undefined}
+              >
+                {group.rows.map((row, index) => (
+                  <tr
+                    key={`${row.partnerId}-${row.vehicleId}`}
+                    className={group.multi ? "align-top" : "border-t border-slate-100"}
+                  >
+                    <td className="px-2 py-2 font-medium">
+                      {row.partnerName}
+                      {row.isFullOwner ? (
+                        <span className="ml-2 inline-block">
+                          <Badge variant="success">100%</Badge>
+                        </span>
+                      ) : Math.abs(row.ownershipPct - 50) < 0.51 ? (
+                        <span className="ml-2 inline-block">
+                          <Badge variant="default">50%</Badge>
+                        </span>
+                      ) : null}
+                    </td>
+                    <td className="px-2 py-2">
+                      {index === 0 ? (
+                        row.plate
+                      ) : group.multi ? (
+                        <span className="text-slate-300" aria-hidden>
+                          ↳
+                        </span>
+                      ) : (
+                        row.plate
+                      )}
+                    </td>
+                    <td className="px-2 py-2">{row.ownershipPct.toFixed(0)}%</td>
+                    <td className="px-2 py-2">{formatCurrency(row.revenue)}</td>
+                    <td className="px-2 py-2">{formatCurrency(row.expense)}</td>
+                    <td className="px-2 py-2 font-medium">{formatCurrency(row.result)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            ))
+          )}
         </table>
       </DataTableScroll>
     </div>

@@ -19,6 +19,7 @@ import {
   seedDefaultDocumentTypes,
 } from "@/lib/compliance-documents-api";
 import { formatExpiryDateBR } from "@/lib/expiry-status";
+import { DATA_ROW_GROUP_CLASS, groupByKeySorted } from "@/lib/table-row-groups";
 import { glassAction, glassFilterPanel, glassTabLink, glassTabsNav } from "@/lib/liquid-glass-styles";
 import { createClient } from "@/lib/supabase/client";
 
@@ -91,6 +92,19 @@ export default function DocumentosAVencerOperacionalPage() {
       return true;
     });
   }, [rows, scope, plateFilter, vehicles, situationFilter]);
+
+  const docGroups = useMemo(
+    () =>
+      groupByKeySorted(
+        filtered,
+        (doc) => (doc.owner_type === "vehicle" ? doc.owner_id : doc.id),
+        (a, b) => documentDisplayName(a.document_type).localeCompare(
+          documentDisplayName(b.document_type),
+          "pt-BR"
+        )
+      ),
+    [filtered]
+  );
 
   const plateOptions = useMemo(() => {
     const opts = [{ value: "", label: "Todas as placas" }];
@@ -218,7 +232,7 @@ export default function DocumentosAVencerOperacionalPage() {
           <section className={glassFilterPanel()}>
             <h2 className="mb-2 text-sm font-semibold">Documentos em atenção</h2>
             <DataTableScroll stickyFirst>
-              <table className="min-w-full text-left text-sm">
+              <table className="w-full text-left text-sm">
               <thead className="text-xs uppercase text-slate-500">
                 <tr>
                   <th className="px-2 py-2">Placa / Escopo</th>
@@ -229,49 +243,71 @@ export default function DocumentosAVencerOperacionalPage() {
                   <th className="px-2 py-2">Situação</th>
                 </tr>
               </thead>
-              <tbody>
-                {filtered.length === 0 ? (
+              {docGroups.length === 0 ? (
+                <tbody>
                   <tr>
                     <td colSpan={6} className="px-2 py-4 text-slate-500">
                       Nenhum documento vencido ou a vencer neste filtro.
                     </td>
                   </tr>
-                ) : (
-                  filtered.map((doc) => {
-                    const view = resolveComplianceSituation(doc, doc.document_type);
-                    const veh =
-                      doc.owner_type === "vehicle" ? vehicles.get(doc.owner_id) : null;
-                    const plate =
-                      doc.owner_type === "vehicle" ? veh?.plate || "Veículo" : "Empresa";
-                    const brandModel =
-                      doc.owner_type === "vehicle" ? veh?.brandModel || "—" : "—";
-                    return (
-                      <tr key={doc.id} className="border-t border-slate-100">
-                        <td className="px-2 py-2 font-medium">{plate}</td>
-                        <td className="px-2 py-2 text-slate-700">{brandModel}</td>
-                        <td className="px-2 py-2">
-                          {documentDisplayName(doc.document_type)}
-                        </td>
-                        <td className="px-2 py-2">{doc.document_number || "—"}</td>
-                        <td className="px-2 py-2 whitespace-nowrap">
-                          {doc.no_expiry
-                            ? "Sem vencimento"
-                            : formatExpiryDateBR(doc.expires_at) || "—"}
-                          {view.daysLeft != null ? ` (${view.daysLeft}d)` : ""}
-                          {view.renewalNote || view.situation === "suspended" ? (
-                            <span className="block text-[11px] text-slate-500">
-                              Validade original mantida
-                            </span>
-                          ) : null}
-                        </td>
-                        <td className="px-2 py-2">
-                          <Badge variant={view.badge}>{view.label}</Badge>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
+                </tbody>
+              ) : (
+                docGroups.map((group) => (
+                  <tbody
+                    key={group.key}
+                    className={group.multi ? DATA_ROW_GROUP_CLASS : undefined}
+                  >
+                    {group.rows.map((doc, index) => {
+                      const view = resolveComplianceSituation(doc, doc.document_type);
+                      const veh =
+                        doc.owner_type === "vehicle" ? vehicles.get(doc.owner_id) : null;
+                      const plate =
+                        doc.owner_type === "vehicle" ? veh?.plate || "Veículo" : "Empresa";
+                      const brandModel =
+                        doc.owner_type === "vehicle" ? veh?.brandModel || "—" : "—";
+                      return (
+                        <tr
+                          key={doc.id}
+                          className={group.multi ? "align-top" : "border-t border-slate-100"}
+                        >
+                          <td className="px-2 py-2 font-medium">
+                            {index === 0 ? (
+                              plate
+                            ) : group.multi ? (
+                              <span className="text-slate-300" aria-hidden>
+                                ↳
+                              </span>
+                            ) : (
+                              plate
+                            )}
+                          </td>
+                          <td className="px-2 py-2 text-slate-700">
+                            {index === 0 || !group.multi ? brandModel : ""}
+                          </td>
+                          <td className="px-2 py-2">
+                            {documentDisplayName(doc.document_type)}
+                          </td>
+                          <td className="px-2 py-2">{doc.document_number || "—"}</td>
+                          <td className="px-2 py-2 whitespace-nowrap">
+                            {doc.no_expiry
+                              ? "Sem vencimento"
+                              : formatExpiryDateBR(doc.expires_at) || "—"}
+                            {view.daysLeft != null ? ` (${view.daysLeft}d)` : ""}
+                            {view.renewalNote || view.situation === "suspended" ? (
+                              <span className="block text-[11px] text-slate-500">
+                                Validade original mantida
+                              </span>
+                            ) : null}
+                          </td>
+                          <td className="px-2 py-2">
+                            <Badge variant={view.badge}>{view.label}</Badge>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                ))
+              )}
             </table>
             </DataTableScroll>
           </section>

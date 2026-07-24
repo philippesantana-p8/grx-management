@@ -23,6 +23,7 @@ import { assertCriticalDeleteGate } from "@/lib/deletion-gate";
 import { summarizeDeletedRow } from "@/lib/deletion-audit";
 import { isMasterSessionUnlocked } from "@/lib/master-password";
 import { glassAction, glassField, glassFilterPanel, glassStatCard } from "@/lib/liquid-glass-styles";
+import { DATA_ROW_GROUP_CLASS, groupByKeySorted } from "@/lib/table-row-groups";
 import { createClient } from "@/lib/supabase/client";
 import { formatCurrency } from "@/lib/utils";
 import {
@@ -287,6 +288,16 @@ export default function DreDespesasVeiculoPage() {
 
   const accountBreakdown = Object.entries(summary.byAccount).sort((a, b) => b[1] - a[1]);
 
+  const expenseGroups = useMemo(
+    () =>
+      groupByKeySorted(
+        rows,
+        (row) => row.service_order_code || `${row.plate}|${row.transaction_date}`,
+        (a, b) => a.dre_account_name.localeCompare(b.dre_account_name, "pt-BR")
+      ),
+    [rows]
+  );
+
   return (
     <Card>
       <CardHeader
@@ -492,7 +503,7 @@ export default function DreDespesasVeiculoPage() {
             <p className="text-sm text-slate-500">Nenhuma despesa de veículo neste filtro.</p>
           ) : (
             <DataTableScroll stickyFirst stickyLast>
-              <table className="w-full min-w-[720px] text-sm">
+              <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-slate-100 bg-slate-50 text-left">
                     <th className="px-3 py-2 font-medium text-slate-600">Data</th>
@@ -504,47 +515,71 @@ export default function DreDespesasVeiculoPage() {
                     <th className="px-3 py-2 font-medium text-slate-600" />
                   </tr>
                 </thead>
-                <tbody>
-                  {rows.map((row) => (
-                    <tr key={row.id} className="border-b border-slate-50">
-                      <td className="px-3 py-2 text-slate-700">{formatDate(row.transaction_date)}</td>
-                      <td className="px-3 py-2 font-medium text-slate-900">{row.plate ?? "—"}</td>
-                      <td className="px-3 py-2 text-slate-700">{row.dre_account_name}</td>
-                      <td className="px-3 py-2 text-slate-700">{row.service_order_code ?? "—"}</td>
-                      <td className="max-w-[220px] truncate px-3 py-2 text-slate-600">
-                        {row.description ?? "—"}
-                      </td>
-                      <td className="px-3 py-2 font-medium text-slate-900">
-                        {formatCurrency(row.amount)}
-                      </td>
-                      <td className="px-3 py-2 text-right">
-                        {canDelete ? (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            onClick={() => {
-                              setPendingDeleteId(row.id);
-                              void (async () => {
-                                if (!isAdmin || !companyId) {
-                                  setRequireMasterForDelete(false);
-                                  return;
-                                }
-                                const {
-                                  data: { user },
-                                } = await supabase.auth.getUser();
-                                setRequireMasterForDelete(
-                                  !(user?.id && isMasterSessionUnlocked(companyId, user.id))
-                                );
-                              })();
-                            }}
-                          >
-                            Excluir
-                          </Button>
-                        ) : null}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
+                {expenseGroups.map((group) => (
+                  <tbody
+                    key={group.key}
+                    className={group.multi ? DATA_ROW_GROUP_CLASS : undefined}
+                  >
+                    {group.rows.map((row, index) => (
+                      <tr
+                        key={row.id}
+                        className={group.multi ? "align-top" : "border-b border-slate-50"}
+                      >
+                        <td className="px-3 py-2 text-slate-700">
+                          {index === 0 || !group.multi
+                            ? formatDate(row.transaction_date)
+                            : ""}
+                        </td>
+                        <td className="px-3 py-2 font-medium text-slate-900">
+                          {index === 0 ? (
+                            row.plate ?? "—"
+                          ) : group.multi ? (
+                            <span className="text-slate-300" aria-hidden>
+                              ↳
+                            </span>
+                          ) : (
+                            row.plate ?? "—"
+                          )}
+                        </td>
+                        <td className="px-3 py-2 text-slate-700">{row.dre_account_name}</td>
+                        <td className="px-3 py-2 text-slate-700">
+                          {index === 0 || !group.multi ? row.service_order_code ?? "—" : ""}
+                        </td>
+                        <td className="max-w-[220px] truncate px-3 py-2 text-slate-600">
+                          {row.description ?? "—"}
+                        </td>
+                        <td className="px-3 py-2 font-medium text-slate-900">
+                          {formatCurrency(row.amount)}
+                        </td>
+                        <td className="px-3 py-2 text-right">
+                          {canDelete ? (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              onClick={() => {
+                                setPendingDeleteId(row.id);
+                                void (async () => {
+                                  if (!isAdmin || !companyId) {
+                                    setRequireMasterForDelete(false);
+                                    return;
+                                  }
+                                  const {
+                                    data: { user },
+                                  } = await supabase.auth.getUser();
+                                  setRequireMasterForDelete(
+                                    !(user?.id && isMasterSessionUnlocked(companyId, user.id))
+                                  );
+                                })();
+                              }}
+                            >
+                              Excluir
+                            </Button>
+                          ) : null}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                ))}
               </table>
             </DataTableScroll>
           )}

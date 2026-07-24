@@ -539,8 +539,8 @@ export function CrudPage<T extends { id: string }>({
               Nenhum registro encontrado.
             </p>
           ) : (
-            <div className={dataTableScroll({ stickyFirst: true, stickyLast: true })}>
-            <table className="w-full min-w-[36rem] text-sm">
+            <div className={dataTableScroll({ stickyFirst: true, stickyLast: true, fitWidth: true })}>
+            <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-100 text-left">
                   {columns.map((col) => (

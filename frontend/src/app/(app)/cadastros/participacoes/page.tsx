@@ -11,6 +11,7 @@ import { useAccess } from "@/lib/access-context";
 import { useCompany } from "@/lib/company-context";
 import { recordDeletion, summarizeDeletedRow } from "@/lib/deletion-audit";
 import { importOwnershipFromSpreadsheet, OWNERSHIP_SEED } from "@/lib/import-ownership";
+import { DATA_ROW_GROUP_CLASS } from "@/lib/table-row-groups";
 import { createClient } from "@/lib/supabase/client";
 import {
   fromDbOwnershipRow,
@@ -519,9 +520,18 @@ export default function ParticipacoesPage() {
                       <th className="px-4 py-3 font-medium text-slate-600">Ações</th>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody
+                    className={items.length > 1 ? DATA_ROW_GROUP_CLASS : undefined}
+                  >
                     {items.map((row) => (
-                      <tr key={row.id} className="border-b border-slate-50 hover:bg-slate-50/50">
+                      <tr
+                        key={row.id}
+                        className={
+                          items.length > 1
+                            ? "align-top"
+                            : "border-b border-slate-50 hover:bg-slate-50/50"
+                        }
+                      >
                         <td className="px-4 py-3 text-slate-700">
                           {partnerMap.get(row.partner_id) ?? "—"}
                         </td>

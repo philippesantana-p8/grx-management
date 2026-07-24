@@ -25,7 +25,8 @@ export function DataTableScroll({
   children,
   stickyFirst = false,
   stickyLast = false,
-  fitWidth = false,
+  /** Padrão: cabe em 100% (sem forçar barra horizontal). */
+  fitWidth = true,
   maxHeight,
   className,
   hint,

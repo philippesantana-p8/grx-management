@@ -16,6 +16,7 @@ import { companyLedgerDriverExpenseHref } from "@/lib/legacy-driver-expense";
 import { useAccess } from "@/lib/access-context";
 import { useCompany } from "@/lib/company-context";
 import { createClient } from "@/lib/supabase/client";
+import { DATA_ROW_GROUP_CLASS, groupByKeySorted } from "@/lib/table-row-groups";
 import { formatCurrency } from "@/lib/utils";
 import { glassAction, glassField, glassFilterPanel, glassStatCard } from "@/lib/liquid-glass-styles";
 
@@ -94,6 +95,14 @@ export default function DreDespesasMotoristaPage() {
   const monthLabel = useMemo(
     () => new Date(year, month - 1, 1).toLocaleDateString("pt-BR", { month: "long", year: "numeric" }),
     [month, year]
+  );
+
+  const paidDreGroups = useMemo(
+    () =>
+      groupByKeySorted(rows, (row) => row.service_order_code, (a, b) =>
+        a.dre_account_name.localeCompare(b.dre_account_name, "pt-BR")
+      ),
+    [rows]
   );
 
   return (
@@ -296,7 +305,7 @@ export default function DreDespesasMotoristaPage() {
             </p>
           ) : (
             <DataTableScroll stickyFirst>
-              <table className="min-w-full text-sm">
+              <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-slate-200 text-left text-slate-600">
                     <th className="px-3 py-2 font-medium">Data</th>
@@ -310,25 +319,47 @@ export default function DreDespesasMotoristaPage() {
                     <th className="px-3 py-2 font-medium">Valor</th>
                   </tr>
                 </thead>
-                <tbody>
-                  {rows.map((row) => (
-                    <tr key={row.id} className="border-b border-slate-100">
-                      <td className="px-3 py-2">{formatDate(row.transaction_date)}</td>
-                      <td className="px-3 py-2 font-medium">{row.dre_account_name}</td>
-                      <td className="px-3 py-2 font-medium">{row.service_order_code ?? "—"}</td>
-                      <td className="px-3 py-2">
-                        {row.driver_code && row.driver_name
-                          ? `${row.driver_code} — ${row.driver_name}`
-                          : "—"}
-                      </td>
-                      <td className="px-3 py-2">{row.pix_key ?? "—"}</td>
-                      <td className="px-3 py-2">{row.bank_code ?? "—"}</td>
-                      <td className="px-3 py-2">{row.bank_agency ?? "—"}</td>
-                      <td className="px-3 py-2">{row.bank_account ?? "—"}</td>
-                      <td className="px-3 py-2 font-medium">{formatCurrency(row.amount)}</td>
-                    </tr>
-                  ))}
-                </tbody>
+                {paidDreGroups.map((group) => (
+                  <tbody
+                    key={group.key}
+                    className={group.multi ? DATA_ROW_GROUP_CLASS : undefined}
+                  >
+                    {group.rows.map((row, index) => (
+                      <tr
+                        key={row.id}
+                        className={group.multi ? "align-top" : "border-b border-slate-100"}
+                      >
+                        <td className="px-3 py-2">
+                          {index === 0 || !group.multi
+                            ? formatDate(row.transaction_date)
+                            : ""}
+                        </td>
+                        <td className="px-3 py-2 font-medium">{row.dre_account_name}</td>
+                        <td className="px-3 py-2 font-medium">
+                          {index === 0 ? (
+                            row.service_order_code ?? "—"
+                          ) : group.multi ? (
+                            <span className="text-slate-300" aria-hidden>
+                              ↳
+                            </span>
+                          ) : (
+                            row.service_order_code ?? "—"
+                          )}
+                        </td>
+                        <td className="px-3 py-2">
+                          {row.driver_code && row.driver_name
+                            ? `${row.driver_code} — ${row.driver_name}`
+                            : "—"}
+                        </td>
+                        <td className="px-3 py-2">{row.pix_key ?? "—"}</td>
+                        <td className="px-3 py-2">{row.bank_code ?? "—"}</td>
+                        <td className="px-3 py-2">{row.bank_agency ?? "—"}</td>
+                        <td className="px-3 py-2">{row.bank_account ?? "—"}</td>
+                        <td className="px-3 py-2 font-medium">{formatCurrency(row.amount)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                ))}
               </table>
             </DataTableScroll>
           )}

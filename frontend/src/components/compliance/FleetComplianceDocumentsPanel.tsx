@@ -27,6 +27,7 @@ import {
   type ComplianceDocInput,
 } from "@/lib/compliance-documents-api";
 import { formatExpiryDateBR } from "@/lib/expiry-status";
+import { DATA_ROW_GROUP_CLASS, groupByKeySorted } from "@/lib/table-row-groups";
 import { glassFilterPanel } from "@/lib/liquid-glass-styles";
 import { createClient } from "@/lib/supabase/client";
 
@@ -136,6 +137,19 @@ export function FleetComplianceDocumentsPanel({
       return d.document_type?.is_active !== false;
     });
   }, [docs, plateFilter, typeFilter]);
+
+  const docGroups = useMemo(
+    () =>
+      groupByKeySorted(
+        filtered,
+        (doc) => doc.owner_id,
+        (a, b) => documentDisplayName(a.document_type).localeCompare(
+          documentDisplayName(b.document_type),
+          "pt-BR"
+        )
+      ),
+    [filtered]
+  );
 
   const openHistory = async (doc: ComplianceDocument) => {
     const root = doc.root_id ?? doc.id;
@@ -293,7 +307,7 @@ export function FleetComplianceDocumentsPanel({
 
       <div className={glassFilterPanel()}>
         <DataTableScroll stickyFirst stickyLast>
-          <table className="min-w-full text-left text-sm">
+          <table className="w-full text-left text-sm">
           <thead className="text-xs uppercase text-slate-500">
             <tr>
               <th className="px-2 py-2">Placa</th>
@@ -308,8 +322,8 @@ export function FleetComplianceDocumentsPanel({
               <th className="px-2 py-2" />
             </tr>
           </thead>
-          <tbody>
-            {filtered.length === 0 ? (
+          {docGroups.length === 0 ? (
+            <tbody>
               <tr>
                 <td colSpan={8} className="px-2 py-4 text-slate-500">
                   Nenhum documento ainda. Clique em &quot;Novo documento por placa&quot;,
@@ -317,83 +331,101 @@ export function FleetComplianceDocumentsPanel({
                   O ícone de clipe aparece na coluna Anexo depois que o documento for salvo.
                 </td>
               </tr>
-            ) : (
-              filtered.map((doc) => {
-                const view = resolveComplianceSituation(doc, doc.document_type);
-                const veh = vehicleById.get(doc.owner_id);
-                return (
-                  <tr key={doc.id} className="border-t border-slate-100">
-                    <td className="px-2 py-2 font-medium">
-                      {veh?.plate || "—"}
-                    </td>
-                    <td className="px-2 py-2 text-slate-700">
-                      {veh?.brandModel || "—"}
-                    </td>
-                    <td className="px-2 py-2">
-                      {documentDisplayName(doc.document_type)}
-                    </td>
-                    <td className="px-2 py-2">{doc.document_number || "—"}</td>
-                    <td className="px-2 py-2 whitespace-nowrap">
-                      {doc.no_expiry
-                        ? "Sem vencimento"
-                        : formatExpiryDateBR(doc.expires_at)}
-                    </td>
-                    <td className="px-2 py-2">
-                      <Badge variant={view.badge}>{view.label}</Badge>
-                    </td>
-                    <td className="px-2 py-2">
-                      <ComplianceDocumentClip
-                        companyId={companyId}
-                        documentId={doc.id}
-                        canUpload={canEdit}
-                        refreshKey={clipRefresh}
-                        onUploaded={() => setClipRefresh((k) => k + 1)}
-                      />
-                    </td>
-                    <td className="px-2 py-2">
-                      {canEdit ? (
-                        <div className="flex flex-wrap gap-1">
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            onClick={() =>
-                              setEditor({
-                                mode: "edit",
-                                doc,
-                                vehicleId: doc.owner_id,
-                              })
-                            }
-                          >
-                            Editar
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            onClick={() =>
-                              setEditor({
-                                mode: "renew",
-                                doc,
-                                vehicleId: doc.owner_id,
-                              })
-                            }
-                          >
-                            Renovar
-                          </Button>
-                        </div>
-                      ) : null}
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        onClick={() => void openHistory(doc)}
-                      >
-                        Histórico
-                      </Button>
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
+            </tbody>
+          ) : (
+            docGroups.map((group) => (
+              <tbody
+                key={group.key}
+                className={group.multi ? DATA_ROW_GROUP_CLASS : undefined}
+              >
+                {group.rows.map((doc, index) => {
+                  const view = resolveComplianceSituation(doc, doc.document_type);
+                  const veh = vehicleById.get(doc.owner_id);
+                  return (
+                    <tr
+                      key={doc.id}
+                      className={group.multi ? "align-top" : "border-t border-slate-100"}
+                    >
+                      <td className="px-2 py-2 font-medium">
+                        {index === 0 ? (
+                          veh?.plate || "—"
+                        ) : group.multi ? (
+                          <span className="text-slate-300" aria-hidden>
+                            ↳
+                          </span>
+                        ) : (
+                          veh?.plate || "—"
+                        )}
+                      </td>
+                      <td className="px-2 py-2 text-slate-700">
+                        {index === 0 || !group.multi ? veh?.brandModel || "—" : ""}
+                      </td>
+                      <td className="px-2 py-2">
+                        {documentDisplayName(doc.document_type)}
+                      </td>
+                      <td className="px-2 py-2">{doc.document_number || "—"}</td>
+                      <td className="px-2 py-2 whitespace-nowrap">
+                        {doc.no_expiry
+                          ? "Sem vencimento"
+                          : formatExpiryDateBR(doc.expires_at)}
+                      </td>
+                      <td className="px-2 py-2">
+                        <Badge variant={view.badge}>{view.label}</Badge>
+                      </td>
+                      <td className="px-2 py-2">
+                        <ComplianceDocumentClip
+                          companyId={companyId}
+                          documentId={doc.id}
+                          canUpload={canEdit}
+                          refreshKey={clipRefresh}
+                          onUploaded={() => setClipRefresh((k) => k + 1)}
+                        />
+                      </td>
+                      <td className="px-2 py-2">
+                        {canEdit ? (
+                          <div className="flex flex-wrap gap-1">
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              onClick={() =>
+                                setEditor({
+                                  mode: "edit",
+                                  doc,
+                                  vehicleId: doc.owner_id,
+                                })
+                              }
+                            >
+                              Editar
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              onClick={() =>
+                                setEditor({
+                                  mode: "renew",
+                                  doc,
+                                  vehicleId: doc.owner_id,
+                                })
+                              }
+                            >
+                              Renovar
+                            </Button>
+                          </div>
+                        ) : null}
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          onClick={() => void openHistory(doc)}
+                        >
+                          Histórico
+                        </Button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            ))
+          )}
         </table>
         </DataTableScroll>
       </div>

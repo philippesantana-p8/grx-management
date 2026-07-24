@@ -15,6 +15,7 @@ import {
 } from "@/lib/dre-os-rateio-api";
 import { glassAction, glassField, glassFilterPanel, glassStatCard } from "@/lib/liquid-glass-styles";
 import { createClient } from "@/lib/supabase/client";
+import { DATA_ROW_GROUP_CLASS, groupConsecutiveByKey } from "@/lib/table-row-groups";
 import { formatCurrency } from "@/lib/utils";
 
 function formatDate(value: string): string {
@@ -165,20 +166,10 @@ export default function DreRateioOsPage() {
   }, [rows]);
 
   /** Agrupa linhas por OS — retângulo quando há 2+ sócios. */
-  const detailGroups = useMemo(() => {
-    const groups: { orderId: string; rows: FlatShareRow[]; multiPartner: boolean }[] = [];
-    for (const row of flatRows) {
-      const orderId = row.order.serviceOrderId;
-      const last = groups[groups.length - 1];
-      if (last && last.orderId === orderId) {
-        last.rows.push(row);
-        last.multiPartner = last.rows.length > 1;
-      } else {
-        groups.push({ orderId, rows: [row], multiPartner: false });
-      }
-    }
-    return groups;
-  }, [flatRows]);
+  const detailGroups = useMemo(
+    () => groupConsecutiveByKey(flatRows, (row) => row.order.serviceOrderId),
+    [flatRows]
+  );
 
   if (!canView) {
     return (
@@ -365,16 +356,14 @@ export default function DreRateioOsPage() {
                 </thead>
                 {detailGroups.map((group) => (
                   <tbody
-                    key={group.orderId}
-                    className={group.multiPartner ? "rateio-os-group" : undefined}
+                    key={group.key}
+                    className={group.multi ? DATA_ROW_GROUP_CLASS : undefined}
                   >
                     {group.rows.map((row, index) => (
                       <tr
                         key={row.key}
                         className={
-                          group.multiPartner
-                            ? "align-top"
-                            : "border-b border-slate-100 align-top"
+                          group.multi ? "align-top" : "border-b border-slate-100 align-top"
                         }
                       >
                         <td className="px-1.5 py-1.5 font-medium text-slate-900">
