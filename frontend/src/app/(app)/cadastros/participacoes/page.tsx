@@ -6,12 +6,12 @@ import { Alert, Badge, Loading } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { DataTableScroll } from "@/components/ui/DataTableScroll";
+import { GroupedTableBodies } from "@/components/ui/GroupedTableBodies";
 import { DeleteReasonModal } from "@/components/ui/DeleteReasonModal";
 import { useAccess } from "@/lib/access-context";
 import { useCompany } from "@/lib/company-context";
 import { recordDeletion, summarizeDeletedRow } from "@/lib/deletion-audit";
 import { importOwnershipFromSpreadsheet, OWNERSHIP_SEED } from "@/lib/import-ownership";
-import { DATA_ROW_GROUP_CLASS } from "@/lib/table-row-groups";
 import { createClient } from "@/lib/supabase/client";
 import {
   fromDbOwnershipRow,
@@ -520,63 +520,66 @@ export default function ParticipacoesPage() {
                       <th className="px-4 py-3 font-medium text-slate-600">Ações</th>
                     </tr>
                   </thead>
-                  <tbody
-                    className={items.length > 1 ? DATA_ROW_GROUP_CLASS : undefined}
+                  <GroupedTableBodies
+                    groups={[{ key: "vehicle-partners", rows: items, multi: items.length > 1 }]}
+                    colSpan={6}
                   >
-                    {items.map((row) => (
-                      <tr
-                        key={row.id}
-                        className={
-                          items.length > 1
-                            ? "align-top"
-                            : "border-b border-slate-50 hover:bg-slate-50/50"
-                        }
-                      >
-                        <td className="px-4 py-3 text-slate-700">
-                          {partnerMap.get(row.partner_id) ?? "—"}
-                        </td>
-                        <td className="px-4 py-3 font-medium text-slate-700">
-                          {formatPercent(Number(row.ownership_percentage))}
-                        </td>
-                        <td className="px-4 py-3 text-slate-700">
-                          {formatDate(row.effective_date)}
-                        </td>
-                        <td className="px-4 py-3 text-slate-700">{formatDate(row.end_date)}</td>
-                        <td className="px-4 py-3">
-                          <Badge variant={row.status === "Ativo" ? "success" : "default"}>
-                            {row.status}
-                          </Badge>
-                        </td>
-                        <td className="px-4 py-3">
-                          {canEdit || canDelete ? (
-                          <div className="flex gap-2">
-                            {canEdit ? (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => { setEditing(row); setIsNew(false); setError(null); }}
-                            >
-                              Editar
-                            </Button>
-                            ) : null}
-                            {canEdit && row.status === "Ativo" ? (
-                              <Button variant="ghost" size="sm" onClick={() => handleClose(row.id)}>
-                                Encerrar
+                    {(group) =>
+                      group.rows.map((row) => (
+                        <tr
+                          key={row.id}
+                          className={
+                            group.multi
+                              ? "align-top"
+                              : "border-b border-slate-50 hover:bg-slate-50/50"
+                          }
+                        >
+                          <td className="px-4 py-3 text-slate-700">
+                            {partnerMap.get(row.partner_id) ?? "—"}
+                          </td>
+                          <td className="px-4 py-3 font-medium text-slate-700">
+                            {formatPercent(Number(row.ownership_percentage))}
+                          </td>
+                          <td className="px-4 py-3 text-slate-700">
+                            {formatDate(row.effective_date)}
+                          </td>
+                          <td className="px-4 py-3 text-slate-700">{formatDate(row.end_date)}</td>
+                          <td className="px-4 py-3">
+                            <Badge variant={row.status === "Ativo" ? "success" : "default"}>
+                              {row.status}
+                            </Badge>
+                          </td>
+                          <td className="px-4 py-3">
+                            {canEdit || canDelete ? (
+                            <div className="flex gap-2">
+                              {canEdit ? (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => { setEditing(row); setIsNew(false); setError(null); }}
+                              >
+                                Editar
                               </Button>
-                            ) : null}
-                            {canDelete ? (
-                            <Button variant="ghost" size="sm" onClick={() => requestDelete(row.id)}>
-                              Excluir
-                            </Button>
-                            ) : null}
-                          </div>
-                          ) : (
-                            <span className="text-xs text-slate-400">—</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
+                              ) : null}
+                              {canEdit && row.status === "Ativo" ? (
+                                <Button variant="ghost" size="sm" onClick={() => handleClose(row.id)}>
+                                  Encerrar
+                                </Button>
+                              ) : null}
+                              {canDelete ? (
+                              <Button variant="ghost" size="sm" onClick={() => requestDelete(row.id)}>
+                                Excluir
+                              </Button>
+                              ) : null}
+                            </div>
+                            ) : (
+                              <span className="text-xs text-slate-400">—</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))
+                    }
+                  </GroupedTableBodies>
                 </table>
                 </DataTableScroll>
               )}

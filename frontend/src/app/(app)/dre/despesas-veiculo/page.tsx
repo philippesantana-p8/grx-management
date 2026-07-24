@@ -23,7 +23,8 @@ import { assertCriticalDeleteGate } from "@/lib/deletion-gate";
 import { summarizeDeletedRow } from "@/lib/deletion-audit";
 import { isMasterSessionUnlocked } from "@/lib/master-password";
 import { glassAction, glassField, glassFilterPanel, glassStatCard } from "@/lib/liquid-glass-styles";
-import { DATA_ROW_GROUP_CLASS, groupByKeySorted } from "@/lib/table-row-groups";
+import { GroupedTableBodies } from "@/components/ui/GroupedTableBodies";
+import { groupByKeySorted } from "@/lib/table-row-groups";
 import { createClient } from "@/lib/supabase/client";
 import { formatCurrency } from "@/lib/utils";
 import {
@@ -515,12 +516,9 @@ export default function DreDespesasVeiculoPage() {
                     <th className="px-3 py-2 font-medium text-slate-600" />
                   </tr>
                 </thead>
-                {expenseGroups.map((group) => (
-                  <tbody
-                    key={group.key}
-                    className={group.multi ? DATA_ROW_GROUP_CLASS : undefined}
-                  >
-                    {group.rows.map((row, index) => (
+                <GroupedTableBodies groups={expenseGroups} colSpan={7}>
+                  {(group) =>
+                    group.rows.map((row, index) => (
                       <tr
                         key={row.id}
                         className={group.multi ? "align-top" : "border-b border-slate-50"}
@@ -577,9 +575,9 @@ export default function DreDespesasVeiculoPage() {
                           ) : null}
                         </td>
                       </tr>
-                    ))}
-                  </tbody>
-                ))}
+                    ))
+                  }
+                </GroupedTableBodies>
               </table>
             </DataTableScroll>
           )}

@@ -201,9 +201,12 @@ export function VehicleScheduleBoard({
                         <div
                           className={cn(
                             "min-h-[5.5rem] w-full max-w-full overflow-hidden rounded-lg border p-1.5 text-left transition",
+                            cellSegments.length > 1 && "schedule-day-board",
                             isSelected
                               ? "border-brand-400 bg-brand-50/60 ring-2 ring-brand-200"
-                              : "border-slate-200/80 bg-slate-50/40 hover:border-brand-200 hover:bg-white"
+                              : cellSegments.length > 1
+                                ? "bg-slate-50/60 hover:bg-white"
+                                : "border-slate-200/80 bg-slate-50/40 hover:border-brand-200 hover:bg-white"
                           )}
                         >
                           {cellSegments.length === 0 ? (
@@ -322,7 +325,12 @@ export function VehicleScheduleBoard({
               {blockingSegments.length === 0 ? (
                 <p className="mt-2 text-sm text-slate-500">Nenhuma OS aberta/agendada neste dia.</p>
               ) : (
-                <ul className="mt-2 space-y-2">
+                <ul
+                  className={cn(
+                    "mt-2 space-y-2",
+                    blockingSegments.length > 1 && "schedule-day-board rounded-lg p-2"
+                  )}
+                >
                   {blockingSegments.map((seg) => (
                     <li key={seg.orderId}>
                       <SegmentCard seg={seg} />
@@ -370,7 +378,12 @@ export function VehicleScheduleBoard({
               <p className="mt-1 text-xs text-slate-600">
                 Frete já finalizado — consulta de quando a placa rodou. Clique para abrir a OS.
               </p>
-              <ul className="mt-2 space-y-2">
+              <ul
+                className={cn(
+                  "mt-2 space-y-2",
+                  historicalSegments.length > 1 && "schedule-day-board rounded-lg p-2"
+                )}
+              >
                 {historicalSegments.map((seg) => (
                   <li key={seg.orderId}>
                     <SegmentCard seg={seg} />

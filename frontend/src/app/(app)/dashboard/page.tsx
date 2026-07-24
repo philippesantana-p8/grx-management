@@ -34,7 +34,8 @@ import { resolveComplianceSituation } from "@/lib/compliance-documents";
 import { glassAction, glassField, glassFilterPanel } from "@/lib/liquid-glass-styles";
 import { isMasterSessionUnlocked } from "@/lib/master-password";
 import { createClient } from "@/lib/supabase/client";
-import { DATA_ROW_GROUP_CLASS, groupByKeySorted } from "@/lib/table-row-groups";
+import { GroupedTableBodies } from "@/components/ui/GroupedTableBodies";
+import { groupByKeySorted } from "@/lib/table-row-groups";
 import { formatCurrency } from "@/lib/utils";
 
 const PERIOD_OPTIONS: { value: DashboardPeriodKey; label: string }[] = [
@@ -152,12 +153,9 @@ function OwnershipBlock({
               </tr>
             </tbody>
           ) : (
-            participationGroups.map((group) => (
-              <tbody
-                key={group.key}
-                className={group.multi ? DATA_ROW_GROUP_CLASS : undefined}
-              >
-                {group.rows.map((row, index) => (
+            <GroupedTableBodies groups={participationGroups} colSpan={6}>
+              {(group) =>
+                group.rows.map((row, index) => (
                   <tr
                     key={`${row.partnerId}-${row.vehicleId}`}
                     className={group.multi ? "align-top" : "border-t border-slate-100"}
@@ -190,9 +188,9 @@ function OwnershipBlock({
                     <td className="px-2 py-2">{formatCurrency(row.expense)}</td>
                     <td className="px-2 py-2 font-medium">{formatCurrency(row.result)}</td>
                   </tr>
-                ))}
-              </tbody>
-            ))
+                ))
+              }
+            </GroupedTableBodies>
           )}
         </table>
       </DataTableScroll>

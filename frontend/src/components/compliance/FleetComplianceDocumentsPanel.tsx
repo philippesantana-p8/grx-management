@@ -27,7 +27,8 @@ import {
   type ComplianceDocInput,
 } from "@/lib/compliance-documents-api";
 import { formatExpiryDateBR } from "@/lib/expiry-status";
-import { DATA_ROW_GROUP_CLASS, groupByKeySorted } from "@/lib/table-row-groups";
+import { GroupedTableBodies } from "@/components/ui/GroupedTableBodies";
+import { groupByKeySorted } from "@/lib/table-row-groups";
 import { glassFilterPanel } from "@/lib/liquid-glass-styles";
 import { createClient } from "@/lib/supabase/client";
 
@@ -333,12 +334,9 @@ export function FleetComplianceDocumentsPanel({
               </tr>
             </tbody>
           ) : (
-            docGroups.map((group) => (
-              <tbody
-                key={group.key}
-                className={group.multi ? DATA_ROW_GROUP_CLASS : undefined}
-              >
-                {group.rows.map((doc, index) => {
+            <GroupedTableBodies groups={docGroups} colSpan={8}>
+              {(group) =>
+                group.rows.map((doc, index) => {
                   const view = resolveComplianceSituation(doc, doc.document_type);
                   const veh = vehicleById.get(doc.owner_id);
                   return (
@@ -422,9 +420,9 @@ export function FleetComplianceDocumentsPanel({
                       </td>
                     </tr>
                   );
-                })}
-              </tbody>
-            ))
+                })
+              }
+            </GroupedTableBodies>
           )}
         </table>
         </DataTableScroll>

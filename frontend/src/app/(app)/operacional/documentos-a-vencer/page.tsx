@@ -19,7 +19,8 @@ import {
   seedDefaultDocumentTypes,
 } from "@/lib/compliance-documents-api";
 import { formatExpiryDateBR } from "@/lib/expiry-status";
-import { DATA_ROW_GROUP_CLASS, groupByKeySorted } from "@/lib/table-row-groups";
+import { GroupedTableBodies } from "@/components/ui/GroupedTableBodies";
+import { groupByKeySorted } from "@/lib/table-row-groups";
 import { glassAction, glassFilterPanel, glassTabLink, glassTabsNav } from "@/lib/liquid-glass-styles";
 import { createClient } from "@/lib/supabase/client";
 
@@ -252,12 +253,9 @@ export default function DocumentosAVencerOperacionalPage() {
                   </tr>
                 </tbody>
               ) : (
-                docGroups.map((group) => (
-                  <tbody
-                    key={group.key}
-                    className={group.multi ? DATA_ROW_GROUP_CLASS : undefined}
-                  >
-                    {group.rows.map((doc, index) => {
+                <GroupedTableBodies groups={docGroups} colSpan={6}>
+                  {(group) =>
+                    group.rows.map((doc, index) => {
                       const view = resolveComplianceSituation(doc, doc.document_type);
                       const veh =
                         doc.owner_type === "vehicle" ? vehicles.get(doc.owner_id) : null;
@@ -304,9 +302,9 @@ export default function DocumentosAVencerOperacionalPage() {
                           </td>
                         </tr>
                       );
-                    })}
-                  </tbody>
-                ))
+                    })
+                  }
+                </GroupedTableBodies>
               )}
             </table>
             </DataTableScroll>

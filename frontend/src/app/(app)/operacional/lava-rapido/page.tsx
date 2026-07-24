@@ -5,11 +5,13 @@ import Link from "next/link";
 import { Alert, Badge, Loading } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { DataTableScroll } from "@/components/ui/DataTableScroll";
+import { GroupedTableBodies } from "@/components/ui/GroupedTableBodies";
 import { GlassSelect } from "@/components/ui/GlassSelect";
 import { useAccess } from "@/lib/access-context";
 import { useCompany } from "@/lib/company-context";
 import { nextCode } from "@/lib/codes";
 import { glassField, glassFilterPanel } from "@/lib/liquid-glass-styles";
+import { groupByKeySorted } from "@/lib/table-row-groups";
 import {
   allowsWash,
   CAR_WASH_SERVICE_NAMES,
@@ -222,6 +224,14 @@ export default function LavaRapidoPage() {
     await load();
   };
 
+  const plateGroups = useMemo(
+    () =>
+      groupByKeySorted(rows, (row) => (row.plate || "").trim().toUpperCase() || row.id, (a, b) =>
+        String(b.service_date || "").localeCompare(String(a.service_date || ""))
+      ),
+    [rows]
+  );
+
   if (!companyId) return <Loading />;
 
   return (
@@ -340,58 +350,68 @@ export default function LavaRapidoPage() {
               <th className="px-3 py-2" />
             </tr>
           </thead>
-          <tbody>
-            {rows.map((row) => (
-              <tr key={row.id} className="border-t border-slate-100">
-                <td className="px-3 py-2 font-medium">{row.code}</td>
-                <td className="px-3 py-2">{formatDateBR(row.service_date)}</td>
-                <td className="px-3 py-2">{row.plate}</td>
-                <td className="px-3 py-2">{row.vehicle_type ?? "—"}</td>
-                <td className="px-3 py-2">{row.service_name}</td>
-                <td className="px-3 py-2">
-                  {row.service_amount != null ? formatCurrency(Number(row.service_amount)) : "—"}
-                </td>
-                <td className="px-3 py-2">
-                  {companyId ? (
-                    <PatioPaymentProofClip
-                      companyId={companyId}
-                      entityType="car_wash_service"
-                      entityId={row.id}
-                      code={row.code}
-                      canUpload={canEdit}
-                    />
-                  ) : null}
-                </td>
-                <td className="px-3 py-2">
-                  <Badge
-                    variant={
-                      row.status === "Concluido"
-                        ? "success"
-                        : row.status === "Cancelado"
-                          ? "danger"
-                          : "warning"
-                    }
-                  >
-                    {row.status}
-                  </Badge>
-                </td>
-                <td className="px-3 py-2">
-                  {row.status === "Aberto" && canEdit ? (
-                    <Button type="button" disabled={saving} onClick={() => void completeService(row)}>
-                      Concluir
-                    </Button>
-                  ) : null}
-                </td>
-              </tr>
-            ))}
-            {rows.length === 0 && !loading ? (
+          <GroupedTableBodies groups={plateGroups} colSpan={9}>
+            {(group) =>
+              group.rows.map((row, index) => (
+                <tr key={row.id} className={group.multi ? "align-top" : "border-t border-slate-100"}>
+                  <td className="px-3 py-2 font-medium">{row.code}</td>
+                  <td className="px-3 py-2">{formatDateBR(row.service_date)}</td>
+                  <td className="px-3 py-2 font-medium text-slate-900">
+                    {index === 0 || !group.multi ? row.plate : (
+                      <span className="text-slate-300" aria-hidden>
+                        ↳
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-3 py-2">{row.vehicle_type ?? "—"}</td>
+                  <td className="px-3 py-2">{row.service_name}</td>
+                  <td className="px-3 py-2">
+                    {row.service_amount != null ? formatCurrency(Number(row.service_amount)) : "—"}
+                  </td>
+                  <td className="px-3 py-2">
+                    {companyId ? (
+                      <PatioPaymentProofClip
+                        companyId={companyId}
+                        entityType="car_wash_service"
+                        entityId={row.id}
+                        code={row.code}
+                        canUpload={canEdit}
+                      />
+                    ) : null}
+                  </td>
+                  <td className="px-3 py-2">
+                    <Badge
+                      variant={
+                        row.status === "Concluido"
+                          ? "success"
+                          : row.status === "Cancelado"
+                            ? "danger"
+                            : "warning"
+                      }
+                    >
+                      {row.status}
+                    </Badge>
+                  </td>
+                  <td className="px-3 py-2">
+                    {row.status === "Aberto" && canEdit ? (
+                      <Button type="button" disabled={saving} onClick={() => void completeService(row)}>
+                        Concluir
+                      </Button>
+                    ) : null}
+                  </td>
+                </tr>
+              ))
+            }
+          </GroupedTableBodies>
+          {rows.length === 0 && !loading ? (
+            <tbody>
               <tr>
                 <td colSpan={9} className="px-3 py-6 text-center text-slate-500">
                   Nenhuma ordem ainda.
                 </td>
               </tr>
-            ) : null}
-          </tbody>
+            </tbody>
+          ) : null}
         </table>
       </DataTableScroll>
     </div>

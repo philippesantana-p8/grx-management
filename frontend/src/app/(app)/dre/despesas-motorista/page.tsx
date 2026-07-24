@@ -16,7 +16,8 @@ import { companyLedgerDriverExpenseHref } from "@/lib/legacy-driver-expense";
 import { useAccess } from "@/lib/access-context";
 import { useCompany } from "@/lib/company-context";
 import { createClient } from "@/lib/supabase/client";
-import { DATA_ROW_GROUP_CLASS, groupByKeySorted } from "@/lib/table-row-groups";
+import { GroupedTableBodies } from "@/components/ui/GroupedTableBodies";
+import { groupByKeySorted } from "@/lib/table-row-groups";
 import { formatCurrency } from "@/lib/utils";
 import { glassAction, glassField, glassFilterPanel, glassStatCard } from "@/lib/liquid-glass-styles";
 
@@ -319,12 +320,9 @@ export default function DreDespesasMotoristaPage() {
                     <th className="px-3 py-2 font-medium">Valor</th>
                   </tr>
                 </thead>
-                {paidDreGroups.map((group) => (
-                  <tbody
-                    key={group.key}
-                    className={group.multi ? DATA_ROW_GROUP_CLASS : undefined}
-                  >
-                    {group.rows.map((row, index) => (
+                <GroupedTableBodies groups={paidDreGroups} colSpan={9}>
+                  {(group) =>
+                    group.rows.map((row, index) => (
                       <tr
                         key={row.id}
                         className={group.multi ? "align-top" : "border-b border-slate-100"}
@@ -357,9 +355,9 @@ export default function DreDespesasMotoristaPage() {
                         <td className="px-3 py-2">{row.bank_account ?? "—"}</td>
                         <td className="px-3 py-2 font-medium">{formatCurrency(row.amount)}</td>
                       </tr>
-                    ))}
-                  </tbody>
-                ))}
+                    ))
+                  }
+                </GroupedTableBodies>
               </table>
             </DataTableScroll>
           )}

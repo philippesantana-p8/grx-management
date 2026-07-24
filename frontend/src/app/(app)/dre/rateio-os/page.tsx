@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, Loading } from "@/components/ui/Badge";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { DataTableScroll } from "@/components/ui/DataTableScroll";
+import { GroupedTableBodies } from "@/components/ui/GroupedTableBodies";
 import { GlassSelect } from "@/components/ui/GlassSelect";
 import { useAccess } from "@/lib/access-context";
 import { useCompany } from "@/lib/company-context";
@@ -15,11 +16,7 @@ import {
 } from "@/lib/dre-os-rateio-api";
 import { glassAction, glassField, glassFilterPanel, glassStatCard } from "@/lib/liquid-glass-styles";
 import { createClient } from "@/lib/supabase/client";
-import {
-  DATA_ROW_GROUP_CLASS,
-  DATA_ROW_GROUP_GAP_CLASS,
-  groupConsecutiveByKey,
-} from "@/lib/table-row-groups";
+import { groupConsecutiveByKey } from "@/lib/table-row-groups";
 import { formatCurrency } from "@/lib/utils";
 
 function formatDate(value: string): string {
@@ -359,81 +356,72 @@ export default function DreRateioOsPage() {
                     </th>
                   </tr>
                 </thead>
-                {detailGroups.map((group, groupIndex) => (
-                  <Fragment key={group.key}>
-                    {groupIndex > 0 ? (
-                      <tbody className={DATA_ROW_GROUP_GAP_CLASS} aria-hidden>
-                        <tr>
-                          <td colSpan={11} />
-                        </tr>
-                      </tbody>
-                    ) : null}
-                    <tbody className={DATA_ROW_GROUP_CLASS}>
-                      {group.rows.map((row, index) => (
-                        <tr key={row.key} className="align-top">
-                          <td className="px-1.5 py-1.5 font-medium text-slate-900">
-                            {index === 0 ? (
-                              <>
-                                <div className="truncate tabular-nums">{row.order.code || "—"}</div>
-                                {row.order.warnings.length ? (
-                                  <p
-                                    className="data-row-warn mt-0.5 text-[10px] leading-snug text-amber-700"
-                                    title={row.order.warnings.join(" ")}
-                                  >
-                                    {row.order.warnings.join(" ")}
-                                  </p>
-                                ) : null}
-                              </>
-                            ) : (
-                              <span className="text-slate-300" aria-hidden>
-                                ↳
-                              </span>
-                            )}
-                          </td>
-                          <td className="whitespace-nowrap px-1.5 py-1.5 text-slate-700">
-                            {index === 0 ? formatDate(row.order.serviceDate) : ""}
-                          </td>
-                          <td
-                            className="truncate px-1.5 py-1.5 font-medium text-slate-900"
-                            title={row.order.plate || undefined}
-                          >
-                            {index === 0 ? row.order.plate || "—" : ""}
-                          </td>
-                          <td
-                            className="truncate px-1.5 py-1.5 text-slate-600"
-                            title={row.order.clientName || undefined}
-                          >
-                            {index === 0 ? row.order.clientName || "—" : ""}
-                          </td>
-                          <td className="whitespace-nowrap px-1.5 py-1.5 tabular-nums text-emerald-800">
-                            {index === 0 ? formatCurrency(row.order.revenue) : ""}
-                          </td>
-                          <td className="whitespace-nowrap px-1.5 py-1.5 tabular-nums text-amber-800">
-                            {index === 0 ? formatCurrency(row.order.expense) : ""}
-                          </td>
-                          <td
-                            className="truncate px-1.5 py-1.5 text-slate-800"
-                            title={row.partnerName}
-                          >
-                            {row.partnerName}
-                          </td>
-                          <td className="whitespace-nowrap px-1.5 py-1.5 tabular-nums text-slate-700">
-                            {row.partnerId ? `${row.ownershipPct.toFixed(0)}%` : "—"}
-                          </td>
-                          <td className="whitespace-nowrap px-1.5 py-1.5 font-medium tabular-nums text-emerald-900">
-                            {formatCurrency(row.revenueShare)}
-                          </td>
-                          <td className="whitespace-nowrap px-1.5 py-1.5 tabular-nums text-amber-900">
-                            {formatCurrency(row.expenseShare)}
-                          </td>
-                          <td className="whitespace-nowrap px-1.5 py-1.5 font-medium tabular-nums text-slate-900">
-                            {formatCurrency(row.resultShare)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </Fragment>
-                ))}
+                <GroupedTableBodies groups={detailGroups} colSpan={11} frame="always">
+                  {(group) =>
+                    group.rows.map((row, index) => (
+                      <tr key={row.key} className="align-top">
+                        <td className="px-1.5 py-1.5 font-medium text-slate-900">
+                          {index === 0 ? (
+                            <>
+                              <div className="truncate tabular-nums">{row.order.code || "—"}</div>
+                              {row.order.warnings.length ? (
+                                <p
+                                  className="data-row-warn mt-0.5 text-[10px] leading-snug text-amber-700"
+                                  title={row.order.warnings.join(" ")}
+                                >
+                                  {row.order.warnings.join(" ")}
+                                </p>
+                              ) : null}
+                            </>
+                          ) : (
+                            <span className="text-slate-300" aria-hidden>
+                              ↳
+                            </span>
+                          )}
+                        </td>
+                        <td className="whitespace-nowrap px-1.5 py-1.5 text-slate-700">
+                          {index === 0 ? formatDate(row.order.serviceDate) : ""}
+                        </td>
+                        <td
+                          className="truncate px-1.5 py-1.5 font-medium text-slate-900"
+                          title={row.order.plate || undefined}
+                        >
+                          {index === 0 ? row.order.plate || "—" : ""}
+                        </td>
+                        <td
+                          className="truncate px-1.5 py-1.5 text-slate-600"
+                          title={row.order.clientName || undefined}
+                        >
+                          {index === 0 ? row.order.clientName || "—" : ""}
+                        </td>
+                        <td className="whitespace-nowrap px-1.5 py-1.5 tabular-nums text-emerald-800">
+                          {index === 0 ? formatCurrency(row.order.revenue) : ""}
+                        </td>
+                        <td className="whitespace-nowrap px-1.5 py-1.5 tabular-nums text-amber-800">
+                          {index === 0 ? formatCurrency(row.order.expense) : ""}
+                        </td>
+                        <td
+                          className="truncate px-1.5 py-1.5 text-slate-800"
+                          title={row.partnerName}
+                        >
+                          {row.partnerName}
+                        </td>
+                        <td className="whitespace-nowrap px-1.5 py-1.5 tabular-nums text-slate-700">
+                          {row.partnerId ? `${row.ownershipPct.toFixed(0)}%` : "—"}
+                        </td>
+                        <td className="whitespace-nowrap px-1.5 py-1.5 font-medium tabular-nums text-emerald-900">
+                          {formatCurrency(row.revenueShare)}
+                        </td>
+                        <td className="whitespace-nowrap px-1.5 py-1.5 tabular-nums text-amber-900">
+                          {formatCurrency(row.expenseShare)}
+                        </td>
+                        <td className="whitespace-nowrap px-1.5 py-1.5 font-medium tabular-nums text-slate-900">
+                          {formatCurrency(row.resultShare)}
+                        </td>
+                      </tr>
+                    ))
+                  }
+                </GroupedTableBodies>
               </table>
             </DataTableScroll>
           )}

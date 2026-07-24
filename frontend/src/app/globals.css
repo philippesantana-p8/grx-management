@@ -1547,6 +1547,15 @@ tbody.rateio-os-group + tbody.data-row-group > tr:first-child > td {
   backdrop-filter: blur(6px);
 }
 
+/**
+ * Agenda da Frota: célula/dia com 2+ OS = mesmo quadro azul (board).
+ */
+.schedule-day-board {
+  border: 2px solid #93c5fd !important;
+  background-color: #f8fafc;
+  box-shadow: none;
+}
+
 @supports (padding: max(0px)) {
   .app-main-scroll {
     padding-bottom: max(1rem, env(safe-area-inset-bottom));

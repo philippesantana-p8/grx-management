@@ -6,6 +6,7 @@ import { Alert, Loading } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { DataTableScroll } from "@/components/ui/DataTableScroll";
+import { GroupedTableBodies } from "@/components/ui/GroupedTableBodies";
 import { DeleteReasonModal } from "@/components/ui/DeleteReasonModal";
 import { GlassSelect } from "@/components/ui/GlassSelect";
 import { useAccess } from "@/lib/access-context";
@@ -25,6 +26,7 @@ import {
 import { isMasterSessionUnlocked } from "@/lib/master-password";
 import { glassField, glassFilterPanel } from "@/lib/liquid-glass-styles";
 import { createClient } from "@/lib/supabase/client";
+import { groupByKeySorted } from "@/lib/table-row-groups";
 import { formatCurrency } from "@/lib/utils";
 
 function formatDate(value: string): string {
@@ -101,6 +103,11 @@ export default function DreAprovacoesPage() {
     }
     void load();
   }, [accessLoading, isAdmin, load]);
+
+  const pendingGroups = useMemo(
+    () => groupByKeySorted(rows, (r) => (r.plate || "").trim() || r.id),
+    [rows]
+  );
 
   if (accessLoading || !companyId) return <Loading />;
 
@@ -245,129 +252,144 @@ export default function DreAprovacoesPage() {
               <th className="whitespace-nowrap px-2 py-2 text-center">Ações</th>
             </tr>
           </thead>
-          <tbody>
-            {rows.map((row) => (
-              <tr key={row.id} className="border-t border-slate-100 align-middle">
-                <td
-                  className="whitespace-nowrap px-2 py-2 text-center font-medium text-slate-900"
-                  title={
-                    row.submitted_at
-                      ? `Enviado ${formatSubmittedAt(row.submitted_at)}`
-                      : undefined
-                  }
+          <GroupedTableBodies groups={pendingGroups} colSpan={8}>
+            {(group) =>
+              group.rows.map((row, index) => (
+                <tr
+                  key={row.id}
+                  className={group.multi ? "align-top" : "border-t border-slate-100 align-middle"}
                 >
-                  {formatDate(row.transaction_date)}
-                </td>
-                <td
-                  className="max-w-[7rem] truncate px-2 py-2 text-center text-slate-700"
-                  title={row.submitted_by_name || undefined}
-                >
-                  {row.submitted_by_name || (
-                    <span className="text-slate-400">{row.submitted_by ? "—" : "—"}</span>
-                  )}
-                </td>
-                <td className="whitespace-nowrap px-2 py-2 text-center text-slate-600">
-                  {entrySourceLabel(row.entry_source)}
-                </td>
-                <td className="px-2 py-2 text-center">
-                  <div
-                    className="font-semibold leading-snug text-slate-900"
+                  <td
+                    className="whitespace-nowrap px-2 py-2 text-center font-medium text-slate-900"
                     title={
-                      [row.dre_account_name, row.classification, row.transaction_type]
-                        .filter(Boolean)
-                        .join(" · ") || undefined
+                      row.submitted_at
+                        ? `Enviado ${formatSubmittedAt(row.submitted_at)}`
+                        : undefined
                     }
                   >
-                    {row.dre_account_name || (
-                      <span className="font-normal text-amber-700">Sem conta</span>
+                    {formatDate(row.transaction_date)}
+                  </td>
+                  <td
+                    className="max-w-[7rem] truncate px-2 py-2 text-center text-slate-700"
+                    title={row.submitted_by_name || undefined}
+                  >
+                    {row.submitted_by_name || (
+                      <span className="text-slate-400">{row.submitted_by ? "—" : "—"}</span>
                     )}
-                  </div>
-                </td>
-                <td className="whitespace-nowrap px-2 py-2 text-center text-slate-700">
-                  {row.plate || <span className="text-slate-400">—</span>}
-                </td>
-                <td
-                  className="max-w-[10rem] truncate px-2 py-2 text-center text-slate-700"
-                  title={row.description || undefined}
-                >
-                  {row.description || "—"}
-                </td>
-                <td className="whitespace-nowrap px-2 py-2 text-center font-medium text-slate-900">
-                  {formatCurrency(row.amount)}
-                </td>
-                <td className="px-2 py-2 text-center">
-                  <div className="inline-flex flex-nowrap items-center justify-center gap-1.5">
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="moss"
-                      className="shrink-0 !px-2.5 !py-1 text-xs"
-                      disabled={busyId === row.id}
-                      onClick={() => {
-                        void (async () => {
-                          setBusyId(row.id);
+                  </td>
+                  <td className="whitespace-nowrap px-2 py-2 text-center text-slate-600">
+                    {entrySourceLabel(row.entry_source)}
+                  </td>
+                  <td className="px-2 py-2 text-center">
+                    <div
+                      className="font-semibold leading-snug text-slate-900"
+                      title={
+                        [row.dre_account_name, row.classification, row.transaction_type]
+                          .filter(Boolean)
+                          .join(" · ") || undefined
+                      }
+                    >
+                      {row.dre_account_name || (
+                        <span className="font-normal text-amber-700">Sem conta</span>
+                      )}
+                    </div>
+                  </td>
+                  <td className="whitespace-nowrap px-2 py-2 text-center text-slate-700">
+                    {index === 0 ? (
+                      row.plate || <span className="text-slate-400">—</span>
+                    ) : group.multi ? (
+                      <span className="text-slate-300" aria-hidden>
+                        ↳
+                      </span>
+                    ) : (
+                      row.plate || <span className="text-slate-400">—</span>
+                    )}
+                  </td>
+                  <td
+                    className="max-w-[10rem] truncate px-2 py-2 text-center text-slate-700"
+                    title={row.description || undefined}
+                  >
+                    {row.description || "—"}
+                  </td>
+                  <td className="whitespace-nowrap px-2 py-2 text-center font-medium text-slate-900">
+                    {formatCurrency(row.amount)}
+                  </td>
+                  <td className="px-2 py-2 text-center">
+                    <div className="inline-flex flex-nowrap items-center justify-center gap-1.5">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="moss"
+                        className="shrink-0 !px-2.5 !py-1 text-xs"
+                        disabled={busyId === row.id}
+                        onClick={() => {
+                          void (async () => {
+                            setBusyId(row.id);
+                            setError(null);
+                            setMsg(null);
+                            const result = await approveFinancialTransaction({
+                              supabase,
+                              companyId,
+                              transactionId: row.id,
+                              isAdmin,
+                              masterPassword: needMaster ? masterPassword : undefined,
+                            });
+                            setBusyId(null);
+                            if (result.error) {
+                              setError(result.error);
+                              return;
+                            }
+                            setMsg("Lançamento aprovado. Passa a contar no DRE/dashboard.");
+                            await load();
+                          })();
+                        }}
+                      >
+                        Aprovar
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="danger"
+                        className="shrink-0 !px-2.5 !py-1 text-xs"
+                        disabled={busyId === row.id || deleting}
+                        onClick={() => {
+                          setRejectId(row.id);
+                          setRejectNote("");
+                        }}
+                      >
+                        Rejeitar
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ink"
+                        className="shrink-0 !px-2.5 !py-1 text-xs"
+                        disabled={busyId === row.id || deleting}
+                        onClick={() => {
                           setError(null);
                           setMsg(null);
-                          const result = await approveFinancialTransaction({
-                            supabase,
-                            companyId,
-                            transactionId: row.id,
-                            isAdmin,
-                            masterPassword: needMaster ? masterPassword : undefined,
-                          });
-                          setBusyId(null);
-                          if (result.error) {
-                            setError(result.error);
-                            return;
-                          }
-                          setMsg("Lançamento aprovado. Passa a contar no DRE/dashboard.");
-                          await load();
-                        })();
-                      }}
-                    >
-                      Aprovar
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="danger"
-                      className="shrink-0 !px-2.5 !py-1 text-xs"
-                      disabled={busyId === row.id || deleting}
-                      onClick={() => {
-                        setRejectId(row.id);
-                        setRejectNote("");
-                      }}
-                    >
-                      Rejeitar
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="ink"
-                      className="shrink-0 !px-2.5 !py-1 text-xs"
-                      disabled={busyId === row.id || deleting}
-                      onClick={() => {
-                        setError(null);
-                        setMsg(null);
-                        setPendingDeleteId(row.id);
-                      }}
-                      title="Remove o lançamento e registra no Histórico de Exclusões"
-                    >
-                      Excluir
-                    </Button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-            {!loading && rows.length === 0 ? (
+                          setPendingDeleteId(row.id);
+                        }}
+                        title="Remove o lançamento e registra no Histórico de Exclusões"
+                      >
+                        Excluir
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
+              ))
+            }
+          </GroupedTableBodies>
+          {!loading && rows.length === 0 ? (
+            <tbody>
               <tr>
                 <td colSpan={8} className="px-3 py-8 text-center text-slate-500">
                   Nenhum lançamento pendente. Se acabou de aplicar o SQL 056, novos manuais
                   aparecerão aqui.
                 </td>
               </tr>
-            ) : null}
-          </tbody>
+            </tbody>
+          ) : null}
         </table>
       </DataTableScroll>
 

@@ -5,10 +5,12 @@ import Link from "next/link";
 import { Alert, Badge, Loading } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { DataTableScroll } from "@/components/ui/DataTableScroll";
+import { GroupedTableBodies } from "@/components/ui/GroupedTableBodies";
 import { GlassSelect } from "@/components/ui/GlassSelect";
 import { useAccess } from "@/lib/access-context";
 import { useCompany } from "@/lib/company-context";
 import { glassField, glassFilterPanel } from "@/lib/liquid-glass-styles";
+import { groupByKeySorted } from "@/lib/table-row-groups";
 import {
   allowsParking,
   PARKING_BILLING_MODES,
@@ -232,6 +234,14 @@ export default function EstacionamentoPage() {
     await load();
   };
 
+  const plateGroups = useMemo(
+    () =>
+      groupByKeySorted(rows, (row) => (row.plate || "").trim().toUpperCase() || row.id, (a, b) =>
+        String(b.entry_date || "").localeCompare(String(a.entry_date || ""))
+      ),
+    [rows]
+  );
+
   if (!companyId) return <Loading />;
 
   return (
@@ -362,113 +372,123 @@ export default function EstacionamentoPage() {
               <th className="px-3 py-2">Status</th>
             </tr>
           </thead>
-          <tbody>
-            {rows.map((row) => {
-              const draft = exitDraft[row.id] ?? {
-                date: new Date().toISOString().slice(0, 10),
-                time: new Date().toTimeString().slice(0, 5),
-              };
-              return (
-                <tr key={row.id} className="border-t border-slate-100">
-                  <td className="px-3 py-2 font-medium">{row.code}</td>
-                  <td className="px-3 py-2">{row.plate}</td>
-                  <td className="px-3 py-2">{row.vehicle_type ?? "—"}</td>
-                  <td className="px-3 py-2">
-                    {formatDateTimeBR(row.entry_date, row.entry_time)}
-                    <div className="text-xs text-slate-500">{row.billing_mode ?? "Diária"}</div>
-                  </td>
-                  <td className="px-3 py-2">
-                    {row.status === "Aberto" && canEdit ? (
-                      <div className="flex flex-wrap items-end gap-2">
-                        <input
-                          type="date"
-                          className={`${glassField(true)} w-auto`}
-                          value={draft.date}
-                          onChange={(e) =>
-                            setExitDraft((d) => ({
-                              ...d,
-                              [row.id]: { ...draft, date: e.target.value },
-                            }))
-                          }
-                        />
-                        <input
-                          type="time"
-                          className={`${glassField(false)} w-auto`}
-                          value={draft.time}
-                          onChange={(e) =>
-                            setExitDraft((d) => ({
-                              ...d,
-                              [row.id]: { ...draft, time: e.target.value },
-                            }))
-                          }
-                        />
-                        <Button
-                          type="button"
-                          disabled={saving}
-                          onClick={() => void closeEntry(row)}
-                        >
-                          Finalizar
-                        </Button>
-                      </div>
-                    ) : row.status === "Aberto" ? (
-                      <span className="text-slate-500">Aberto</span>
-                    ) : (
-                      <span>{formatDateTimeBR(row.exit_date, row.exit_time)}</span>
-                    )}
-                  </td>
-                  <td className="px-3 py-2">
-                    {row.daily_rate != null ? (
-                      <>
-                        {formatCurrency(Number(row.daily_rate))}
-                        <div className="text-xs text-slate-500">
-                          {rateUnitLabel(row.billing_mode)}
+          <GroupedTableBodies groups={plateGroups} colSpan={9}>
+            {(group) =>
+              group.rows.map((row, index) => {
+                const draft = exitDraft[row.id] ?? {
+                  date: new Date().toISOString().slice(0, 10),
+                  time: new Date().toTimeString().slice(0, 5),
+                };
+                return (
+                  <tr key={row.id} className={group.multi ? "align-top" : "border-t border-slate-100"}>
+                    <td className="px-3 py-2 font-medium">{row.code}</td>
+                    <td className="px-3 py-2 font-medium text-slate-900">
+                      {index === 0 || !group.multi ? row.plate : (
+                        <span className="text-slate-300" aria-hidden>
+                          ↳
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2">{row.vehicle_type ?? "—"}</td>
+                    <td className="px-3 py-2">
+                      {formatDateTimeBR(row.entry_date, row.entry_time)}
+                      <div className="text-xs text-slate-500">{row.billing_mode ?? "Diária"}</div>
+                    </td>
+                    <td className="px-3 py-2">
+                      {row.status === "Aberto" && canEdit ? (
+                        <div className="flex flex-wrap items-end gap-2">
+                          <input
+                            type="date"
+                            className={`${glassField(true)} w-auto`}
+                            value={draft.date}
+                            onChange={(e) =>
+                              setExitDraft((d) => ({
+                                ...d,
+                                [row.id]: { ...draft, date: e.target.value },
+                              }))
+                            }
+                          />
+                          <input
+                            type="time"
+                            className={`${glassField(false)} w-auto`}
+                            value={draft.time}
+                            onChange={(e) =>
+                              setExitDraft((d) => ({
+                                ...d,
+                                [row.id]: { ...draft, time: e.target.value },
+                              }))
+                            }
+                          />
+                          <Button
+                            type="button"
+                            disabled={saving}
+                            onClick={() => void closeEntry(row)}
+                          >
+                            Finalizar
+                          </Button>
                         </div>
-                      </>
-                    ) : (
-                      "—"
-                    )}
-                  </td>
-                  <td className="px-3 py-2">
-                    {companyId ? (
-                      <PatioPaymentProofClip
-                        companyId={companyId}
-                        entityType="parking_entry"
-                        entityId={row.id}
-                        code={row.code}
-                        canUpload={canEdit}
-                      />
-                    ) : null}
-                  </td>
-                  <td className="px-3 py-2">
-                    {row.total_amount != null ? formatCurrency(Number(row.total_amount)) : "—"}
-                    {totalBreakdown(row) ? (
-                      <div className="text-xs text-slate-500">{totalBreakdown(row)}</div>
-                    ) : null}
-                  </td>
-                  <td className="px-3 py-2">
-                    <Badge
-                      variant={
-                        row.status === "Finalizado"
-                          ? "success"
-                          : row.status === "Cancelado"
-                            ? "danger"
-                            : "warning"
-                      }
-                    >
-                      {row.status}
-                    </Badge>
-                  </td>
-                </tr>
-              );
-            })}
-            {rows.length === 0 && !loading ? (
+                      ) : row.status === "Aberto" ? (
+                        <span className="text-slate-500">Aberto</span>
+                      ) : (
+                        <span>{formatDateTimeBR(row.exit_date, row.exit_time)}</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2">
+                      {row.daily_rate != null ? (
+                        <>
+                          {formatCurrency(Number(row.daily_rate))}
+                          <div className="text-xs text-slate-500">
+                            {rateUnitLabel(row.billing_mode)}
+                          </div>
+                        </>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
+                    <td className="px-3 py-2">
+                      {companyId ? (
+                        <PatioPaymentProofClip
+                          companyId={companyId}
+                          entityType="parking_entry"
+                          entityId={row.id}
+                          code={row.code}
+                          canUpload={canEdit}
+                        />
+                      ) : null}
+                    </td>
+                    <td className="px-3 py-2">
+                      {row.total_amount != null ? formatCurrency(Number(row.total_amount)) : "—"}
+                      {totalBreakdown(row) ? (
+                        <div className="text-xs text-slate-500">{totalBreakdown(row)}</div>
+                      ) : null}
+                    </td>
+                    <td className="px-3 py-2">
+                      <Badge
+                        variant={
+                          row.status === "Finalizado"
+                            ? "success"
+                            : row.status === "Cancelado"
+                              ? "danger"
+                              : "warning"
+                        }
+                      >
+                        {row.status}
+                      </Badge>
+                    </td>
+                  </tr>
+                );
+              })
+            }
+          </GroupedTableBodies>
+          {rows.length === 0 && !loading ? (
+            <tbody>
               <tr>
                 <td colSpan={9} className="px-3 py-6 text-center text-slate-500">
                   Nenhuma ordem ainda.
                 </td>
               </tr>
-            ) : null}
-          </tbody>
+            </tbody>
+          ) : null}
         </table>
       </DataTableScroll>
     </div>
