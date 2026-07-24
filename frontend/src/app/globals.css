@@ -1380,6 +1380,58 @@ body {
   width: max(100%, 36rem);
 }
 
+/** Tabela cabe na largura da tela (sem forçar scroll horizontal). */
+.data-table-scroll--fit {
+  overflow-x: auto;
+}
+
+.data-table-scroll--fit table {
+  width: 100%;
+  min-width: 0;
+  table-layout: fixed;
+}
+
+/** Grupo visual: mesma OS com mais de um sócio. */
+tbody.rateio-os-group > tr > td {
+  background-color: #f8fafc;
+  border-left-color: #f9a8d4;
+  border-right-color: #f9a8d4;
+}
+
+tbody.rateio-os-group > tr > td:first-child {
+  border-left-width: 2px;
+  border-left-style: solid;
+}
+
+tbody.rateio-os-group > tr > td:last-child {
+  border-right-width: 2px;
+  border-right-style: solid;
+}
+
+tbody.rateio-os-group > tr:first-child > td {
+  border-top: 2px solid #f9a8d4;
+}
+
+tbody.rateio-os-group > tr:last-child > td {
+  border-bottom: 2px solid #f9a8d4;
+}
+
+tbody.rateio-os-group > tr:first-child > td:first-child {
+  border-top-left-radius: 0.5rem;
+}
+
+tbody.rateio-os-group > tr:first-child > td:last-child {
+  border-top-right-radius: 0.5rem;
+}
+
+tbody.rateio-os-group > tr:last-child > td:first-child {
+  border-bottom-left-radius: 0.5rem;
+}
+
+tbody.rateio-os-group > tr:last-child > td:last-child {
+  border-bottom-right-radius: 0.5rem;
+}
+
 .data-table-scroll thead th {
   position: sticky;
   top: 0;

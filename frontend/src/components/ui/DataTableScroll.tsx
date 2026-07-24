@@ -8,6 +8,8 @@ type Props = {
   stickyFirst?: boolean;
   /** Coluna da direita fixa (ex.: Ações). */
   stickyLast?: boolean;
+  /** Cabe na largura da tela (sem min-width que força barra horizontal). */
+  fitWidth?: boolean;
   /** Override da altura máxima do quadro (CSS). */
   maxHeight?: string;
   className?: string;
@@ -23,6 +25,7 @@ export function DataTableScroll({
   children,
   stickyFirst = false,
   stickyLast = false,
+  fitWidth = false,
   maxHeight,
   className,
   hint,
@@ -33,7 +36,7 @@ export function DataTableScroll({
     <div className="min-w-0 space-y-2">
       {hint ? <div className="text-xs text-slate-600">{hint}</div> : null}
       <div
-        className={cn(dataTableScroll({ stickyFirst, stickyLast }), className)}
+        className={cn(dataTableScroll({ stickyFirst, stickyLast, fitWidth }), className)}
         style={style}
       >
         {children}

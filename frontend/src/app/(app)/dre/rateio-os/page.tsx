@@ -164,6 +164,22 @@ export default function DreRateioOsPage() {
     return out;
   }, [rows]);
 
+  /** Agrupa linhas por OS — retângulo quando há 2+ sócios. */
+  const detailGroups = useMemo(() => {
+    const groups: { orderId: string; rows: FlatShareRow[]; multiPartner: boolean }[] = [];
+    for (const row of flatRows) {
+      const orderId = row.order.serviceOrderId;
+      const last = groups[groups.length - 1];
+      if (last && last.orderId === orderId) {
+        last.rows.push(row);
+        last.multiPartner = last.rows.length > 1;
+      } else {
+        groups.push({ orderId, rows: [row], multiPartner: false });
+      }
+    }
+    return groups;
+  }, [flatRows]);
+
   if (!canView) {
     return (
       <Card>
@@ -297,67 +313,129 @@ export default function DreRateioOsPage() {
           ) : (
             <DataTableScroll
               stickyFirst
+              fitWidth
               hint={
                 <>
-                  Role o quadro (barra vertical/horizontal). Cabeçalho e coluna <strong>OS</strong>{" "}
-                  ficam fixos — padrão Agenda da Frota. O menu lateral permanece visível.
+                  Em 100% a tabela cabe na tela (cliente abreviado — passe o mouse para ver o nome
+                  completo). OS com <strong>mais de um sócio</strong> ficam dentro do mesmo
+                  retângulo. Cabeçalho e coluna OS ficam fixos ao rolar para baixo.
                 </>
               }
             >
-              <table className="w-full min-w-[62rem] text-sm">
+              <table className="w-full text-[11px] leading-snug sm:text-xs">
+                <colgroup>
+                  <col className="w-[7%]" />
+                  <col className="w-[6%]" />
+                  <col className="w-[7%]" />
+                  <col className="w-[9%]" />
+                  <col className="w-[8%]" />
+                  <col className="w-[8%]" />
+                  <col className="w-[14%]" />
+                  <col className="w-[5%]" />
+                  <col className="w-[9%]" />
+                  <col className="w-[9%]" />
+                  <col className="w-[10%]" />
+                </colgroup>
                 <thead>
                   <tr className="border-b border-slate-200 text-left">
-                    <th className="px-3 py-2.5 font-semibold text-slate-800">OS</th>
-                    <th className="px-3 py-2.5 font-semibold text-slate-800">Data</th>
-                    <th className="px-3 py-2.5 font-semibold text-slate-800">Placa</th>
-                    <th className="px-3 py-2.5 font-semibold text-slate-800">Cliente</th>
-                    <th className="px-3 py-2.5 font-semibold text-slate-800">Receita OS</th>
-                    <th className="px-3 py-2.5 font-semibold text-slate-800">Despesa OS</th>
-                    <th className="px-3 py-2.5 font-semibold text-slate-800">Sócio</th>
-                    <th className="px-3 py-2.5 font-semibold text-slate-800">%</th>
-                    <th className="px-3 py-2.5 font-semibold text-slate-800">Cota receita</th>
-                    <th className="px-3 py-2.5 font-semibold text-slate-800">Cota despesa</th>
-                    <th className="px-3 py-2.5 font-semibold text-slate-800">Cota resultado</th>
+                    <th className="px-1.5 py-2 font-semibold text-slate-800">OS</th>
+                    <th className="px-1.5 py-2 font-semibold text-slate-800">Data</th>
+                    <th className="px-1.5 py-2 font-semibold text-slate-800">Placa</th>
+                    <th className="px-1.5 py-2 font-semibold text-slate-800" title="Cliente">
+                      Cliente
+                    </th>
+                    <th className="px-1.5 py-2 font-semibold text-slate-800" title="Receita OS">
+                      Rec. OS
+                    </th>
+                    <th className="px-1.5 py-2 font-semibold text-slate-800" title="Despesa OS">
+                      Desp. OS
+                    </th>
+                    <th className="px-1.5 py-2 font-semibold text-slate-800">Sócio</th>
+                    <th className="px-1.5 py-2 font-semibold text-slate-800">%</th>
+                    <th className="px-1.5 py-2 font-semibold text-slate-800" title="Cota receita">
+                      Cota rec.
+                    </th>
+                    <th className="px-1.5 py-2 font-semibold text-slate-800" title="Cota despesa">
+                      Cota desp.
+                    </th>
+                    <th className="px-1.5 py-2 font-semibold text-slate-800" title="Cota resultado">
+                      Cota result.
+                    </th>
                   </tr>
                 </thead>
-                <tbody>
-                  {flatRows.map((row) => (
-                    <tr key={row.key} className="border-b border-slate-100 align-top">
-                      <td className="px-3 py-2 font-medium text-slate-900">
-                        <div className="truncate">{row.order.code || "—"}</div>
-                        {row.order.warnings.length ? (
-                          <p className="mt-0.5 text-[11px] leading-snug text-amber-700">
-                            {row.order.warnings.join(" ")}
-                          </p>
-                        ) : null}
-                      </td>
-                      <td className="px-3 py-2 text-slate-700">{formatDate(row.order.serviceDate)}</td>
-                      <td className="truncate px-3 py-2 font-medium text-slate-900">
-                        {row.order.plate || "—"}
-                      </td>
-                      <td className="truncate px-3 py-2 text-slate-600">
-                        {row.order.clientName || "—"}
-                      </td>
-                      <td className="px-3 py-2 text-emerald-800">
-                        {formatCurrency(row.order.revenue)}
-                      </td>
-                      <td className="px-3 py-2 text-amber-800">
-                        {formatCurrency(row.order.expense)}
-                      </td>
-                      <td className="truncate px-3 py-2 text-slate-800">{row.partnerName}</td>
-                      <td className="px-3 py-2 tabular-nums text-slate-700">
-                        {row.partnerId ? `${row.ownershipPct.toFixed(2)}%` : "—"}
-                      </td>
-                      <td className="px-3 py-2 font-medium text-emerald-900">
-                        {formatCurrency(row.revenueShare)}
-                      </td>
-                      <td className="px-3 py-2 text-amber-900">{formatCurrency(row.expenseShare)}</td>
-                      <td className="px-3 py-2 font-medium text-slate-900">
-                        {formatCurrency(row.resultShare)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
+                {detailGroups.map((group) => (
+                  <tbody
+                    key={group.orderId}
+                    className={group.multiPartner ? "rateio-os-group" : undefined}
+                  >
+                    {group.rows.map((row, index) => (
+                      <tr
+                        key={row.key}
+                        className={
+                          group.multiPartner
+                            ? "align-top"
+                            : "border-b border-slate-100 align-top"
+                        }
+                      >
+                        <td className="px-1.5 py-1.5 font-medium text-slate-900">
+                          {index === 0 ? (
+                            <>
+                              <div className="truncate tabular-nums">{row.order.code || "—"}</div>
+                              {row.order.warnings.length ? (
+                                <p className="mt-0.5 text-[10px] leading-snug text-amber-700">
+                                  {row.order.warnings.join(" ")}
+                                </p>
+                              ) : null}
+                            </>
+                          ) : (
+                            <span className="text-slate-300" aria-hidden>
+                              ↳
+                            </span>
+                          )}
+                        </td>
+                        <td className="whitespace-nowrap px-1.5 py-1.5 text-slate-700">
+                          {index === 0 ? formatDate(row.order.serviceDate) : ""}
+                        </td>
+                        <td
+                          className="truncate px-1.5 py-1.5 font-medium text-slate-900"
+                          title={row.order.plate || undefined}
+                        >
+                          {index === 0 ? row.order.plate || "—" : ""}
+                        </td>
+                        <td
+                          className="truncate px-1.5 py-1.5 text-slate-600"
+                          title={row.order.clientName || undefined}
+                        >
+                          {index === 0 ? row.order.clientName || "—" : ""}
+                        </td>
+                        <td className="whitespace-nowrap px-1.5 py-1.5 tabular-nums text-emerald-800">
+                          {index === 0 ? formatCurrency(row.order.revenue) : ""}
+                        </td>
+                        <td className="whitespace-nowrap px-1.5 py-1.5 tabular-nums text-amber-800">
+                          {index === 0 ? formatCurrency(row.order.expense) : ""}
+                        </td>
+                        <td
+                          className="truncate px-1.5 py-1.5 text-slate-800"
+                          title={row.partnerName}
+                        >
+                          {row.partnerName}
+                        </td>
+                        <td className="whitespace-nowrap px-1.5 py-1.5 tabular-nums text-slate-700">
+                          {row.partnerId ? `${row.ownershipPct.toFixed(0)}%` : "—"}
+                        </td>
+                        <td className="whitespace-nowrap px-1.5 py-1.5 font-medium tabular-nums text-emerald-900">
+                          {formatCurrency(row.revenueShare)}
+                        </td>
+                        <td className="whitespace-nowrap px-1.5 py-1.5 tabular-nums text-amber-900">
+                          {formatCurrency(row.expenseShare)}
+                        </td>
+                        <td className="whitespace-nowrap px-1.5 py-1.5 font-medium tabular-nums text-slate-900">
+                          {formatCurrency(row.resultShare)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                ))}
               </table>
             </DataTableScroll>
           )}

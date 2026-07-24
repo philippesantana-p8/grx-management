@@ -76,12 +76,15 @@ export function glassIconBtn(): string {
 export function dataTableScroll(opts?: {
   stickyFirst?: boolean;
   stickyLast?: boolean;
+  /** Cabe na largura (table-layout fixed; sem min-width forçado). */
+  fitWidth?: boolean;
   className?: string;
 }): string {
   return cn(
     "data-table-scroll",
     opts?.stickyFirst && "data-table-scroll--sticky-first",
     opts?.stickyLast && "data-table-scroll--sticky-last",
+    opts?.fitWidth && "data-table-scroll--fit",
     opts?.className
   );
 }
