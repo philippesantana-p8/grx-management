@@ -626,7 +626,7 @@ export default function DashboardPage() {
                   Resumo por produto
                 </h3>
                 <DataTableScroll stickyFirst maxHeight="min(40vh, 20rem)">
-                <table className="min-w-full text-left text-sm">
+                <table className="w-full text-left text-sm">
                   <thead className="text-xs uppercase text-slate-500">
                     <tr>
                       <th className="px-2 py-2">Produto</th>

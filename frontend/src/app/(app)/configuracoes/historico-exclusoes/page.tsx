@@ -445,7 +445,7 @@ export default function HistoricoExclusoesPage() {
       {loading ? <Loading /> : null}
 
       <DataTableScroll stickyLast>
-        <table className="min-w-full text-left text-sm">
+        <table className="w-full text-left text-sm">
           <thead className="bg-slate-50 text-xs uppercase text-slate-500">
             <tr>
               <th className="px-3 py-2">Data / hora</th>
@@ -454,7 +454,7 @@ export default function HistoricoExclusoesPage() {
               <th className="px-3 py-2">Módulo</th>
               <th className="px-3 py-2">Código</th>
               <th className="px-3 py-2">Resumo</th>
-              <th className="min-w-[12rem] px-3 py-2">Motivo</th>
+              <th className="px-3 py-2">Motivo</th>
               <th className="px-3 py-2">Modo</th>
               <th className="px-3 py-2">Status</th>
               <th className="px-3 py-2">Ações</th>
@@ -500,7 +500,7 @@ export default function HistoricoExclusoesPage() {
                     <td className="max-w-xs px-3 py-2 text-slate-700" title={row.summary ?? undefined}>
                       {row.summary || "—"}
                     </td>
-                    <td className="min-w-[12rem] max-w-md px-3 py-2">
+                    <td className="max-w-[12rem] truncate px-3 py-2 sm:max-w-md">
                       {row.reason ? (
                         <p className="whitespace-pre-wrap text-sm font-medium text-slate-900">
                           {row.reason}

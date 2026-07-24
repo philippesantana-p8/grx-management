@@ -245,7 +245,7 @@ export default function DreDespesasMotoristaPage() {
               bloqueia duplicata (também em Lançamentos da empresa).
             </Alert>
             <DataTableScroll stickyFirst stickyLast>
-              <table className="min-w-full text-sm">
+              <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-slate-200 text-left text-slate-600">
                     <th className="px-3 py-2 font-medium">OS</th>

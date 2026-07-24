@@ -238,18 +238,20 @@ export default function DreAprovacoesPage() {
 
       {loading ? <Loading /> : null}
 
-      <DataTableScroll stickyLast>
-        <table className="w-full min-w-[720px] text-center text-sm">
-          <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+      <DataTableScroll stickyLast compact>
+        <table className="w-full text-center text-[11px] leading-snug sm:text-xs">
+          <thead className="bg-slate-50 text-[10px] uppercase tracking-wide text-slate-500 sm:text-xs">
             <tr>
-              <th className="whitespace-nowrap px-2 py-2 text-center">Data</th>
-              <th className="whitespace-nowrap px-2 py-2 text-center">Quem</th>
-              <th className="whitespace-nowrap px-2 py-2 text-center">Origem</th>
-              <th className="min-w-[7.5rem] px-2 py-2 text-center">Conta DRE</th>
-              <th className="whitespace-nowrap px-2 py-2 text-center">Placa</th>
-              <th className="px-2 py-2 text-center">Descrição</th>
-              <th className="whitespace-nowrap px-2 py-2 text-center">Valor</th>
-              <th className="whitespace-nowrap px-2 py-2 text-center">Ações</th>
+              <th className="px-1.5 py-2 text-center">Data</th>
+              <th className="hidden px-1.5 py-2 text-center md:table-cell">Quem</th>
+              <th className="hidden px-1.5 py-2 text-center lg:table-cell">Origem</th>
+              <th className="truncate px-1.5 py-2 text-center" title="Conta DRE">
+                Conta
+              </th>
+              <th className="px-1.5 py-2 text-center">Placa</th>
+              <th className="hidden px-1.5 py-2 text-center xl:table-cell">Descrição</th>
+              <th className="px-1.5 py-2 text-center">Valor</th>
+              <th className="px-1.5 py-2 text-center">Ações</th>
             </tr>
           </thead>
           <GroupedTableBodies groups={pendingGroups} colSpan={8}>
@@ -260,7 +262,7 @@ export default function DreAprovacoesPage() {
                   className={group.multi ? "align-top" : "border-t border-slate-100 align-middle"}
                 >
                   <td
-                    className="whitespace-nowrap px-2 py-2 text-center font-medium text-slate-900"
+                    className="whitespace-nowrap px-1.5 py-1.5 text-center font-medium text-slate-900"
                     title={
                       row.submitted_at
                         ? `Enviado ${formatSubmittedAt(row.submitted_at)}`
@@ -270,19 +272,17 @@ export default function DreAprovacoesPage() {
                     {formatDate(row.transaction_date)}
                   </td>
                   <td
-                    className="max-w-[7rem] truncate px-2 py-2 text-center text-slate-700"
+                    className="hidden max-w-[6rem] truncate px-1.5 py-1.5 text-center text-slate-700 md:table-cell"
                     title={row.submitted_by_name || undefined}
                   >
-                    {row.submitted_by_name || (
-                      <span className="text-slate-400">{row.submitted_by ? "—" : "—"}</span>
-                    )}
+                    {row.submitted_by_name || <span className="text-slate-400">—</span>}
                   </td>
-                  <td className="whitespace-nowrap px-2 py-2 text-center text-slate-600">
+                  <td className="hidden whitespace-nowrap px-1.5 py-1.5 text-center text-slate-600 lg:table-cell">
                     {entrySourceLabel(row.entry_source)}
                   </td>
-                  <td className="px-2 py-2 text-center">
+                  <td className="truncate px-1.5 py-1.5 text-center">
                     <div
-                      className="font-semibold leading-snug text-slate-900"
+                      className="truncate font-semibold text-slate-900"
                       title={
                         [row.dre_account_name, row.classification, row.transaction_type]
                           .filter(Boolean)
@@ -294,7 +294,7 @@ export default function DreAprovacoesPage() {
                       )}
                     </div>
                   </td>
-                  <td className="whitespace-nowrap px-2 py-2 text-center text-slate-700">
+                  <td className="whitespace-nowrap px-1.5 py-1.5 text-center text-slate-700">
                     {index === 0 ? (
                       row.plate || <span className="text-slate-400">—</span>
                     ) : group.multi ? (
@@ -306,21 +306,21 @@ export default function DreAprovacoesPage() {
                     )}
                   </td>
                   <td
-                    className="max-w-[10rem] truncate px-2 py-2 text-center text-slate-700"
+                    className="hidden max-w-[8rem] truncate px-1.5 py-1.5 text-center text-slate-700 xl:table-cell"
                     title={row.description || undefined}
                   >
                     {row.description || "—"}
                   </td>
-                  <td className="whitespace-nowrap px-2 py-2 text-center font-medium text-slate-900">
+                  <td className="whitespace-nowrap px-1.5 py-1.5 text-center font-medium text-slate-900">
                     {formatCurrency(row.amount)}
                   </td>
-                  <td className="px-2 py-2 text-center">
-                    <div className="inline-flex flex-nowrap items-center justify-center gap-1.5">
+                  <td className="px-1.5 py-1.5 text-center">
+                    <div className="os-row-actions inline-flex flex-wrap items-center justify-center gap-1">
                       <Button
                         type="button"
                         size="sm"
                         variant="moss"
-                        className="shrink-0 !px-2.5 !py-1 text-xs"
+                        className="!px-2 !py-0.5 text-[10px] sm:text-xs"
                         disabled={busyId === row.id}
                         onClick={() => {
                           void (async () => {
@@ -343,6 +343,7 @@ export default function DreAprovacoesPage() {
                             await load();
                           })();
                         }}
+                        title="Aprovar lançamento"
                       >
                         Aprovar
                       </Button>
@@ -350,12 +351,13 @@ export default function DreAprovacoesPage() {
                         type="button"
                         size="sm"
                         variant="danger"
-                        className="shrink-0 !px-2.5 !py-1 text-xs"
+                        className="!px-2 !py-0.5 text-[10px] sm:text-xs"
                         disabled={busyId === row.id || deleting}
                         onClick={() => {
                           setRejectId(row.id);
                           setRejectNote("");
                         }}
+                        title="Rejeitar lançamento"
                       >
                         Rejeitar
                       </Button>
@@ -363,7 +365,7 @@ export default function DreAprovacoesPage() {
                         type="button"
                         size="sm"
                         variant="ink"
-                        className="shrink-0 !px-2.5 !py-1 text-xs"
+                        className="!px-2 !py-0.5 text-[10px] sm:text-xs"
                         disabled={busyId === row.id || deleting}
                         onClick={() => {
                           setError(null);

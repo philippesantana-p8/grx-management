@@ -116,7 +116,7 @@ export function DriverDocumentsFollowupPanel({ companyId }: Props) {
       <section className={glassFilterPanel()}>
         <h2 className="mb-2 text-sm font-semibold">Motoristas em acompanhamento</h2>
         <DataTableScroll stickyFirst stickyLast>
-          <table className="min-w-full text-left text-sm">
+          <table className="w-full text-left text-sm">
           <thead className="text-xs uppercase text-slate-500">
             <tr>
               <th className="px-2 py-2">Motorista</th>

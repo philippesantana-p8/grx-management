@@ -152,7 +152,7 @@ export default function UsuariosAcessosPage() {
             <p className="text-sm text-slate-500">Nenhum usuário vinculado.</p>
           ) : (
             <DataTableScroll stickyFirst stickyLast>
-              <table className="min-w-full text-left text-sm">
+              <table className="w-full text-left text-sm">
                 <thead>
                   <tr className="border-b border-slate-200 text-slate-500">
                     <th className="px-2 py-2 font-medium">Nome / e-mail</th>

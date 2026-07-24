@@ -322,7 +322,7 @@ export default function DocumentosLicencasPage() {
 
           <div className={glassFilterPanel()}>
             <DataTableScroll stickyFirst stickyLast>
-              <table className="min-w-full text-left text-sm">
+              <table className="w-full text-left text-sm">
               <thead className="text-xs uppercase text-slate-500">
                 <tr>
                   <th className="px-2 py-2">Sigla</th>
@@ -451,7 +451,7 @@ export default function DocumentosLicencasPage() {
           ) : (
             <div className={glassFilterPanel()}>
               <DataTableScroll stickyFirst stickyLast>
-                <table className="min-w-full text-left text-sm">
+                <table className="w-full text-left text-sm">
                 <thead className="text-xs uppercase text-slate-500">
                   <tr>
                     <th className="px-2 py-2">Documento</th>

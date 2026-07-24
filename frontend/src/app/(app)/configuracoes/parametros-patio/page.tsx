@@ -313,7 +313,7 @@ export default function ParametrosPatioPage() {
         </Button>
         ) : null}
         <DataTableScroll stickyFirst>
-          <table className="min-w-full text-left text-sm">
+          <table className="w-full text-left text-sm">
             <thead className="text-xs uppercase text-slate-500">
               <tr>
                 <th className="px-2 py-2">Código</th>
@@ -437,7 +437,7 @@ export default function ParametrosPatioPage() {
         ) : null}
 
         <DataTableScroll stickyFirst stickyLast>
-          <table className="min-w-full text-left text-sm">
+          <table className="w-full text-left text-sm">
             <thead className="text-xs uppercase text-slate-500">
               <tr>
                 <th className="px-2 py-2">Cód.</th>

@@ -607,7 +607,7 @@ export function FreightCalculatorPanel({
           </div>
           {tolls.length > 0 ? (
             <div className="overflow-x-auto rounded border border-amber-100 bg-white">
-              <table className="min-w-full text-left text-xs">
+              <table className="w-full text-left text-xs">
                 <thead className="bg-slate-50 text-slate-600">
                   <tr>
                     <th className="px-2 py-1.5 font-medium">#</th>

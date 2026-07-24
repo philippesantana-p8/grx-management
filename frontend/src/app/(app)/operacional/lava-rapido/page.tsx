@@ -336,7 +336,7 @@ export default function LavaRapidoPage() {
       ) : null}
 
       <DataTableScroll stickyFirst stickyLast>
-        <table className="min-w-full text-left text-sm">
+        <table className="w-full text-left text-sm">
           <thead className="bg-slate-50 text-xs uppercase text-slate-500">
             <tr>
               <th className="px-3 py-2">Código</th>

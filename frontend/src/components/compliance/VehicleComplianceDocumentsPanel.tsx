@@ -219,7 +219,7 @@ export function VehicleComplianceDocumentsPanel({
             <p className="text-sm text-slate-500">Nenhum documento cadastrado neste veículo.</p>
           ) : (
             <DataTableScroll stickyFirst stickyLast>
-              <table className="min-w-full text-left text-sm">
+              <table className="w-full text-left text-sm">
               <thead className="text-xs uppercase text-slate-500">
                 <tr>
                   <th className="px-2 py-2">Documento</th>
@@ -327,7 +327,7 @@ export function VehicleComplianceDocumentsPanel({
           <p className="text-sm text-slate-500">Nenhum documento da empresa cadastrado.</p>
         ) : (
           <DataTableScroll stickyFirst>
-            <table className="min-w-full text-left text-sm">
+            <table className="w-full text-left text-sm">
               <thead className="text-xs uppercase text-slate-500">
                 <tr>
                   <th className="px-2 py-2">Documento</th>

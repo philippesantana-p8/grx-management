@@ -1386,8 +1386,8 @@ body {
 }
 
 .data-table-scroll--fit table {
-  width: 100%;
-  min-width: 0;
+  width: 100% !important;
+  min-width: 0 !important;
   table-layout: fixed;
 }
 
@@ -1397,8 +1397,8 @@ body {
  */
 @media (max-width: 639px) {
   .data-table-scroll--fit table {
-    width: max(100%, 40rem);
-    min-width: 40rem;
+    width: max(100%, 40rem) !important;
+    min-width: 40rem !important;
     table-layout: auto;
   }
 
@@ -1423,8 +1423,8 @@ body {
   }
 
   .data-table-scroll--compact.data-table-scroll--fit table {
-    width: max(100%, 36rem);
-    min-width: 36rem;
+    width: max(100%, 36rem) !important;
+    min-width: 36rem !important;
   }
 }
 
