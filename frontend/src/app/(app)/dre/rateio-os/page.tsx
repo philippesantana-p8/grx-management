@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, Loading } from "@/components/ui/Badge";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { DataTableScroll } from "@/components/ui/DataTableScroll";
@@ -15,7 +15,11 @@ import {
 } from "@/lib/dre-os-rateio-api";
 import { glassAction, glassField, glassFilterPanel, glassStatCard } from "@/lib/liquid-glass-styles";
 import { createClient } from "@/lib/supabase/client";
-import { DATA_ROW_GROUP_CLASS, groupConsecutiveByKey } from "@/lib/table-row-groups";
+import {
+  DATA_ROW_GROUP_CLASS,
+  DATA_ROW_GROUP_GAP_CLASS,
+  groupConsecutiveByKey,
+} from "@/lib/table-row-groups";
 import { formatCurrency } from "@/lib/utils";
 
 function formatDate(value: string): string {
@@ -308,8 +312,8 @@ export default function DreRateioOsPage() {
               hint={
                 <>
                   No computador a tabela cabe em 100% (cliente abreviado — passe o mouse para o nome
-                  completo). No celular, role na horizontal para ler todas as colunas; a coluna{" "}
-                  <strong>OS</strong> fica fixa. OS com <strong>mais de um sócio</strong> ficam no
+                  completo). No celular, role na horizontal; a coluna <strong>OS</strong> fica fixa.
+                  Cada OS é um quadro separado (com vão entre eles). Sócios da mesma OS ficam no
                   mesmo retângulo.
                 </>
               }
@@ -355,79 +359,80 @@ export default function DreRateioOsPage() {
                     </th>
                   </tr>
                 </thead>
-                {detailGroups.map((group) => (
-                  <tbody
-                    key={group.key}
-                    className={group.multi ? DATA_ROW_GROUP_CLASS : undefined}
-                  >
-                    {group.rows.map((row, index) => (
-                      <tr
-                        key={row.key}
-                        className={
-                          group.multi ? "align-top" : "border-b border-slate-100 align-top"
-                        }
-                      >
-                        <td className="px-1.5 py-1.5 font-medium text-slate-900">
-                          {index === 0 ? (
-                            <>
-                              <div className="truncate tabular-nums">{row.order.code || "—"}</div>
-                              {row.order.warnings.length ? (
-                                <p
-                                  className="data-row-warn mt-0.5 text-[10px] leading-snug text-amber-700"
-                                  title={row.order.warnings.join(" ")}
-                                >
-                                  {row.order.warnings.join(" ")}
-                                </p>
-                              ) : null}
-                            </>
-                          ) : (
-                            <span className="text-slate-300" aria-hidden>
-                              ↳
-                            </span>
-                          )}
-                        </td>
-                        <td className="whitespace-nowrap px-1.5 py-1.5 text-slate-700">
-                          {index === 0 ? formatDate(row.order.serviceDate) : ""}
-                        </td>
-                        <td
-                          className="truncate px-1.5 py-1.5 font-medium text-slate-900"
-                          title={row.order.plate || undefined}
-                        >
-                          {index === 0 ? row.order.plate || "—" : ""}
-                        </td>
-                        <td
-                          className="truncate px-1.5 py-1.5 text-slate-600"
-                          title={row.order.clientName || undefined}
-                        >
-                          {index === 0 ? row.order.clientName || "—" : ""}
-                        </td>
-                        <td className="whitespace-nowrap px-1.5 py-1.5 tabular-nums text-emerald-800">
-                          {index === 0 ? formatCurrency(row.order.revenue) : ""}
-                        </td>
-                        <td className="whitespace-nowrap px-1.5 py-1.5 tabular-nums text-amber-800">
-                          {index === 0 ? formatCurrency(row.order.expense) : ""}
-                        </td>
-                        <td
-                          className="truncate px-1.5 py-1.5 text-slate-800"
-                          title={row.partnerName}
-                        >
-                          {row.partnerName}
-                        </td>
-                        <td className="whitespace-nowrap px-1.5 py-1.5 tabular-nums text-slate-700">
-                          {row.partnerId ? `${row.ownershipPct.toFixed(0)}%` : "—"}
-                        </td>
-                        <td className="whitespace-nowrap px-1.5 py-1.5 font-medium tabular-nums text-emerald-900">
-                          {formatCurrency(row.revenueShare)}
-                        </td>
-                        <td className="whitespace-nowrap px-1.5 py-1.5 tabular-nums text-amber-900">
-                          {formatCurrency(row.expenseShare)}
-                        </td>
-                        <td className="whitespace-nowrap px-1.5 py-1.5 font-medium tabular-nums text-slate-900">
-                          {formatCurrency(row.resultShare)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
+                {detailGroups.map((group, groupIndex) => (
+                  <Fragment key={group.key}>
+                    {groupIndex > 0 ? (
+                      <tbody className={DATA_ROW_GROUP_GAP_CLASS} aria-hidden>
+                        <tr>
+                          <td colSpan={11} />
+                        </tr>
+                      </tbody>
+                    ) : null}
+                    <tbody className={DATA_ROW_GROUP_CLASS}>
+                      {group.rows.map((row, index) => (
+                        <tr key={row.key} className="align-top">
+                          <td className="px-1.5 py-1.5 font-medium text-slate-900">
+                            {index === 0 ? (
+                              <>
+                                <div className="truncate tabular-nums">{row.order.code || "—"}</div>
+                                {row.order.warnings.length ? (
+                                  <p
+                                    className="data-row-warn mt-0.5 text-[10px] leading-snug text-amber-700"
+                                    title={row.order.warnings.join(" ")}
+                                  >
+                                    {row.order.warnings.join(" ")}
+                                  </p>
+                                ) : null}
+                              </>
+                            ) : (
+                              <span className="text-slate-300" aria-hidden>
+                                ↳
+                              </span>
+                            )}
+                          </td>
+                          <td className="whitespace-nowrap px-1.5 py-1.5 text-slate-700">
+                            {index === 0 ? formatDate(row.order.serviceDate) : ""}
+                          </td>
+                          <td
+                            className="truncate px-1.5 py-1.5 font-medium text-slate-900"
+                            title={row.order.plate || undefined}
+                          >
+                            {index === 0 ? row.order.plate || "—" : ""}
+                          </td>
+                          <td
+                            className="truncate px-1.5 py-1.5 text-slate-600"
+                            title={row.order.clientName || undefined}
+                          >
+                            {index === 0 ? row.order.clientName || "—" : ""}
+                          </td>
+                          <td className="whitespace-nowrap px-1.5 py-1.5 tabular-nums text-emerald-800">
+                            {index === 0 ? formatCurrency(row.order.revenue) : ""}
+                          </td>
+                          <td className="whitespace-nowrap px-1.5 py-1.5 tabular-nums text-amber-800">
+                            {index === 0 ? formatCurrency(row.order.expense) : ""}
+                          </td>
+                          <td
+                            className="truncate px-1.5 py-1.5 text-slate-800"
+                            title={row.partnerName}
+                          >
+                            {row.partnerName}
+                          </td>
+                          <td className="whitespace-nowrap px-1.5 py-1.5 tabular-nums text-slate-700">
+                            {row.partnerId ? `${row.ownershipPct.toFixed(0)}%` : "—"}
+                          </td>
+                          <td className="whitespace-nowrap px-1.5 py-1.5 font-medium tabular-nums text-emerald-900">
+                            {formatCurrency(row.revenueShare)}
+                          </td>
+                          <td className="whitespace-nowrap px-1.5 py-1.5 tabular-nums text-amber-900">
+                            {formatCurrency(row.expenseShare)}
+                          </td>
+                          <td className="whitespace-nowrap px-1.5 py-1.5 font-medium tabular-nums text-slate-900">
+                            {formatCurrency(row.resultShare)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </Fragment>
                 ))}
               </table>
             </DataTableScroll>

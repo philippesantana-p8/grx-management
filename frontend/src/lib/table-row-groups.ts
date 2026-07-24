@@ -46,3 +46,6 @@ export function groupByKeySorted<T>(
 
 /** Classe CSS do retângulo de grupo (globals.css). */
 export const DATA_ROW_GROUP_CLASS = "data-row-group";
+
+/** Vão entre um quadro e o próximo (não encostar os retângulos). */
+export const DATA_ROW_GROUP_GAP_CLASS = "data-row-group-gap";
